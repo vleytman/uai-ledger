@@ -31,6 +31,10 @@ The binding file contains identifiers, not API keys. Its connection must belong 
 
 ## Validation, Publication, and Activation
 
+![Swimlane from committed JSON and installation bindings through validation, publication, activation and new quotes](diagrams/configuration-publishing.svg)
+
+Publishing saves an immutable release; activation makes it selectable for new quotes. Neither step changes the versions already saved on accepted work. The diagram groups validation and preview together because both roll back their checks.
+
 First apply migrations to the selected local database with `pnpm db:migrate`. The commands below read `DATABASE_URL` from the environment; replace `org_example` and `app_example` with existing identifiers.
 
 ```sh

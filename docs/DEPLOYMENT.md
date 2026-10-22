@@ -6,6 +6,10 @@ Use the templates in `deploy/` to split the backend across three nodes. Before s
 
 ## Roles
 
+![Three-host deployment with reverse proxy, API and scheduler on the application node, separate workers and data node, and shared object storage](diagrams/three-node-deployment.svg)
+
+This layout places your reverse proxy on the application host so it can reach the loopback API. The proxy is product-managed; it is not installed by the UAI templates. The diagram shows selected network paths and omits provider egress and the manual migration command. Shared S3 storage uses the same installation prefix on every role.
+
 | Node | Template | Processes |
 |---|---|---|
 | Data | `deploy/compose.data.yaml` | PostgreSQL 17, Redis 7.4 with AOF and noeviction |

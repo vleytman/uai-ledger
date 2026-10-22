@@ -159,6 +159,10 @@ After dispatch, cancellation charges confirmed spending of the active attempt wi
 
 ## Lease and recovery
 
+![Decision tree for recovering a lost worker: requeue unsent work, observe the saved job, reuse provider idempotency, or retain an unknown outcome](diagrams/lease-recovery.svg)
+
+The diagram covers lease expiry. Resumed work still needs valid deadlines, quotas, and budgets. Attempt timeouts and policies that explicitly accept duplicate provider cost follow the separate rules below.
+
 A worker periodically renews its lease. A fencing token prevents an old worker from committing a result over a new owner's result. It cannot itself prevent a second external call.
 
 After lease expiry:

@@ -6,6 +6,10 @@ Your backend authenticates users and checks their team memberships. It then pass
 
 ## Setup
 
+![Sequence showing browser session verification by the application, asserted identity sent to UAI, and account-scoped resource access](diagrams/external-identity.svg)
+
+This is the successful user-context path. Your backend checks the session, membership, and product permissions; UAI checks its service token and account scope. Staff access to the shared admin build uses the separate adapter described below.
+
 1. Apply migrations, including `0055_external_identity.sql`, before starting the updated API. Verify the upgrade using a separate database, rather than the active demo.
 2. Give the server key the required existing scopes and the additional `identity:assert`. Old keys do not receive it automatically. A user key must not have credit-grant or installation-management permissions.
 3. Check `await client.assertExternalIdentitySupport()`. `/health` must return `capabilities.external_identity: 1`. An old or unavailable API is not considered compatible. An external administrative build performs this check itself.

@@ -122,6 +122,10 @@ For GPT Image, use only dimensions covered by the pricing method’s validation.
 
 ## 7. Final price calculation and execution
 
+![Waterfall example showing a 0.010 USD estimate plus safety and markup becoming a 0.015 USD fixed price, equivalent to 15 credits](diagrams/final-price-example.svg)
+
+For illustration, a $0.010 estimate with a 20% buffer becomes $0.012. A 25% markup on that buffered amount adds $0.003, giving a fixed quote of $0.015, or 15 credits in the standard credit unit. These are example settings, not provider prices or a guarantee of profit. This calculation applies to `quoted_final`; actual-usage modes follow their own settlement rules.
+
 Order:
 
 1. Validate parameters against the published model schema and prepare input.

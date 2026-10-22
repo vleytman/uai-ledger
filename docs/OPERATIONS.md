@@ -95,6 +95,10 @@ Releasing local capacity does not cancel a provider request. It also does not au
 
 ## Inspect an operation
 
+![Investigation tree linking an operation to requests, attempts, usage, provider costs and separate wallet postings](diagrams/operation-investigation.svg)
+
+Use this as an investigation map rather than a database schema. Every attempt can have usage and cost records, including failed attempts; only one branch is expanded here. Compare those records with the customer wallet journal instead of assuming the amounts must match.
+
 Start with the operation, then follow its requests, attempts, usage, provider costs, and wallet postings. Check the accepted profile versions, actual model, timing, retry or failover reason, final usage, and settlement status.
 
 Check customer reservations, provider exposure, and platform-funded costs separately. Execution may be finished while settlement is still unresolved. A missing charge does not make an unknown cost zero.
