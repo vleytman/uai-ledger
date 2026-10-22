@@ -1,85 +1,41 @@
-# UAI Ledger
+<p align="center">
+  <img src="docs/assets/uai-ledger-banner.png" width="960" alt="UAI Ledger — abstract layers and ledger entries on a light paper background">
+</p>
 
-UAI Ledger handles AI requests and paid API calls for your application. You submit work through the API or TypeScript SDK; UAI estimates the cost, reserves credits, queues the request, and records what happened at the provider. Your application gets the result without having to build its own wallet journal and execution queue.
+<p align="center">
+  <strong>AI execution, credit wallets, and cost accounting for your application.</strong>
+</p>
 
-You host UAI yourself. The usual setup is one installation per application, with its own PostgreSQL database, storage, configuration, and provider credentials.
+<p align="center">
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#core-concepts">Core concepts</a> ·
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#providers-and-configuration">Providers</a> ·
+  <a href="#application-integration">API &amp; SDK</a> ·
+  <a href="docs/README.md">Docs</a>
+</p>
 
-The repository includes the service, an admin interface, and a demo application you can run locally. Before using it in production, validate your infrastructure and settings, then check each provider connection with your own credentials and spending limits.
+---
 
-## What it is for
+UAI Ledger is a self-hosted service that runs AI requests and paid API calls for your app. Submit work through the API or TypeScript SDK; UAI estimates the cost, reserves credits, queues the request, and records usage and provider costs as the work runs.
 
-Calling a model is the easy part. Once you use several providers, you also need to decide who pays, how much to reserve, and what to do when a request times out after the provider may already have accepted it.
+- **One execution layer.** Use configured adapters for text, images, speech, embeddings, and paid tools, with queues, quotas, deadlines, cancellation, and recovery.
+- **Credit wallets.** Track grants, expiration, reservations, charges, and refunds in a financial journal with protection against duplicate commands.
+- **Costs you can follow.** Inspect each provider attempt and keep provider costs separate from customer charges and payment revenue. Unknown outcomes stay visible.
+- **Results your app owns.** Save results in your own storage, then acknowledge delivery. UAI keeps the financial history and removes temporary content under its retention rules.
 
-UAI handles that work on the server:
+The repository includes the service, TypeScript SDK, admin interface, and a synthetic demo. The usual setup is one installation per application, with its own database, storage, configuration, and provider keys. Your app keeps its users, permissions, product UI, and payment integration.
 
-- Maintains credit wallets, individual credit lots, expiration dates, reservations, charges, and refunds.
-- Estimates costs using published versions of models and rates.
-- Executes text, image, speech, embedding, and paid-tool requests through adapters.
-- Manages queues, quotas, concurrency, timeouts, cancellation, and recovery after failures.
-- Records attempts, provider costs, and customer settlement.
-- Delivers events and results to the application and supports acknowledgment after persistence.
-- Gives administrators access to wallets, operations, connections, budgets, and queue status.
+## How it works
 
-Your application still owns its users, roles, interface, and payment integration, including subscriptions, taxes, and commercial discounts. Connect those systems to UAI's authorization and accounting APIs.
+1. **Choose the work.** Select a published model profile or recipe and supply the input.
+2. **Get a quote.** UAI calculates the price or estimate and returns the payment terms, configuration versions, and required reservation.
+3. **Accept the terms.** UAI reserves funds and creates an operation. Repeating the same command with the same idempotency key and input returns the accepted work.
+4. **Run the request.** A worker checks queue capacity and provider quotas, records dispatch intent, and calls the provider under the accepted execution policy.
+5. **Settle the result.** UAI saves the result and usage information, calculates the customer charge, and releases unused reservations according to the accepted terms. An unknown provider cost remains unresolved rather than becoming zero.
+6. **Save, then acknowledge.** Your app saves the result durably before confirming delivery. UAI can then remove its temporary copy while retaining the financial records.
 
-## Request lifecycle
-
-1. The application selects a published model profile or recipe and supplies the input.
-2. UAI returns a `quote` containing the payment terms, configuration versions, and required reservation.
-3. Once the quote is accepted, the service reserves funds and creates an operation. Repeating the same idempotent command does not create another charge.
-4. A worker obtains queue and quota admission, records dispatch intent, and calls the provider.
-5. UAI persists the result and usage information, calculates the charge, and releases unused reservations according to the accepted operation's rules.
-6. The application receives the result, persists it in its own storage, and acknowledges delivery. UAI removes temporary content according to its retention policy while keeping the required financial history.
-
-For work that grows over several calls, open a reservation pool and add invocations as you go. See the [quoting and reservation rules](docs/QUOTING.md).
-
-## Financial rules
-
-Keep three amounts separate: what the provider costs you, what you charge the customer's credit wallet, and what your payment service collects. A result can be ready before its exact provider cost is known. A delivery error can happen after you have already incurred that cost.
-
-| Situation | UAI behavior |
-|---|---|
-| A client repeats a financial command | Returns the previous command's result when its idempotency key and data match |
-| Funds are reserved | Preserves the accepted work's terms and configuration versions |
-| A provider may have accepted a request, but the response was lost | Preserves the unknown outcome; does not treat the cost as zero or blindly repeat potentially completed work |
-| Confirmed usage becomes available | Calculates the charge under the accepted policy, with protection against duplicate charging |
-| The result is technically defective | Applies platform-funded payment rules and records the platform's costs |
-| Rates change | New versions apply to new work; existing operations keep their accepted terms |
-
-Choose the payment policy that fits the profile: a final price agreed before execution, actual-usage settlement within an accepted maximum, or an `estimated_actual` forecast. With a forecast, the reservation is only an initial hold; the final charge may be higher, and an authorized policy can allow debt. Show that distinction in your interface so users know what they are agreeing to.
-
-The API sends integer monetary values as strings to preserve precision. Budget units, wallet credits, and provider-native allowances each have their own meaning; see [accounting](docs/ACCOUNTING.md), [quoting](docs/QUOTING.md), and the [paid API contract](docs/PAID_API_CONTRACT.md).
-
-## Architecture
-
-![Architecture showing the application backend, UAI API, workers, scheduler, database, queue and temporary storage](docs/diagrams/architecture.svg)
-
-The service runs as separate processes, with shared code and contracts:
-
-| Component | Purpose |
-|---|---|
-| API | Authorization, wallets, quotes, operation acceptance, result reads, and events |
-| Workers | Request execution, adapter calls, result persistence, and attempt settlement |
-| Scheduler | Recovery, financial deadlines, credit expiration, cleanup, and queue maintenance |
-| PostgreSQL | Financial journal, configuration, operations, attempts, and consistent state |
-| Redis / BullMQ | Distributed job delivery and execution coordination in the corresponding mode |
-| Blob storage | Temporary input files and results, using the local filesystem or S3-compatible storage |
-| Admin | Installation management through a server-backed administrative interface |
-| Demo | A separate test client for checking the complete API and SDK workflow |
-
-The backend is written in TypeScript and uses Fastify. The interfaces use TanStack Start, React, and shared UI components. API schemas and TypeScript SDK types are included in the repository.
-
-If you run workers on several machines, they need shared storage and matching installation settings. The [deployment guide](docs/DEPLOYMENT.md) covers startup order, container templates, and the checks you still need to run for your environment.
-
-## Providers and configuration
-
-The code registers adapters for OpenAI, Anthropic, Cartesia, Serper, Firecrawl, Cerebras, Groq, Google Cloud, Quiver, Replicate, Voyage, and TypeSafe. Synthetic adapters are also available for local checks.
-
-Each adapter supports a specific set of models and operations. Read its integration guide for parameters, usage reporting, and limitations, then verify current prices and account limits before enabling it.
-
-Keep models, rates, routes, recipes, and API definitions in [configurations/](configurations/). UAI validates changes and publishes immutable versions, so accepted work can keep the configuration it started with. Credentials stay out of these files. Use the admin interface to inspect published definitions and change supported operational settings.
-
-See [file configuration](docs/FILE_CONFIGURATION.md), [universal invocations](docs/INVOCATIONS.md), and [deployment requirements](docs/DEPLOYMENT.md).
+For work that grows over several calls, open a reservation pool and add invocations as you go. See the [quoting and reservation rules](docs/QUOTING.md) and the [request and delivery diagram](docs/INVOCATIONS.md#request-and-delivery-flow).
 
 ## Quick start
 
@@ -155,6 +111,67 @@ Open the demo and sign in with `login_password` from `.data/demo-config.json`. T
 Use the demo's test-credit form to fund the wallet. Select a synthetic profile, get a quote, confirm the request, and check the result, reservation, and final charge. Keep the API, worker, and scheduler running throughout.
 
 For BullMQ, S3, fixtures, and diagnostics, follow the [local run guide](docs/LOCAL_RUN.md). Check for an existing installation before starting another set of processes on the same ports and database.
+
+## Core concepts
+
+| Concept | What it means |
+|---|---|
+| Model profile | A published choice of model, parameters, routing, pricing, and execution settings |
+| Quote | The calculated terms for specific input: a fixed price, an accepted cap, or an estimate, depending on billing mode |
+| Operation | Accepted work with its saved terms and reservation; it can contain one or several requests |
+| Request and attempt | A request is a work item; each attempt records a separate submission to a provider |
+| Wallet and credit lot | The customer's credit budget, split into grants with their own terms and expiration |
+| Reservation | Credits held for accepted work; the hold itself is not a charge |
+
+Payment mode matters. A fixed-price quote, an actual-usage cap, and an `estimated_actual` forecast make different promises. In forecast mode, the initial hold is not a guaranteed ceiling and an authorized policy can allow debt. See [financial rules](#financial-rules) before choosing what to show in your UI.
+
+## Architecture
+
+![Architecture showing the application backend, UAI API, workers, scheduler, database, queue and temporary storage](docs/diagrams/architecture.svg)
+
+The service runs as separate processes, with shared code and contracts:
+
+| Component | Purpose |
+|---|---|
+| API | Authorization, wallets, quotes, operation acceptance, result reads, and events |
+| Workers | Request execution, adapter calls, result persistence, and attempt settlement |
+| Scheduler | Recovery, financial deadlines, credit expiration, cleanup, and queue maintenance |
+| PostgreSQL | Financial journal, configuration, operations, attempts, and consistent state |
+| Redis / BullMQ | Distributed job delivery and execution coordination in the corresponding mode |
+| Blob storage | Temporary input files and results, using the local filesystem or S3-compatible storage |
+| Admin | Installation management through a server-backed administrative interface |
+| Demo | A separate test client for checking the complete API and SDK workflow |
+
+The backend is written in TypeScript and uses Fastify. The interfaces use TanStack Start, React, and shared UI components. API schemas and TypeScript SDK types are included in the repository.
+
+If you run workers on several machines, they need shared storage and matching installation settings. The [deployment guide](docs/DEPLOYMENT.md) covers startup order, container templates, and the checks you still need to run for your environment.
+
+## Providers and configuration
+
+The code registers adapters for OpenAI, Anthropic, Cartesia, Serper, Firecrawl, Cerebras, Groq, Google Cloud, Quiver, Replicate, Voyage, and TypeSafe. Synthetic adapters are also available for local checks.
+
+Each adapter supports a specific set of models and operations. Read its integration guide for parameters, usage reporting, and limitations, then verify current prices and account limits before enabling it.
+
+Keep models, rates, routes, recipes, and API definitions in [configurations/](configurations/). UAI validates changes and publishes immutable versions, so accepted work can keep the configuration it started with. Credentials stay out of these files. Use the admin interface to inspect published definitions and change supported operational settings.
+
+See [file configuration](docs/FILE_CONFIGURATION.md), [universal invocations](docs/INVOCATIONS.md), and [deployment requirements](docs/DEPLOYMENT.md).
+
+## Financial rules
+
+Keep three amounts separate: what the provider costs you, what you charge the customer's credit wallet, and what your payment service collects. A result can be ready before its exact provider cost is known. A delivery error can happen after you have already incurred that cost.
+
+| Situation | UAI behavior |
+|---|---|
+| A client repeats a financial command | Returns the previous command's result when its idempotency key and data match |
+| Funds are reserved | Preserves the accepted work's terms and configuration versions |
+| A provider may have accepted a request, but the response was lost | Preserves the unknown outcome; does not treat the cost as zero or blindly repeat potentially completed work |
+| Confirmed usage becomes available | Calculates the charge under the accepted policy, with protection against duplicate charging |
+| The result is technically defective | Applies platform-funded payment rules and records the platform's costs |
+| Rates change | New versions apply to new work; existing operations keep their accepted terms |
+
+Choose the payment policy that fits the profile: a final price agreed before execution, actual-usage settlement within an accepted maximum, or an `estimated_actual` forecast. With a forecast, the reservation is only an initial hold; the final charge may be higher, and an authorized policy can allow debt. Show that distinction in your interface so users know what they are agreeing to.
+
+The API sends integer monetary values as strings to preserve precision. Budget units, wallet credits, and provider-native allowances each have their own meaning; see [accounting](docs/ACCOUNTING.md), [quoting](docs/QUOTING.md), and the [paid API contract](docs/PAID_API_CONTRACT.md).
 
 ## Application integration
 
