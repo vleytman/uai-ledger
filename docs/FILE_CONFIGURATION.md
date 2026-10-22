@@ -2,7 +2,7 @@
 
 [Contents](README.md) · [Local Run](LOCAL_RUN.md)
 
-This guide explains how to manage model definitions, pricing, routes, recipes and API services in Git while keeping connections, secrets and operational limits in the installation database.
+Keep model definitions, pricing, routes, recipes, and API services in Git. Keep connections, secrets, and operational limits in the installation database. The commands below connect the two without putting credentials in the repository.
 
 ## Data Ownership
 
@@ -14,9 +14,9 @@ This guide explains how to manage model definitions, pricing, routes, recipes an
 
 Example: [openai-nano.json](../configurations/ai/openai-nano.json). Adapt the model parameters, rates and bindings for your installation; recheck provider prices and model availability before publication.
 
-The [JSON Schema](../configurations/schema.json) defines the format version, allowed resource kinds, fields, and references. Existing UAI domain validators additionally check nested calculation methods, rates, and recipes. Check that the schema is current with `pnpm check:configuration`; update it after format changes with `pnpm generate:configuration`. These are data for the existing calculation engine. JSON cannot connect arbitrary code, an HTTP endpoint address, a secret, or a new workflow.
+The [JSON Schema](../configurations/schema.json) defines the file format, resource kinds, fields, and references. UAI's domain validators also check calculation methods, rates, and recipes. Run `pnpm check:configuration` to check that the schema is current, or `pnpm generate:configuration` after changing the format. These files configure the existing calculation engine; they cannot add executable code, arbitrary HTTP endpoints, secrets, or new workflows.
 
-References within the bundle: `@rate_card:key`, `@catalog:key`, `@route:key`. Installation references: `@connection:primary`, `@budget:period`. They are resolved only in designated fields. The publisher does not replace strings inside user text or formulas.
+Use `@rate_card:key`, `@catalog:key`, and `@route:key` for references within a bundle. Use `@connection:primary` and `@budget:period` for installation bindings. The publisher resolves these only in designated fields; it leaves user text and formulas alone.
 
 Example of a separate installation binding file, which must not be added to Git:
 
@@ -27,7 +27,7 @@ Example of a separate installation binding file, which must not be added to Git:
 }
 ```
 
-These are identifiers, not API keys. A connection must belong to the same installation and match the model's provider. Funds, credentials, and enabled status are checked by normal admission when work is accepted. The publisher does not create or reconfigure these operational resources.
+The binding file contains identifiers, not API keys. Its connection must belong to the same installation and match the model's provider. When UAI accepts work, it checks funds, credentials, and enabled status through the usual admission rules. Publishing configuration does not create or reconfigure those operational resources.
 
 ## Validation, Publication, and Activation
 
@@ -41,15 +41,17 @@ pnpm configuration status --organization org_example --application app_example
 pnpm configuration activate --release release_example --revision 0 --organization org_example --application app_example --actor owner
 ```
 
-`validate` and `preview` require the target database: they perform real publication checks in a savepoint and roll back all changes. Preview shows paths and changed values relative to the latest publication, including bindings. These commands do not activate versions or call providers.
+Both `validate` and `preview` need the target database. They run the publication checks inside a savepoint, then roll everything back. Preview also shows changed paths, values, and bindings compared with the latest publication. Neither command activates a version or calls a provider.
 
-`publish` stores the entire bundle in one transaction. Normalized content and bindings form a digest. Repeated and concurrent publication of the same bundle returns the existing release without creating versions. A changed binding creates a new version. All references resolve to immutable database version IDs.
+`publish` saves the whole bundle in one transaction. UAI hashes the normalized content and bindings together, so publishing the same bundle again, even concurrently, returns the existing release. Changing a binding creates a new version. References resolve to immutable database version IDs.
 
-Publication from a dirty working tree is prohibited by default. The explicit `--allow-dirty` flag is available for local verification. History records Git HEAD, whether the file differs from HEAD, SHA-256 of the bytes read, relative path, schema version, publisher, release, and published dependencies. Repeating the same content preserves the first publication's provenance. The file must reside inside the current Git repository, including checking the real symlink path.
+Commit the file before publishing. UAI rejects a dirty working tree by default; use `--allow-dirty` only when you intentionally need a local verification run. The file must be inside the current Git repository, even after resolving symlinks.
 
-`activate` separately switches the entire bundle. `--revision 0` means there was no previous activation; subsequent values come from `status`. A revision conflict rejects an outdated switch. Repeating the same command is safe. An old release can be reactivated with the current revision. Switch history is stored separately.
+Publication history records Git HEAD, whether the file differs from HEAD, the SHA-256 of the bytes read, relative path, schema version, publisher, release, and dependencies. Publishing identical content again keeps the first publication's provenance.
 
-Inactive file versions are available to administrators but excluded from public discovery and new quote selection, even when an explicit recipe number is supplied. An existing quote and accepted operation use stored references, parameters, formula, and adapter version. Changing a Git file alone does not affect execution.
+Publishing makes a release available; `activate` switches the whole bundle into use. Start with `--revision 0` if nothing has been activated, then use the revision returned by `status`. UAI rejects a stale revision, and repeating the same command is safe. To roll back, reactivate an older release with the current revision. Each switch has its own history record.
+
+Administrators can inspect inactive versions, but clients cannot discover them or select them for new quotes, even by supplying a recipe number. Existing quotes and accepted operations keep their saved references, parameters, formula, and adapter version. Editing a Git file alone changes no running work.
 
 Provider cost uses the currently active rate; customer charging preserves the existing comparison policy against the accepted rate. Stored markup comes from the accepted operation. A new inactive publication does not change the current rate. This preserves the separation between provider cost and customer charge, including existing `outcome_unknown` rules.
 
@@ -59,7 +61,7 @@ The TS adapter registry contains the existing `openai@1`, `anthropic@1`, `cartes
 
 On Models, Pricing, Routes, and Recipes pages, file records are marked `Git · Active` or `Git · Inactive`. An active old version remains visible when a new one is published. The card provides source, Git revision, hash, author, dependencies, and the standard visual representation of the model, calculation, rates, or recipe.
 
-Editing, renaming, and creating a new version of a file record through the UI are disabled. Old HTTP paths also return `file_managed_configuration`; SQL triggers protect the source and published records. Creating a version with the same key through a legacy path cannot be bypassed using a new version number. The read-only calculator allows changing trial inputs and calculating prices without modifying the definition or calling the model.
+Edit file-managed definitions in Git. The UI cannot rename them or create new versions, and older HTTP paths return `file_managed_configuration`. SQL triggers protect both the source and its published records; using a new version number does not bypass ownership. You can still try different inputs in the read-only calculator without changing the definition or calling the model.
 
 Connections, budgets, quotas, and notifications remain operational settings. Publication does not overwrite them. Use the CLI to activate releases; the admin interface does not provide a publication editor.
 

@@ -4,7 +4,7 @@
 
 ## Execution with a final price
 
-A `quoted_final` recipe uses the price and prepared attachments saved on quote acceptance. A valid available result charges exactly that price regardless of actual cost. Cancellation without a result, technical defects, and late results after financial closure create no new charge. This policy applies to final-price mode; the cancellation and actual_usage rules below remain for legacy profiles.
+With a `quoted_final` recipe, UAI uses the price and prepared attachments saved when the quote was accepted. A valid, available result charges that price exactly, whatever the actual provider cost. Cancellation without a result, technical defects, and results arriving after financial closure create no new charge. The cancellation and actual_usage rules below apply to legacy profiles; final-price mode follows this policy.
 
 Each attempt separately records usage and provider cost, including technical retries and fallback. A successful attempt charges the customer price once; unsuccessful attempts remain platform expenses. Unknown cost is not replaced by zero. Route spending, retry, and platform risk limits apply independently of the customer price. Fallback must support the agreed parameters and file preparation. Changes to published rates do not change an accepted customer quote.
 
@@ -153,7 +153,7 @@ GET of a result does not trigger regeneration. Unknown provider status is not re
 
 Before submission, cancellation completes a request without provider cost. After submission, the platform calls available cancel and stops launching new child requests. Active sibling requests are accounted independently.
 
-Closing a browser tab is not operation cancellation. Cancellation has an explicit API. Losing an SSE connection does not stop the worker. The user may return, read the operation, and retrieve ready results.
+Closing a tab or losing the SSE connection doesn't stop the worker. To cancel work, use the cancellation API. The user can reconnect later, read the operation, and retrieve results that are ready.
 
 After dispatch, cancellation charges confirmed spending of the active attempt within the accepted maximum. Earlier defective attempts remain platform expenses. Pending cancel does not guarantee a stop at the provider. If usage or delivery outcome is unknown, ACCOUNTING's one-hour financial closure applies; cancellation does not reset its timer.
 
@@ -168,9 +168,11 @@ After lease expiry:
 - If the endpoint guarantees idempotency, a retry uses the same external key and payload.
 - If execution is possible but cannot be checked, outcome_unknown is set.
 
-A failure between submission intent and actual submission may leave uncertainty even without an actual call. Without a provider contract, treating it as uncertain is safe. Exactly-once external execution cannot be promised.
+A worker can fail after recording submission intent but before making the call. That still leaves uncertainty: without a provider contract that lets UAI check or safely repeat the call, it cannot know which side of submission the failure occurred on. Exactly-once execution at an external provider cannot be guaranteed.
 
-Execution policy's `attempt_timeout_seconds` limits one attempt. The earlier timer applies: attempt timeout or request deadline. For a synchronous HTTP call, provider cancellation means closing the connection; a native job continues to be observed under the existing rules. The attempt receives `timed_out_at`; its cost stays unknown and is closed through reconciliation. Retry is permitted if the adapter declares idempotency: a new attempt on the same connection and model sends the previous key (`AdapterContext.idempotency_key`). It is also permitted when policy sets `timeout_retry: "accept_duplicate_cost"`, explicitly accepting a possible second provider charge. This risk is bounded by platform risk budget. Otherwise the request becomes outcome_unknown immediately after timeout. Retrying after a displayed stream follows `retry_after_output`.
+`attempt_timeout_seconds` limits a single attempt. Whichever comes first, that timeout or the request deadline, ends the wait. For synchronous HTTP, cancellation closes the connection; a native job continues to be observed under the existing rules. UAI records `timed_out_at`, leaves cost unknown, and resolves it through reconciliation.
+
+A retry is allowed when the adapter declares idempotency: a new attempt on the same connection and model reuses the previous key (`AdapterContext.idempotency_key`). Policy can also permit `timeout_retry: "accept_duplicate_cost"`, explicitly accepting the risk of a second provider charge within the platform risk budget. Otherwise, the request becomes outcome_unknown immediately after timeout. If output has already been displayed, `retry_after_output` also applies.
 
 An uncertain attempt holds a limiter concurrency slot while its outcome may still arrive: until request financial closure and no later than deadline plus 5 minutes for a synchronous call or plus the polling window (1 hour) for a remote job. Financial closure moves that attempt to `abandoned` in the same transaction. A late response is still recorded for reconciliation. An operator may resolve the outcome through a command with a reason and audit; see [operations](OPERATIONS.md#limiter-slots-and-unknown-outcomes).
 
@@ -180,7 +182,7 @@ Durable events have event_id, sequence, occurred_at, scope, and resource refs. S
 
 Text deltas are presentation data and are not stored in the durable financial outbox. Losing them must not affect the wallet. The final result is available through the request resource until acknowledgement/expiry/deletion. The resource then retains metadata and the reason content is absent; GET does not trigger generation. Financial events come from the committed outbox and contain wallet revision. Delivering an event with a result reference does not extend content TTL.
 
-Neither SSE nor a repeated webhook justifies a second capture. A domain transaction creates the financial effect; delivery reports it.
+The committed domain transaction creates the charge; events report it. Receiving an SSE event or repeated webhook never justifies another capture.
 
 ## Distributed admission binding checks
 

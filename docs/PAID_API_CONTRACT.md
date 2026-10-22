@@ -2,7 +2,7 @@
 
 [Documentation](README.md) · [Operational HTTP API](API.md) · [OpenAPI extension](openapi-paid-api.json)
 
-Local implementation schemas are defined in [paid-api.ts](../packages/contracts/paid-api.ts). `pnpm generate:paid-api` creates the OpenAPI extension; `pnpm check:paid-api` validates it. `openapi.json` describes the full HTTP API and client types. Real provider calls are checked separately.
+Use this reference when connecting a paid API with native credits or subscription allowances. The schemas live in [paid-api.ts](../packages/contracts/paid-api.ts). Run `pnpm generate:paid-api` to generate the OpenAPI extension or `pnpm check:paid-api` to check it. `openapi.json` covers the full HTTP API and client types. These checks validate the contract; real provider calls need separate verification.
 
 ## Identities and Versions
 
@@ -50,7 +50,7 @@ Notification rules select subscription, metric, unit, and threshold. Percentages
 
 `api.call` uses the existing `/v1/quotes`, `/v1/operations`, `/v1/requests`, `/v1/invocations`, and `/v1/events`. The SDK adds `services.quote/run`; existing `ai.*` remain compatible. Administrative endpoints and types are included in the main OpenAPI. Allowance viewing is limited to installation admin/staff; an account-scoped token does not receive provider statistics.
 
-API files are checked against owner, hash, actual size, count, and allowed MIME from storage. Arbitrary PDF/audio processors are not run: verified pages/seconds come from the adapter. MIME checking uses storage metadata, rather than universal content-format detection. Input is limited to 16 files and 20 MB; JSON Schema uses an explicitly bounded subset, without external `$ref` or executable code.
+UAI checks input files against their owner, hash, actual stored size, file count, and allowed MIME type. It does not run arbitrary PDF or audio processors; verified page and duration measurements come from the adapter. MIME checks use storage metadata, not universal content detection. Input is limited to 16 files and 20 MB. JSON Schema uses an explicitly bounded subset with no external `$ref` or executable code.
 
 Native allowance-to-usage matching uses an exact key/unit. For a composite AI counter, the tariff may specify `dimensions`; matching units alone is insufficient. Requests are measured separately. Rolling quotas support requests, AI tokens/images/audio_seconds, and API credits/pages/files/bytes. Their fractional maximum is rounded up to a whole native unit; monthly allowance retains nine decimal places. Additional quota metrics are registered in code; a missing estimate prevents admission.
 
@@ -74,4 +74,6 @@ Example rule for the existing `POST /v1/admin/notification-rules`:
 }
 ```
 
-Empty recipients keep the incident in the admin; external delivery selects an existing webhook destination. The same rules work for an AI connection after explicitly binding a provider subscription. One account has one subscription; changing the tariff template of an existing subscription is not yet supported and requires a separate period migration. Manual current-balance adjustment and connection-binding changes are available with audit; open reservations protect the binding.
+Leave recipients empty to keep the incident in admin. For external delivery, select an existing webhook destination. The same rules can monitor an AI connection once you explicitly bind a provider subscription.
+
+Each account has one subscription. Changing an existing subscription's tariff template requires a separate period migration; it isn't supported as an ordinary edit. You can adjust the current balance or connection binding manually with an audit record, but open reservations protect the binding.

@@ -2,7 +2,7 @@
 
 ## Embeddings
 
-All three models use `embeddings.generate`, `input.texts`, and the shared `type: embeddings` result. Indices are normalized to input string order. The result contains `model`, `revision`, `dimensions`, and `data`. Current adapters return `revision: null`: an alias does not establish the exact revision or allow detecting a hidden model update.
+Call all three models through `embeddings.generate` with `input.texts`. They return the shared `type: embeddings` result, with indices reordered to match your input strings. The result includes `model`, `revision`, `dimensions`, and `data`. Current adapters return `revision: null` because a model alias does not reveal its exact revision or let UAI detect a hidden update.
 
 | Model | Dimensions | Default | Tokens: string / batch | Input type |
 |---|---|---|---|---|
@@ -10,11 +10,11 @@ All three models use `embeddings.generate`, `input.texts`, and the shared `type:
 | OpenAI text-embedding-3-large | 1–3072 | 3072 | 8192 / 300000 | Not sent |
 | Voyage voyage-4 | 256, 512, 1024, 2048 | 1024 | 32000 / 320000 | `query`, `document`, or unset |
 
-Installation safety limits intersect with model limits: 128 strings, 16384 total coordinates, and a 512 KiB serialized result. For Large 3072, this means at most five strings per call. OpenAI is additionally limited to 32768 UTF-8 bytes per string; total prepared batch text is limited to 128000 bytes. Published profiles/catalog return `embedding_features` with model and shared limits.
+Apply both the model's limits and the installation's safety limits: 128 strings, 16384 total coordinates, and a 512 KiB serialized result. At Large's 3072 dimensions, you can send at most five strings per call. OpenAI also has a local limit of 32768 UTF-8 bytes per string, with 128000 bytes across the prepared batch. Read `embedding_features` from published profiles/catalog for model-specific and shared limits.
 
 OpenAI uses `cl100k_base`. Voyage has no exact local tokenizer: validation uses UTF-8 byte count plus a margin of 64 per string with `input_type`. Some texts acceptable to the provider are therefore conservatively rejected. The adapter always sends `truncation: false`, `output_dtype: float`; `dimensions` maps to `output_dimension`. There is no hidden truncation. The example profile forecast adds a shared margin of 8192 tokens per batch; actual accounting uses provider usage.
 
-The batch remains an atomic work item. A defect in one vector makes the entire result defective. The application stores vectors permanently; repeating a command with the same key and repeating ACK do not create a new request or charge.
+Treat the batch as one work item. If any vector is defective, the whole result is defective. Save vectors permanently in your application. Repeating the command with the same key, or repeating ACK, creates no new request or charge.
 
 ## Structured Responses and Tools
 
@@ -28,15 +28,15 @@ A limited JSON Schema subset is supported:
 
 Limits: 64 KiB schema, depth 16, 2048 expanded nodes, 256 properties, 16 branches per union, 256 enum values, and patterns up to 256 characters. Numeric lengths/sizes are capped at 1000000. Regex uses Unicode JavaScript without groups, lookaround, alternation, backreferences, or repeated quantifiers. At most one repeated atom is permitted; repetition requires `^` and `$`; numeric repetition is at most 10000. For example, `^[a-z]+$` is supported. This is an intentionally restricted language without dangerous backtracking. Other keywords, including `format`, `allOf`, `not`, and `patternProperties`, are rejected before dispatch.
 
-In the wire schema, an optional field becomes an internal object `{present:false}` or `{present:true,value:…}`. The client never sees this wrapper. After restoration, an absent field is removed while explicit user `null` is preserved. Constraints are checked against the original schema; the provider receives a simpler strict schema. Root scalars/arrays and unions also receive an internal wrapper.
+UAI encodes optional fields for the provider as `{present:false}` or `{present:true,value:…}`. Your client never sees that wrapper. When restoring the result, UAI removes absent fields and preserves an explicit `null`. It validates against your original schema while sending the provider a simpler strict schema. Root scalars, arrays, and unions use internal wrappers too.
 
-For transformed schemas, intermediate deltas are buffered until complete restoration and validation. Unchanged schemas retain streaming. `delivery.field_paths` supports declared string properties of objects, including nested ones; array indices and wildcards are unsupported. The final result remains authoritative. A defect contains `usage.attempts[].validation_error` with a JSON Pointer `path` and short `reason`, without the field value.
+When a schema needs transformation, UAI buffers deltas until it can restore and validate the complete result. Unchanged schemas keep streaming. Use `delivery.field_paths` for declared object string properties, including nested ones; array indices and wildcards are unsupported. Always treat the final result as authoritative. For a defect, `usage.attempts[].validation_error` reports a JSON Pointer `path` and a short `reason`, without disclosing the field value.
 
 The catalog may declare `text_features.forced_tool_choice: false` or `tools: false, schema: true`. UAI automatically requests a structured single-tool-call envelope, validates the name, arguments, and call count, and returns a standard `tool_call` with `execution_method: schema`. Native tools use `native`. For registered Anthropic Opus 5.5, Fable 5.1, and Mythos 5.1 families, forced calls switch to schema mode. Published structured-output capability is required. A refusal remains a refusal; emulation neither creates an extra attempt nor executes the tool itself.
 
 ## Priority and Concurrency Reserve
 
-`priority: interactive | background` is accepted in quote/invocation; the default is `background`. The application explicitly marks user requests. An existing quote's priority cannot be changed when using it.
+Choose `priority: interactive | background` in the quote or invocation; the default is `background`. Mark user-driven requests explicitly. Once you have a quote, its priority is fixed.
 
 The initial `interactive_reserve` is one slot. Background work may occupy at most `max(1, total - reserve)` slots. The reserve applies to executing queue, application, and account tasks; publishing queue/application/account jobs; provider quota groups; and the legacy limiter. Total active account capacity continues to constrain both classes. Queue, group, and limiter settings are available through existing admin APIs and forms. The legacy lease API accepts `interactive_reserve`; the worker process uses `UAI_WORKER_INTERACTIVE_RESERVE` (default 1), and `UAI_WORKER_CONCURRENCY` defines total capacity.
 
@@ -68,7 +68,7 @@ Priority does not change budget, authorization, rate windows, backpressure, dead
 
 The response separates `provider_cost` and `customer_charge`, each with `expected_units/low_units/high_units`, and records profile/route/catalog/rate-card versions, time, and `method_version: lf-forecast-1`. For tokens without user boundaries, it uses a heuristic range from half to twice the volume, with `low` confidence. Otherwise confidence is `modeled`; an `approximate` calculation also yields `low`. No accuracy percentage is claimed. Reasons and assumptions are returned in the response. Additional attempts, fallback, free allowance, and hidden discounts are excluded. Safety applies to the quoted-final profile price, and markup follows its policy; with actual pricing, safety does not increase the actual charge.
 
-`range_is_charge_cap: false`: the forecast upper bound neither authorizes spending nor guarantees a maximum. A separate quote/invocation still authorizes work.
+`range_is_charge_cap: false` means the upper forecast is an estimate, not a spending authorization or guaranteed maximum. Create a separate quote or invocation to authorize the work.
 
 ## Recraft and Quiver SVG
 
@@ -97,7 +97,7 @@ Real generation requires a Quiver production key. `sk_test_` keys return synthet
 
 `input_tokens` includes cache: regular input = input − cached − cache_write; each of the three portions is billed once. Reasoning is included in `output_tokens` and stored only as a breakdown, without a second charge. Inconsistent counters or only one of the two cache counters yield `unknown`, rather than zero cost. **Quiver's native SVG reference does not guarantee cache breakdown fields**; their names are confirmed in Responses API documentation. A response with no breakdown at all prices all input at the cache-write rate, the highest input rate, with `input_cache_split=absent_priced_as_cache_write` in the breakdown. Cost becomes known and the call is settled. This is an upper bound, rather than Quiver's exact price.
 
-The amount shown in a provider dashboard is not a replacement for per-request billing counters.
+Use per-request billing counters for costs. The balance shown in a provider dashboard cannot replace them.
 
 New Quiver profiles use `actual_capped`: an explicit customer cap is reserved, actual usage is priced with markup, and capture is limited to the accepted maximum. Overdraft permission is passed as a separate flag only for `estimated_actual`; token pricing alone does not enable it. Actual provider cost is stored in full even when above the customer cap. Transport failure/5xx/408 after dispatch means unknown, without automatic retry. Quiver declares no native lookup/cancel: abort after dispatch does not establish provider cancellation.
 

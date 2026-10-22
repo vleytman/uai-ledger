@@ -1,6 +1,6 @@
 # Documentation
 
-UAI Ledger is a self-hosted service for AI execution, paid API calls, credit wallets and cost accounting. Start with a synthetic local installation, then configure the models, rates, budgets and provider connections needed by your application.
+Start with a local installation and synthetic providers to try the full workflow without paid calls. Then configure the models, rates, budgets, and provider connections your application needs. UAI Ledger runs on your infrastructure and handles execution, credit wallets, and cost accounting.
 
 ## Start here
 
@@ -26,7 +26,7 @@ UAI Ledger is a self-hosted service for AI execution, paid API calls, credit wal
 
 ## Pricing and financial behavior
 
-Provider costs, customer credit charges and external payment revenue are separate records. A quote's meaning depends on its payment mode: a fixed price, an accepted cost cap or an estimate that may be exceeded. Applications must display the selected mode accurately.
+Before choosing a billing mode, separate what the provider costs you, what you charge the customer's credits, and what your payment service collects. A quote can set a fixed price, an accepted cost cap, or an estimate that may be exceeded. Show the chosen terms accurately in your application.
 
 | Guide | Topics |
 |---|---|

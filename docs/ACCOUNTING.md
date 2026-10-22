@@ -8,7 +8,7 @@
 2. Provider cost records our cost. The calculated amount and provider confirmation are distinct.
 3. The wallet journal records users' budget entitlements and spending. A charge does not equal every provider expense.
 
-Revenue and monetary refunds are stored by the external payment service. The current wallet amount is not the balance of money in OpenAI or another provider account.
+Your external payment service records revenue and monetary refunds. A UAI wallet shows the customer's credit budget, not the money available in your OpenAI or other provider account.
 
 ## Credit unit
 
@@ -99,7 +99,7 @@ The application summary (`GET /v1/admin/credit-summary`, [API](API.md#applicatio
 
 ## Lot selection and concurrent reservations
 
-Lots are selected by nearest expires_at, then created_at and lot_id. Non-expiring lots follow expiring lots. The order is deterministic.
+UAI spends expiring lots first, ordered by expires_at, then created_at and lot_id. Non-expiring lots come last. This gives concurrent requests a deterministic allocation order.
 
 Operation creation, reservation, and lot allocation occur in one transaction. Checking and reducing available is protected by a wallet lock or equivalent atomic scheme. An in-memory worker check is insufficient.
 
@@ -107,19 +107,23 @@ Reservation allocations record the lots supplying the amount. Capture debits the
 
 Lot expiry affects only the available remainder. An accepted reservation remains usable until the operation's final deadline. Releasing a reservation after expires_at sends the remainder to expired rather than extending the lot. Such amounts appear as released and expired, not as new available balance.
 
-Refunding captured credits to a valid lot preserves its terms. Refunding to an expired lot creates a new lot with source refund and the original credit unit. Initial compensation policy: expires_at 30 days after refund, with the rules version retained. This compensates a specific capture; it is not rollover of an unused monthly remainder. The duration belongs to proposed DECISIONS settings and is fixed in grant terms before launch. The amount cannot exceed spending not yet refunded and is not granted again on a duplicate command.
+Refunding credits to a valid lot keeps that lot's terms. If the lot has expired, the refund creates a new lot with source refund and the original credit unit. The example compensation policy sets expires_at 30 days after the refund and retains the rules version; choose and fix that duration in grant terms before launch. This compensates a specific capture, rather than rolling over an unused monthly balance. The refund cannot exceed the amount spent and not yet refunded. Repeating the command grants nothing again.
 
 ## Reservation lifecycle
 
-An unaccepted quote does not lock credits. Acceptance creates an operation and reserves its max_units. Refreshing the browser or repeating acceptance with the same key returns the same operation.
+A quote alone locks no credits. Accepting it creates an operation and reserves max_units. Refreshing the browser or accepting again with the same key returns that same operation.
 
-Each concurrent request receives an internal share of the unused reservation, a request budget claim. Captures plus open claims do not exceed the operation maximum. Without this, multiple workers could independently spend the same remainder.
+Each concurrent request claims a share of the operation's unused reservation. Captures plus open request budget claims must stay within the operation maximum. This prevents two workers from spending the same remaining credits.
 
 In a reservation pool, each call's claim is created on admission. If the free reservation portion is insufficient, the shortfall is added from free credits to the same operation reservation. When `estimated_actual` spending exceeds the claim, the excess is covered first by the operation's free reservation portion, then free credits, then debt. A single operation has no free portion, so its behavior is unchanged. See [reservation for compound work](QUOTING.md#reservation-for-compound-work).
 
 Each new attempt checks the user claim, available provider budget, and a separate platform loss limit. A technical retry that cannot be charged to the user still requires platform budget.
 
-The user reservation covers one successful delivery of each billable unit, including an authorized expensive fallback and no cache. It is not multiplied by four or sixteen because failures are free to the user. Before each attempt, the platform also reserves its own defect/failure risk. This reservation closes by financial classification: the confirmed portion covered by a customer capture is released; defects/authorized subsidy/free late delivery become platform-funded cost; the uncertain portion retains exposure. Execution success alone does not release risk. Unknown retains provider exposure independently of customer financial closure. Loss limits are set per request, recovery incident, and installation period; concurrent workers consume them atomically. Exhausting any limit stops new attempts before the numerical maximum.
+The customer reservation covers one successful delivery per billable unit, allowing for an authorized expensive fallback and no cache. It isn't multiplied by four or sixteen to cover failures that are free to the customer.
+
+Before each attempt, UAI separately reserves its own defect/failure risk. It releases the confirmed portion covered by a customer capture, records defects, authorized subsidies, and free late delivery as platform-funded costs, and keeps exposure for any uncertain portion. A successful execution alone does not release this risk. Provider exposure can remain open after customer finances have closed.
+
+Loss limits apply per request, recovery incident, and installation period. Concurrent workers consume them atomically. If any limit is exhausted, new attempts stop even when the attempt-count limit has not been reached.
 
 After final request settlement, its chargeable cost is captured and its claim reduced. The unused portion may remain in the common operation reservation until other requests finish. The remainder is released when the operation completes.
 
@@ -141,9 +145,9 @@ A normalized billable item contains dimension, quantity, unit, and rating condit
 
 Cache write additionally contains TTL. Modality, service tier, region, and context length are rate conditions when they affect provider pricing.
 
-The adapter must define non-overlapping billable categories. If reasoning is included in output, it is retained as an analytics breakdown and not added again. If a provider includes cached input in total input, the adapter separates it according to documented semantics. A universal subtraction formula for all providers is prohibited.
+Adapters must keep billable categories separate. If the provider includes reasoning in output, retain it as an analytics breakdown without adding it to the bill twice. If cached input is included in total input, split it using that provider's documented semantics. There is no safe universal subtraction formula for every provider.
 
-Provider caching and returning a saved platform result are distinct. Retrieving an already paid result with the same request ID does not trigger generation or create a capture. Cross-user caching of ready answers is outside the first version.
+Reading an already paid result with the same request ID neither calls the provider again nor creates another capture. This is different from provider-side prompt caching. Cross-user caching of saved answers is outside the first version.
 
 Usage is saved before domain validation of the answer and before optional result processing. A JSON-schema, image-download, or application failure must not erase known spending. If mandatory audit cannot be recorded before submission, the worker does not make a paid call.
 

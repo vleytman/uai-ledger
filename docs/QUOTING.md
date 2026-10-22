@@ -4,7 +4,7 @@
 
 ## Purpose
 
-The application registers a bounded action, such as a discussion round, four images, or SVG preparation. The platform estimates its credits, fixes a maximum budget, and checks actual requests during execution.
+Describe the work you want to authorize: a discussion round, four images, or SVG preparation, for example. UAI estimates the credits, sets the permitted budget, and checks each actual request against those terms as it runs.
 
 A recipe does not execute the domain workflow. It defines which requests are authorized and how much they may consume. The application still chooses participant order, passes answers between rounds, and constructs prompts.
 
@@ -28,7 +28,7 @@ Each component specifies capability, route, call count, expected quantities, and
 
 The server recalculates values itself. A price submitted by the browser or application backend does not authorize a charge.
 
-This configuration example describes two passes by four participants and one final answer. It is not an exact description of all existing Logo Panel passes:
+The example below budgets for two passes by four participants, followed by one final answer. It illustrates a bounded workflow rather than reproducing every Logo Panel pass:
 
 ~~~json
 {
@@ -200,7 +200,9 @@ A component may have `billing.mode: fixed`. `price_parameters` lists only price-
 
 A quote returns `settlement: fixed`, `actual_usage`, or `mixed`. With fixed pricing, the user maximum and expected charge equal the selected price. A future compound-operation step reserves the highest fixed price of allowed variants; a specific request pins its selected combination's price. All single-call parameters are hash-bound to the accepted quote.
 
-User credits and provider exposure are separate. Provider exposure is determined by estimated provider costs, not user price. A successful technically valid available result is charged once at the fixed price. Technical retries do not increase it. Cancellation before result delivery and confirmed failure are not charged; confirmed provider costs remain platform expenses. An unknown outcome retains reservation pending investigation; late charging after financial closure is prohibited. Unknown cost for an already confirmed available result does not prevent a fixed charge but remains unknown in provider accounting. An automatic refund for lower provider rates does not apply to fixed pricing.
+Customer credits and provider exposure are separate. Exposure follows the estimated provider cost, not the retail price. A technically valid, available result is charged once at the fixed price, and technical retries do not increase it.
+
+Cancellation before result delivery and confirmed failure create no customer charge; confirmed provider costs remain platform expenses. An unknown outcome keeps its reservation pending investigation, and nothing may be charged after financial closure. If a valid result is already available but its provider cost is unknown, the fixed charge can still settle while provider accounting stays unresolved. Lower provider rates do not trigger an automatic refund in fixed-price mode.
 
 Markup is not added in an adapter or cost estimation algorithm. The fixed base price is stored in billing settings separately from actual provider usage. Financial return also depends on credit sale terms in the external plan service.
 
@@ -210,7 +212,7 @@ For a single OpenAI text.generate, a published recipe may select `pricing_mode: 
 
 The quote returns `settlement: "actual_usage"`, `estimate_only: true`, `overdraft_allowed: true`, `confidence: "modeled"`. `max_units` and `accepted_max_units` are retained for compatibility and in this mode mean the initial estimated reservation, rather than the final charge maximum. The client must honor `estimate_only`, display approximate cost, and disclose the possibility of a negative balance. `price_units` is absent. A fixed `budget` is rejected because its ceiling cannot be guaranteed without limiting generation.
 
-The initial forecast includes the published model's buffer and markup; actual charges include only markup and rounding. A 4096-token forecast does not truncate the answer at 4096. The provider API's own limits and deadline still apply. Reservation estimates user spending; risk limits and execution budgets are stored separately.
+The initial forecast includes the published model's buffer and markup. The actual charge includes only markup and rounding. A 4096-token forecast does not stop the answer at 4096 tokens; the provider's own limits and the deadline still apply. Keep the customer spending reservation separate from risk limits and execution budgets.
 
 ## Paid API extension
 

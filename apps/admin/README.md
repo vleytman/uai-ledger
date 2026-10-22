@@ -1,20 +1,20 @@
 # TanStack Start + shadcn/ui
 
-This is a template for a new TanStack Start project with React, TypeScript, and shadcn/ui.
+The UAI admin interface uses TanStack Start, React, TypeScript, and shadcn/ui. For setup and login, follow the [local guide](../../docs/LOCAL_RUN.md). To embed UAI pages in your product's admin interface, use the [modular admin guide](../../docs/MODULAR_ADMIN.md).
 
 ## Adding components
 
-To add components to your app, run the following command:
+To add a shadcn/ui component, run:
 
 ```bash
 npx shadcn@latest add button
 ```
 
-This will place the ui components in the `components` directory.
+The command adds the UI components to the `components` directory.
 
 ## Using components
 
-To use the components in your app, import them as follows:
+Import a component where you need it:
 
 ```tsx
 import { Button } from "@/components/ui/button";

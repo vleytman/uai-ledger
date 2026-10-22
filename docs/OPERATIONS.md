@@ -2,7 +2,7 @@
 
 [Documentation](README.md) · [API reference](API.md) · [Execution rules](EXECUTION.md) · [Deployment](DEPLOYMENT.md)
 
-Use the admin interface to configure an installation, inspect its financial state and diagnose execution problems. Provider cost, customer charges, provider-native allowances and external payment revenue are separate views of the system.
+Use the admin interface to set up an installation and investigate requests, balances, and execution problems. As you work, keep provider costs, customer charges, provider-native allowances, and payment revenue separate. Each tells you something different.
 
 ## Configure a provider connection
 
@@ -13,13 +13,13 @@ Use the admin interface to configure an installation, inspect its financial stat
 5. Publish and activate compatible definitions through [file configuration](FILE_CONFIGURATION.md).
 6. Enable real requests only after checking the spending limits for this installation.
 
-The connection view shows provider account scope, models and capabilities, credential status without the secret, health, quota groups, balances or spending limits, freshness and pending exposure. An additional key for the same provider account does not create an independent balance or quota.
+Open a connection to inspect its provider account scope, models, capabilities, credential status, health, quota groups, balances or spending limits, data freshness, and pending exposure. You can check the credential's status without seeing its secret. Adding another key for the same provider account gives you neither another balance nor another quota.
 
 Disable a connection when investigating authentication or financial problems. A free health check does not automatically authorize generation or clear a financial block. A paid probe is itself a potentially billable request and needs a configured budget.
 
 ## Budgets and wallet funds
 
-A wallet controls customer credits. Provider budgets limit provider exposure, while a platform-loss budget covers permitted defective attempts and technical retries. A funded customer wallet does not prove the provider account has funds or quota.
+A funded wallet means the customer has credits. You still need funds and quota at the provider. Provider budgets limit your exposure there; a separate platform-loss budget pays for permitted defective attempts and technical retries.
 
 The `execution-budgets` administrative resource changes budgets used by workers. Monetary values are integer strings in internal USD units: 1 USD = 1 000 000 000 units. A provider budget belongs to a connection; a period budget belongs to a recipe key. Lowering a limit does not erase spending or open exposure. Further work is rejected when it no longer fits.
 
@@ -33,7 +33,7 @@ For pricing modes that permit overdraft, inspect debt separately from prepaid lo
 
 A provider balance snapshot records its source, account scope, native unit or currency, observed time, coverage and precision. A manual spending cap is not a provider-reported balance. A successful HTTP health check is not a financial snapshot.
 
-Unknown coverage means an exact available amount cannot be claimed. Conservative availability accounts for usage after the covered period and unfinished requests. Stale or incomplete observations must be displayed as such, rather than converted to zero or used to increase availability.
+If you don't know which usage a snapshot covers, you cannot claim an exact available balance. Conservative availability subtracts usage after the covered period and accounts for unfinished requests. Label stale or incomplete observations clearly. Never turn them into zero or use them to increase availability.
 
 A provider account may be shared by several keys or external applications. Its total balance cannot be assigned to an individual UAI wallet. When the provider does not expose a supported balance API, use explicit installation budgets instead of a fabricated balance.
 
@@ -41,7 +41,7 @@ Paid API subscriptions use their own counters, periods and rollover rules. See [
 
 ## Reconciliation
 
-Reconciliation compares UAI's provider costs with an authoritative external report. It is separate from ordinary customer charging when terminal usage already supports calculation.
+Use reconciliation to compare UAI's recorded provider costs with an authoritative external report. Customer charging can already be complete when final usage supports the calculation; reconciliation is a separate check.
 
 Check the following before accepting a comparison:
 
@@ -57,7 +57,7 @@ Corrections create additional financial records; they do not rewrite immutable h
 
 ## Provider quota group settings
 
-Quota groups coordinate connections and models sharing provider limits. Bind multiple keys for the same account to the appropriate common group. Verify whether aliases share a quota pool instead of inferring this from similar limits.
+Put connections and models in a common quota group when they share a provider limit. Multiple keys for the same account need the appropriate shared group. Check whether aliases share a quota pool rather than guessing from similar numbers.
 
 Each group can define several rules, with a metric, time window and capacity, plus concurrency and interactive reserve. The `provider_capacity` represents the confirmed provider limit; a lower local capacity can keep operational headroom. Model price markup does not change provider quota.
 
@@ -71,7 +71,7 @@ The availability view distinguishes used, reserved, remaining and currently avai
 
 Do not delete quota keys manually in a running Redis namespace. A partial reset can invalidate coordination assumptions. Redis access must support the required Lua operations and `INFO`; verify managed-service restrictions before using the distributed quota backend.
 
-Large quota histories can require several preparation passes before admission. A preparation delay is not permission to send a provider request. Until preparation and durable confirmation complete, the request remains queued.
+A large quota history may take several preparation passes. The request stays queued until preparation and durable confirmation finish. A delay in preparation never authorizes a provider call.
 
 ## Queue and concurrency settings
 
@@ -95,13 +95,13 @@ Releasing local capacity does not cancel a provider request. It also does not au
 
 ## Inspect an operation
 
-Follow the hierarchy operation → request → attempts → usage → provider cost and wallet postings. Check the accepted profile versions, actual model, timing, retry/failover reason, terminal usage and settlement status.
+Start with the operation, then follow its requests, attempts, usage, provider costs, and wallet postings. Check the accepted profile versions, actual model, timing, retry or failover reason, final usage, and settlement status.
 
-Customer reservations, provider exposure and platform-funded costs answer different questions. An execution can finish while its financial settlement remains unresolved. Never label unknown cost as zero simply because no charge is visible yet.
+Check customer reservations, provider exposure, and platform-funded costs separately. Execution may be finished while settlement is still unresolved. A missing charge does not make an unknown cost zero.
 
-Prompt and result content are available only with permission and within retention. After acknowledgment or expiration, delivery metadata and checksums may remain while content is gone. This does not mean the financial journal is corrupt or that the service should regenerate the result.
+You can read prompts and results only with the required permission and while they are retained. After acknowledgment or expiry, metadata and checksums may remain even though the content is gone. That is expected; it doesn't mean the journal is corrupt or that you should generate the result again.
 
-Distinguish rereading a saved result, retrying work known not to have been dispatched, and creating a new paid attempt. Do not use a generic retry action to resolve an uncertain external outcome.
+Before retrying, establish what happened. Rereading a saved result, retrying work known never to have been dispatched, and starting another paid attempt are different actions. A generic retry button cannot safely resolve an uncertain provider outcome.
 
 ## Metrics and queue diagnosis
 
@@ -130,7 +130,7 @@ Use incident state, affected routes, cooldowns and reasons to decide the next ac
 
 ## PostgreSQL connection budget by process
 
-Each API, worker and scheduler process owns a connection pool. Size the total as the sum of all role limits across replicas, leaving room for migrations and administration.
+Every API, worker, and scheduler process has its own connection pool. Add the limits across all replicas when sizing PostgreSQL, and leave room for migrations and administration.
 
 Set `UAI_DB_POOL_MAX_API`, `UAI_DB_POOL_MAX_WORKER` and `UAI_DB_POOL_MAX_SCHEDULER` for their roles. `UAI_DB_CONNECT_TIMEOUT_MS` and `UAI_DB_IDLE_TIMEOUT_MS` bound connection acquisition and idle retention. Do not increase replicas without considering the aggregate PostgreSQL connection budget.
 

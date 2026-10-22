@@ -1,16 +1,16 @@
 # UAI Ledger
 
-UAI Ledger executes AI requests and paid API calls, tracks costs, and manages credit wallets and queues. An application submits work to the service, receives a cost estimate, and follows the result through the API or TypeScript SDK. UAI maintains the financial journal, manages reservations, and records every provider attempt.
+UAI Ledger handles AI requests and paid API calls for your application. You submit work through the API or TypeScript SDK; UAI estimates the cost, reserves credits, queues the request, and records what happened at the provider. Your application gets the result without having to build its own wallet journal and execution queue.
 
-The service is designed for self-hosting. The primary deployment model is a separate installation per application, with its own PostgreSQL database, storage, configuration, and provider credentials.
+You host UAI yourself. The usual setup is one installation per application, with its own PostgreSQL database, storage, configuration, and provider credentials.
 
-This repository contains a working local implementation, an admin interface, and a test application. Full production readiness requires separate validation of infrastructure, settings, and individual connections. Validate each provider connection with your own credentials and spending limits before enabling user traffic.
+The repository includes the service, an admin interface, and a demo application you can run locally. Before using it in production, validate your infrastructure and settings, then check each provider connection with your own credentials and spending limits.
 
 ## What it is for
 
-When an application uses several models, making an HTTP call is only part of the job. It also needs to determine who pays, how much money is reserved, what happens after a network failure, and whether an operation can be retried safely.
+Calling a model is the easy part. Once you use several providers, you also need to decide who pays, how much to reserve, and what to do when a request times out after the provider may already have accepted it.
 
-UAI handles this server-side work:
+UAI handles that work on the server:
 
 - Maintains credit wallets, individual credit lots, expiration dates, reservations, charges, and refunds.
 - Estimates costs using published versions of models and rates.
@@ -20,7 +20,7 @@ UAI handles this server-side work:
 - Delivers events and results to the application and supports acknowledgment after persistence.
 - Gives administrators access to wallets, operations, connections, budgets, and queue status.
 
-User registration, product roles, the application interface, payment collection, subscriptions, taxes, and commercial discounts remain the responsibility of the application and its payment service. UAI provides server-side authorization and accounting mechanisms that can be integrated with them.
+Your application still owns its users, roles, interface, and payment integration, including subscriptions, taxes, and commercial discounts. Connect those systems to UAI's authorization and accounting APIs.
 
 ## Request lifecycle
 
@@ -31,11 +31,11 @@ User registration, product roles, the application interface, payment collection,
 5. UAI persists the result and usage information, calculates the charge, and releases unused reservations according to the accepted operation's rules.
 6. The application receives the result, persists it in its own storage, and acknowledges delivery. UAI removes temporary content according to its retention policy while keeping the required financial history.
 
-For composite work, an application can open a reservation pool and create associated invocations as work progresses. See the [quoting and reservation rules](docs/QUOTING.md).
+For work that grows over several calls, open a reservation pool and add invocations as you go. See the [quoting and reservation rules](docs/QUOTING.md).
 
 ## Financial rules
 
-Provider costs, customer credit charges, and external payment revenue are accounted for separately. A successful generation does not prove its exact cost is known, and a delivery error does not erase costs already incurred.
+Keep three amounts separate: what the provider costs you, what you charge the customer's credit wallet, and what your payment service collects. A result can be ready before its exact provider cost is known. A delivery error can happen after you have already incurred that cost.
 
 | Situation | UAI behavior |
 |---|---|
@@ -46,15 +46,15 @@ Provider costs, customer credit charges, and external payment revenue are accoun
 | The result is technically defective | Applies platform-funded payment rules and records the platform's costs |
 | Rates change | New versions apply to new work; existing operations keep their accepted terms |
 
-Profiles support several payment policies: a final price agreed before execution, actual-usage settlement within an accepted maximum, and the `estimated_actual` forecast mode. In forecast mode, the reservation is not a ceiling on the final charge; an authorized policy can allow debt. The client interface must respect the selected mode instead of presenting every forecast as a guaranteed price.
+Choose the payment policy that fits the profile: a final price agreed before execution, actual-usage settlement within an accepted maximum, or an `estimated_actual` forecast. With a forecast, the reservation is only an initial hold; the final charge may be higher, and an authorized policy can allow debt. Show that distinction in your interface so users know what they are agreeing to.
 
-Integer monetary values are transmitted as strings in the API. Monetary budget units, credits, and provider-native allowance units are distinct. Their meaning and invariants are described in [accounting](docs/ACCOUNTING.md), [quoting](docs/QUOTING.md), and the [paid API contract](docs/PAID_API_CONTRACT.md).
+The API sends integer monetary values as strings to preserve precision. Budget units, wallet credits, and provider-native allowances each have their own meaning; see [accounting](docs/ACCOUNTING.md), [quoting](docs/QUOTING.md), and the [paid API contract](docs/PAID_API_CONTRACT.md).
 
 ## Architecture
 
 ![Architecture showing the application backend, UAI API, workers, scheduler, database, queue and temporary storage](docs/diagrams/architecture.svg)
 
-One codebase is divided into processes with separate roles:
+The service runs as separate processes, with shared code and contracts:
 
 | Component | Purpose |
 |---|---|
@@ -69,21 +69,21 @@ One codebase is divided into processes with separate roles:
 
 The backend is written in TypeScript and uses Fastify. The interfaces use TanStack Start, React, and shared UI components. API schemas and TypeScript SDK types are included in the repository.
 
-Multiple execution nodes require shared storage and consistent installation configuration. Startup order, container templates, and their validation boundaries are documented in [deployment](docs/DEPLOYMENT.md).
+If you run workers on several machines, they need shared storage and matching installation settings. The [deployment guide](docs/DEPLOYMENT.md) covers startup order, container templates, and the checks you still need to run for your environment.
 
 ## Providers and configuration
 
 The code registers adapters for OpenAI, Anthropic, Cartesia, Serper, Firecrawl, Cerebras, Groq, Google Cloud, Quiver, Replicate, Voyage, and TypeSafe. Synthetic adapters are also available for local checks.
 
-An adapter does not imply support for every model or operation a provider offers. Check the specific integration contract for supported capabilities, parameters, usage limitations, and validation status. Real prices and limits must also be verified before use.
+Each adapter supports a specific set of models and operations. Read its integration guide for parameters, usage reporting, and limitations, then verify current prices and account limits before enabling it.
 
-Models, rates, routes, recipes, and API definitions live in [configurations/](configurations/). Changes are validated and published as immutable versions. These files contain no credentials. The admin interface displays file-owned definitions and exposes the supported operational settings.
+Keep models, rates, routes, recipes, and API definitions in [configurations/](configurations/). UAI validates changes and publishes immutable versions, so accepted work can keep the configuration it started with. Credentials stay out of these files. Use the admin interface to inspect published definitions and change supported operational settings.
 
 See [file configuration](docs/FILE_CONFIGURATION.md), [universal invocations](docs/INVOCATIONS.md), and [deployment requirements](docs/DEPLOYMENT.md).
 
 ## Quick start
 
-This workflow creates a new local test installation with synthetic models. It needs no provider credentials; real paid calls are disabled by default.
+Start with the synthetic models. This gives you a local installation without provider credentials or paid calls; real calls are disabled by default.
 
 ### Requirements
 
@@ -115,7 +115,7 @@ pnpm seed
 
 `seed` is allowed only when `UAI_ENV=test`. It creates synthetic profiles, a zero-balance test account, and local interface configuration. Random passwords, service tokens, and the credential-vault key are written to the Git-ignored `.data/` directory.
 
-The seed models and rates are behavioral fixtures. They do not represent actual provider prices or offerings.
+The seeded models and rates are test fixtures. Use them to try the workflow, not to estimate a real provider bill.
 
 ### 2. Start the processes
 
@@ -152,15 +152,15 @@ curl http://127.0.0.1:4310/health
 
 Open the demo and sign in with `login_password` from `.data/demo-config.json`. The admin interface has its own password in `.data/admin-config.json`.
 
-Grant test credits through the demo's designated form. Select a synthetic profile, request a quote, confirm execution, and check the result, reservation, and charge. The API, worker, and scheduler must be running for this workflow.
+Use the demo's test-credit form to fund the wallet. Select a synthetic profile, get a quote, confirm the request, and check the result, reservation, and final charge. Keep the API, worker, and scheduler running throughout.
 
-Detailed commands for BullMQ queues, S3, individual fixtures, and diagnostics are in the [local run guide](docs/LOCAL_RUN.md). Do not start a second process set against an installation already using the same ports and database.
+For BullMQ, S3, fixtures, and diagnostics, follow the [local run guide](docs/LOCAL_RUN.md). Check for an existing installation before starting another set of processes on the same ports and database.
 
 ## Application integration
 
-Integration runs on the application's server. Provider keys and UAI service tokens stay on the backend. The application must validate its user session and permissions before submitting work to the service.
+Connect UAI from your application's server. Keep provider keys and UAI service tokens there, and check the user's session and permissions before submitting work.
 
-The TypeScript SDK lives in [packages/sdk/](packages/sdk/). It exposes wallets, quotes, operations, universal invocations, files, and events. Request schemas and server-side interaction examples are documented in the [API contract](docs/API.md). The local SDK workspace package should not be assumed to be a published npm package.
+Use the TypeScript SDK in [packages/sdk/](packages/sdk/) for wallets, quotes, operations, invocations, files, and events. The [API contract](docs/API.md) has request schemas and server-side examples. The SDK is a workspace package in this repository; don't assume it is published on npm.
 
 For external authentication and teams, use the [identity contract](docs/EXTERNAL_AUTH.md). For embedding administrative modules in your own shell, see the [modular admin contract](docs/MODULAR_ADMIN.md).
 
@@ -196,9 +196,9 @@ For integration tests, load the environment for a separate test database and run
 REQUIRE_INTEGRATION_TESTS=1 pnpm test
 ```
 
-Without `DATABASE_URL`, some PostgreSQL tests are skipped. Such a run does not establish financial invariants. The test role needs `CREATEDB` for isolated scenarios; never point tests at production or the active demo database.
+Set `DATABASE_URL` to a separate test database. Without it, some PostgreSQL suites are skipped, so a passing run won't verify the financial rules. The test role needs `CREATEDB` for isolated scenarios. Never point these tests at production or the active demo database.
 
-Use the [local guide](docs/LOCAL_RUN.md) to start the services and run development checks. Markdown and JSON-example validation does not replace implementation tests, and passing fixtures does not establish real-provider behavior.
+The [local guide](docs/LOCAL_RUN.md) covers service startup and development checks. Documentation checks validate Markdown and examples; implementation tests check behavior. Synthetic fixtures still need to be followed by checks against each real provider you intend to use.
 
 ## Real requests and operations
 

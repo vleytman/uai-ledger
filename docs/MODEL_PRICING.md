@@ -2,15 +2,15 @@
 
 [Contents](README.md) · [Quoting](QUOTING.md) · [Architecture](ARCHITECTURE.md)
 
-Use this guide to define model cost calculations, choose a customer charging mode and publish pricing profiles. Safety factors, markup and numerical limits are configuration values; select them for your installation rather than treating examples as mandatory settings.
+Define how a model's cost is calculated, choose how customers will be charged, then publish the pricing profile. Set safety factors, markup, and limits for your installation. The values in examples are starting points, not mandatory policy.
 
 ## 1. Goal and boundaries
 
-Adding a model on an already supported provider is centralized through admin: request parameters, estimation method, rates, test cases, and publication. Client applications receive settings from the catalog and do not maintain their own model tables or formulas.
+For an already supported provider, configure the model's request parameters, estimation method, rates, and test cases centrally, then publish it. Client applications read the catalog instead of keeping their own model tables and formulas.
 
-Formula is one calculation type. Ordinary token models and prices per image, second, character, or request do not require entering a formula.
+Most models don't need a formula. Use the standard fields for token pricing or prices per image, second, character, or request. Reserve formulas for calculations those forms cannot express.
 
-Estimated cost, maximum provider financial exposure, final customer price, and actual spending are distinct quantities. A final price does not imply exact cost prediction.
+Treat estimated cost, maximum provider exposure, final customer price, and actual spending as four different amounts. Agreeing a final price does not mean you can predict the provider cost exactly.
 
 The catalog connects estimation and billing with quotes, API/SDK calls, execution, and the admin interface. Models are configured explicitly; discovery is not automatic. A new provider protocol or fundamentally new meter may require adapter or evaluator code.
 
@@ -25,7 +25,7 @@ The catalog connects estimation and billing with quotes, API/SDK calls, executio
 | `lookup` | Selection parameters, value rows, result unit | Size × quality; duration × resolution; price or token quantity from a table |
 | `formula` | Restricted expression, available fields, result unit, test cases | Unusual dependencies not expressible through a predefined form |
 
-A calculation has one or more named components. Simple mode shows one form; “Add cost component” can combine text tokens, reference processing, and image generation, for example. Each component returns billable quantities or an explicitly typed base monetary cost from a table. Mixing money and quantities without conversion is prohibited.
+Build a calculation from named components. Start with one form, then use “Add cost component” when the model bills for several things, such as text tokens, reference processing, and image generation. Each component returns billable quantities or an explicitly typed base monetary cost from a table. Convert between quantities and money explicitly; never add them together as if they were the same unit.
 
 ### Required scenario: output table plus input tokens
 
@@ -39,7 +39,7 @@ An administrator can configure three independent components for one model simult
 
 Total cost equals the sum of these components' monetary results in one settlement currency. Model buffer and markup apply once to the total, followed by final rounding. A table containing monetary cost is not multiplied again by a token rate. Mandatory provider rounding rules, where present, are configured separately from retail rounding.
 
-In “Add cost component,” each component selects its own type, rather than selecting one type for the whole model. Preview shows every row's cost and the total. An administrator must not be required to write a summation formula: the system performs the sum.
+Choose a type for each component in “Add cost component,” not one type for the whole model. Preview shows each row's cost and adds the total for you. You don't need a formula just to sum the rows.
 
 Each component declares the expense categories it covers, such as text input, image input, or image output. If a table rate already includes text or references, this is explicit in its coverage; separate rows for the same expenses are prohibited. Overlapping coverage blocks publication. Rates with a limited included input quantity and paid excess require an explicitly supported quantity-splitting scheme; arbitrary overlap is forbidden.
 
@@ -62,7 +62,7 @@ Future answer length is unknown. For final pricing, an administrator must select
 - `configured_expected`: a configured profile-length forecast with an explicit enforced maximum;
 - `requested_maximum`: estimation from the permitted output limit, understandable but usually more expensive for the customer.
 
-The forecast is not presented as an exact future token count. A short answer does not reduce the final price; a long permitted answer does not increase it. The model executes with the same maximum limit that passed risk estimation.
+The output forecast predicts length; it does not know the future token count. With final pricing, a shorter answer doesn't reduce the price and a longer permitted answer doesn't increase it. Execution uses the same maximum limit that passed the risk check.
 
 Cached input, reasoning tokens, paid tools, and additional modalities are separate categories only if the provider actually bills them. Avoid double counting, such as reasoning already included in output. Do not assume a cache hit in the final price without a guaranteed basis. Publication is prohibited if a profile permits a paid tool without estimation rules and bounds.
 
@@ -84,7 +84,7 @@ Use existing PostgreSQL and catalog versioning infrastructure. Do not create a s
 Decimal values and tolerances are strings. `half_up` rounds halves away from zero: 2.5 → 3, −2.5 → −3. Negative final quantities are prohibited regardless of intermediate rounding.
 | Quote snapshot | Versions of all dependencies, specific input, calculated quantities, estimated cost, exposure limit, coefficients, and final price |
 
-Several models may reuse a method. Copying creates an independent draft; editing a shared draft does not change published versions. All published dependencies resolve by exact version, including the provider model where snapshots exist. Floating aliases explicitly display behavior-change risk.
+Models can share a method. Copy one to make an independent draft; editing a draft leaves published versions alone. Each published dependency is pinned to an exact version, including the provider model when snapshots exist. Floating aliases carry an explicit risk of behavior changes.
 
 Provider rates do not contain our markup. Configure buffer and markup separately for each model. The catalog stores the method together with a separate pricing block containing safety_factor, markup_percent, and rounding_units. Publishing a catalog version pins both blocks. The recipe specifies charging mode.
 
@@ -132,7 +132,7 @@ Order:
 6. On confirmation, atomically hold exactly this customer amount. Repeated confirmation is idempotent.
 7. For a technically valid available result, charge the agreed amount once. Save actual usage and cost separately for every attempt.
 
-Changes to published rates, billing, tokenizer, or rules do not recalculate an accepted quote. An expired unaccepted quote requires recalculation. Execution uses the accepted snapshot. Separate risk limits may stop work not yet submitted but do not permit silently increasing the price.
+Accepted quotes keep their saved rates, billing, tokenizer, and rules. If an unaccepted quote expires, calculate it again. Separate risk limits can stop work that hasn't been submitted, but can never silently raise the accepted price.
 
 The platform pays for technical defects and retries within its budget. The error buffer is not guaranteed coverage for all retries. Cancellation before an available valid result and final failure are not charged in `quoted_final`; cancelling an already successful result does not create an automatic refund. Cancellation/success races are resolved by existing transactional state serialization, not notification delivery order. Unknown outcomes follow existing investigation and the prohibition on late charging after financial closure.
 
@@ -146,13 +146,13 @@ The model card contains Parameters, Cost calculation, Provider rates, and Test c
 
 Each model card separately edits Safety factor, Markup, and Rounding. Settlement mode is set in the recipe. Do not ask administrators to duplicate provider rates or formulas for each rate card.
 
-The prepublication calculator shows steps: normalized input → quantities → cost → buffer → markup → final price. Validation does not call paid APIs. A separate real-provider test is permitted only as an explicit paid action with separate authorization; publishing does not trigger it automatically.
+Before publication, use the calculator to follow normalized input → quantities → cost → buffer → markup → final price. Validation makes no paid API calls. A real-provider test is a separate paid action that needs explicit authorization; publishing never runs it automatically.
 
 Publication shows coverage errors, incompatible parameters, unsupported categories, and test results. Copy from existing, version diff, and activation of a new version for future quotes are available. Switching type cannot silently lose another type's configuration.
 
 API/SDK return charging mode and a separate final price, such as `price_units` for `quoted_final`. Read the final price from its dedicated field rather than treating `estimated_units` as a final price. Provider cost and internal markup are not automatically exposed to public clients: detailed calculation is available to administrators. Demo displays “Price: X credits,” launch confirmation, and the same final charge.
 
-Actual monetary profit cannot be calculated solely as credits minus provider cost: real revenue depends on credit sale/grant. Admin distinguishes differences in accounting units, platform costs, and monetary profit where external payment-service data exists.
+Subtracting provider cost from wallet credits does not tell you monetary profit. That also depends on how the credits were sold or granted. Admin shows differences in accounting units and platform costs separately; monetary profit needs data from the external payment service.
 
 ## Addendum: text forecasting with actual charges
 

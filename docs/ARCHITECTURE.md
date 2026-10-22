@@ -4,9 +4,9 @@
 
 ## Product boundary
 
-The application knows why an answer is needed. The platform knows how to execute an authorized request, limit its spending, obtain the result, and record usage.
+Your application decides what work is useful and who may request it. UAI executes the authorized work, limits spending, delivers the result, and records usage.
 
-The application stores domain projects, prompts, history, and action sequences. The platform stores only the inputs needed for execution, results with limited retention, technical metadata, and financial records. It does not need a copy of the application's entire database.
+Keep projects, prompts, history, and workflow steps in your application. UAI needs only the inputs for execution, temporary results, technical metadata, and financial records. It doesn't need a copy of your whole database.
 
 The payment service stores purchases, retail prices, subscriptions, and monetary refunds. It issues commands to grant or revoke credits. The AI platform does not verify card payments or change subscription plans.
 
@@ -32,7 +32,7 @@ The central catalog stores published model versions, parameter schemas, attachme
 
 Quoting binds the final `quoted_final` price to specific input and versions, accounting ensures reservation and a single charge, and execution records each attempt's spending independently of the customer price. Actual cost does not rewrite the agreed price. The public catalog exposes parameters and file preparation to the client, but not internal methods or coefficients. See [central price calculation](MODEL_PRICING.md).
 
-One independent TypeScript codebase, deployed separately for each owner-operated application. Installations have independent PostgreSQL databases, temporary BlobStores, configurations, service tokens, and provider keys. They do not access each other's databases or share user wallets.
+Deploy the same TypeScript codebase separately for each application you operate. Each installation has its own PostgreSQL database, temporary BlobStore, configuration, service tokens, and provider keys. Installations neither access each other's databases nor share user wallets.
 
 Within an installation, API, worker, and scheduler have separate entry points, shared contracts, and one PostgreSQL database. The administrative interface is a separate build. BlobStore has a local implementation for development and object storage for the server. Public third-party developer registration and a centralized SaaS control plane are outside v1.
 
@@ -61,17 +61,17 @@ uai/
   docs/
 ~~~
 
-In the first version, the durable queue lives in PostgreSQL. A worker takes jobs through short transactions and an execution lease. A network request to a provider does not hold a wallet row lock. If Redis is introduced later, PostgreSQL remains the source of financial state and jobs requiring recovery.
+With the PostgreSQL execution backend, a worker takes durable jobs through short transactions and an execution lease. It releases wallet row locks before making a provider request. With BullMQ transport, PostgreSQL still holds financial state and the durable records needed for recovery.
 
-An event for external delivery is written to the outbox in the same transaction as the state change. Delivery may repeat. Recipients deduplicate by event_id.
+UAI writes each external event to the outbox in the same transaction as the state change. Delivery can repeat, so recipients must deduplicate by event_id.
 
 ## Interfaces and test client
 
 apps/admin and apps/demo use TanStack Start and shadcn/ui. packages/ui contains shared components, theme, typography, and amount/status formatting. Exact dependency versions are pinned when the scaffold is created; build and startup are verified in the chosen environment.
 
-The TanStack Start server layer handles sessions and UAI calls on behalf of an authorized user. Admin uses the administrative API; demo uses the SDK. Interface server functions do not modify UAI tables directly or replace the standalone API, worker, and scheduler. The UAI API checks authorization for financial commands independently of button visibility.
+The TanStack Start server handles sessions and calls UAI on behalf of the authorized user. Admin uses the administrative API; demo uses the SDK. Neither interface writes UAI tables directly, and both still need the separate API, worker, and scheduler. Hiding a button never replaces authorization: the UAI API checks financial commands itself.
 
-Demo owns its chat history and permanent files, uses a separate database or isolated client storage, and does not read the UAI database. After durably saving a result, the backend calls acknowledge. Deleting a conversation deletes client content and initiates deletion of temporary UAI content while preserving financial history.
+The demo keeps chat history and permanent files in its own database or isolated client storage. It doesn't read the UAI database. Its backend saves the result durably before calling acknowledge. Deleting a conversation removes client content and starts deletion of temporary UAI content, while financial history remains.
 
 Test grants are available only to an authenticated test user for their own account, and only when server-side test-environment mode is enabled. The backend uses a separate token with grant permission and a restricted scope. It checks a positive amount and the configured upper limit, sets explicit expires_at and reason, and retries the command with the same Idempotency-Key. The demo grant route is disabled in production independently of the frontend. A grant creates a credit lot and does not top up a provider account.
 
@@ -94,7 +94,7 @@ This overview shows selected dependencies. API, workers and scheduler share Post
 | Reconciliation | Provider snapshots, periods, discrepancies | Automatic recalculation of user charges |
 | Notifications | Incidents, rules, deliveries | Retrying generations |
 
-A module does not directly modify another module's tables. A shared application service may call modules within one transaction for critical operations, such as creating an operation and reservation.
+Each module owns its tables. When a critical action spans modules, a shared application service can coordinate them in one transaction, for example to create an operation and its reservation together.
 
 ## Identity and isolation
 

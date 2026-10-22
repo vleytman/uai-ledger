@@ -2,27 +2,27 @@
 
 [Contents](README.md)
 
-[OpenAPI](openapi.json) and TypeScript SDK types describe the supported HTTP API and are generated from shared runtime schemas. Example amounts are synthetic. Use this guide to authenticate a server-side client, quote work, execute requests and persist results.
+Use this reference to authenticate a server-side client, quote work, submit requests, and save results. [OpenAPI](openapi.json) and the TypeScript SDK types are generated from the shared runtime schemas. All example amounts are synthetic.
 
 ## General Rules
 
 ### Central Calculation and Final Price
 
-New single-call profiles may select `pricing_mode: quoted_final`. The quote returns `settlement: quoted_final` and `price_units` as an integer credit-unit string. Compatible `estimated_units` and `max_units` fields contain the same amount. The client displays `price_units` before confirmation; a successful result charges the agreed price. Changing input requires a new quote. Legacy actual_usage and fixed tables retain their previous contract.
+For a final price, select `pricing_mode: quoted_final` on a single-call profile. The quote returns `settlement: quoted_final` and `price_units` as an integer credit-unit string; the compatible `estimated_units` and `max_units` fields contain the same amount. Show `price_units` before confirmation. A successful result charges that agreed price, and changing the input requires a new quote. Legacy actual_usage and fixed tables keep their existing contract.
 
 `POST /v1/admin/model-versions/preview` requires `config:write`. It accepts a selected saved model or an unsaved calculation method with a rate version and test input. The response contains component quantities and costs, estimated provider cost, factors, and final price. Preview neither calls the provider nor requires completed verification examples; publication requires successful examples. The rate version is checked within the current application scope.
 
-The public catalog exposes the model parameter schema and attachment preparation rules. Calculation method, internal rates, safety, and markup remain administrative data. The detailed calculation-method contract is in the [specification](MODEL_PRICING.md).
+Clients can read the model's parameter schema and attachment preparation rules from the public catalog. Calculation methods, internal rates, safety factors, and markup remain administrative data. See [model pricing](MODEL_PRICING.md) for the calculation-method contract.
 
 Base path: /v1. The server uses HTTPS in operational environments. JSON fields use snake_case. Dates and times use UTC ISO 8601. Identifiers are opaque; the client does not infer access rights from them.
 
 All *_units amounts are transmitted as nonnegative integer strings. Signed amounts are permitted only in postings representations. Quantities and rates requiring fractions also use decimal strings. Display credits are derived values.
 
-GET does not start generation, retry, payment, or configuration changes. A command POST reports acceptance, not necessarily completion. Jobs use 202; reading a resource reports its final status.
+GET reads state without starting generation, retries, payments, or configuration changes. A command POST confirms that UAI accepted the command; it may still be running. Jobs return 202. Read the resource to learn its final status.
 
 ## Authorization
 
-Authorization: Bearer carries a service token. The platform defines token scope. organization_id and application_id are derived from authorization. Account ID from the body is checked for ownership and permissions, rather than accepted as proof of access.
+Send the service token with Authorization: Bearer. Its scope determines access and supplies organization_id and application_id. UAI checks ownership and permissions for any account ID in the body; knowing an ID does not grant access.
 
 | Scope | Capabilities |
 |---|---|
@@ -45,11 +45,11 @@ In external mode, the parent application owns the session. The additional servic
 
 ## Idempotency
 
-Every POST creating financial effects or paid work requires Idempotency-Key. Key length and characters are restricted; UUID is recommended. Uniqueness scope: organization + application + endpoint command + key.
+Send an Idempotency-Key with every POST that creates a financial effect or paid work. Use a UUID unless you have a reason to choose another allowed format; key length and characters are restricted. A key is unique within organization + application + endpoint command + key.
 
-The server stores the canonical input hash. Repeating the same body returns the previous resource ID and command result. The same key with another body returns 409 idempotency_conflict. Concurrent replays do not execute the command twice.
+UAI hashes the canonical input. Repeating the same body and key returns the existing resource ID and command result, including when requests arrive concurrently. Reusing the key with a different body returns 409 idempotency_conflict.
 
-Grant source is additionally unique by issuer + external_reference. Request is additionally unique by operation + client_request_key. Capture/refund have unique domain references. HTTP-response cache expiry does not remove these constraints.
+HTTP response caching is only one layer of protection. Grants are also unique by issuer + external_reference, requests by operation + client_request_key, and captures/refunds by their domain references. Those constraints remain after the response cache expires.
 
 Financial-effect idempotency records are retained for the entire financial-history retention period. Other commands require a documented retention period; afterward the client reads the resource by ID rather than assuming recreation is safe.
 
@@ -269,7 +269,7 @@ A new generation after an unknown outcome uses a new authorized request with ret
 
 Full usage and provider cost may be available only to an administrative principal. The client receives the customer charge, precision state, and permitted model information. Failed requests do not expose raw responses containing keys or another scope’s private data.
 
-A succeeded request may have settlement_status=pending when the result is available but usage is insufficient. Such a response is not marked settled and does not report charged_units as a confirmed zero. The disputed portion closes financially no later than one hour after the first unresolved_at, even if polling continues.
+A result can be available while its charge is still unresolved. In that case a succeeded request may have settlement_status=pending because usage is insufficient. UAI does not mark it settled or report charged_units as a confirmed zero. The disputed portion closes financially within one hour of the first unresolved_at, even if polling continues.
 
 `attempt_timeout_seconds` in the execution policy interrupts a silent call before the request deadline, leaving time for a retry. The interrupted attempt is marked `timed_out_at`; its cost remains unknown. Retry is automatic when the adapter supports idempotency (same key), or policy specifies `timeout_retry: "accept_duplicate_cost"`; otherwise the request receives outcome_unknown at timeout rather than at the deadline.
 
@@ -290,7 +290,9 @@ After saving text and all files in its own durable storage, the application call
 }
 ~~~
 
-The manifest identifies the entire result: text/JSON and file content hashes. The result API returns manifest_hash. Confirming download of only one file does not delete the others. Acknowledge atomically records a receipt, closes reads of that version, and queues purge. Replay returns the previous receipt; a mismatched version or hash yields 409 result_version_conflict. Acknowledgement creates no capture/refund and is not required to charge for an available valid result.
+The manifest covers the whole result: text/JSON and file content hashes. Read manifest_hash from the result API and acknowledge that complete version only after saving it. Downloading one file does not acknowledge or delete the others.
+
+Acknowledgment atomically records the receipt, closes reads of that version, and queues purge. Repeating it returns the previous receipt; a different version or hash returns 409 result_version_conflict. ACK creates no capture or refund. A valid, available result can be charged before you acknowledge delivery.
 
 After acknowledgement, expiry, or deletion, GET /requests/{id} returns metadata with result=null, delivery.status=acknowledged|expired|deleted, and event time. Access to a deleted asset returns 410 content_unavailable. Replaying the original command with its previous key returns the original ID and this status, without generation or an old payload from idempotency cache. After content deletion, only permitted hashes and financial metadata remain. A new request for the same result is new explicitly paid work.
 
@@ -483,9 +485,9 @@ The admin calls administrative methods through the TanStack Start server layer. 
 
 The SDK provides ai.run/ai.quote for single calls and accounts, quotes, operations, requests, assets, wallets, content, and events for composite actions. Ai.run calls POST /invocations, saves IDs, waits for the result through SSE/polling, and returns result with acknowledge(). The user does not register a recipe for this call. The SDK supports AbortSignal for an explicit cancellation command and typed errors.
 
-The application first persists result and files, then calls acknowledge(). The SDK may accept a persist callback and acknowledge delivery only after the callback succeeds. A write failure does not call acknowledge. After a crash, the SDK resumes waiting for the original request, accounts for content_expires_at, and shows deleted-content unavailability without a new paid call. Integration examples must include permanent persistence and project-content deletion.
+Save the result and every file durably before calling acknowledge(). If you supply a persist callback, the SDK acknowledges only after it succeeds; a failed write sends no acknowledgment. After a crash, resume waiting for the original request and respect content_expires_at. If the content has been deleted, report it as unavailable rather than making another paid call. Your integration also needs a way to delete project content.
 
-Safe SDK retries use the same Idempotency-Key and payload. The SDK neither performs independent provider failover nor grants credits. Closing HTTP/SSE is not treated as canceling paid work.
+For a safe SDK retry, keep the same Idempotency-Key and payload. The SDK neither switches providers on its own nor grants credits. Closing HTTP or SSE stops the connection, not the paid work.
 
 Models and parameters come from the published contract rather than being hardcoded in each application frontend. SDK version and API major are compatible; removing a field or changing its semantics requires a new major version or explicit migration window.
 
@@ -521,7 +523,9 @@ In a quote response, `estimate_only: true` and `overdraft_allowed: true` indicat
 
 For text/image/audio/tools, `active_account_limit`, `active_application_limit`, and `active_queue_limit` set separate active-lease limits. They do not limit backlog. `1 <= active_account_limit <= active_application_limit <= active_queue_limit <= 100000` must hold. Omitted active fields retain previous values; the resulting combination is validated. Lowering a limit does not interrupt running requests. Initial values 2/16/32 are local settings rather than provider quotas.
 
-Fields without the active prefix limit work delivery into BullMQ for text/image/audio/tools. For observe, these fields limit concurrent observations and the number of current poll revisions selected for delivery. Selection is recorded in PostgreSQL before publication; redelivery of an already selected poll occupies no new slot. A new poll revision or completion of observed work releases capacity. Historical and outdated transport records are excluded from this counter; separate active fields for observe and maintenance are currently rejected with HTTP 422 because their executors do not use these settings. Maintenance runs under one cycle-lease owner. These limits do not replace provider quotas or worker-process concurrency.
+Fields without the active prefix limit delivery into BullMQ for text/image/audio/tools. For observe, they limit concurrent observations and how many current poll revisions can be selected for delivery. PostgreSQL records that selection before publication. Redelivering an already selected poll takes no extra slot; a new poll revision or completion releases capacity. Historical and outdated transport records do not count.
+
+The observe and maintenance executors do not use separate active fields, so those settings return HTTP 422. Maintenance runs under one cycle-lease owner. None of these limits replaces provider quotas or worker-process concurrency.
 
 ### Rejection When the Queue Is Full
 
@@ -571,7 +575,7 @@ See the [paid API contract](PAID_API_CONTRACT.md) for provider accounts, usage u
 
 ## Universal Execution Policy
 
-`QuoteBody.execution` permits partial overrides of known fields: deadline_seconds, max_attempts, backoff, retry_reasons, retry_after_output, recovery, attempt_timeout_seconds, timeout_retry. An empty object is equivalent to an absent block. Lists are replaced entirely; null and unknown fields are rejected. `billing.refused` accepts default platform or actual_usage. The quote returns final execution and billing, and the request executes stored terms. Policy changes when supplying an existing quote_id are rejected.
+Use `QuoteBody.execution` to override selected policy fields: deadline_seconds, max_attempts, backoff, retry_reasons, retry_after_output, recovery, attempt_timeout_seconds, and timeout_retry. An empty object behaves like an absent block. Lists replace the whole list; null and unknown fields are rejected. `billing.refused` defaults to platform and also accepts actual_usage. The quote returns the resolved execution and billing terms, which the request then uses. You cannot change those terms while supplying an existing quote_id.
 
 Automatic single-call with estimated_actual is permitted without a fixed budget; other modes still require a budget or accepted quote. Images with human confirmation use a quote and operation acceptance.
 

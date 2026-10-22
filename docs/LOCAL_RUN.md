@@ -2,7 +2,7 @@
 
 [Documentation](README.md) · [Application integration](INVOCATIONS.md) · [Deployment](DEPLOYMENT.md)
 
-This guide starts a new local installation with synthetic providers. It does not require provider credentials and does not make paid model requests.
+Start here to run UAI locally with synthetic providers. You won't need provider credentials, and these steps make no paid model requests.
 
 ## Requirements
 
@@ -29,11 +29,11 @@ pnpm seed
 
 The sample database credentials are local development values. Do not use them for an externally accessible deployment.
 
-Migrations run transactionally with an advisory lock and verify SHA-256 checksums of applied files. Do not edit an applied migration; upgrades use new migration files.
+Migrations run in a transaction, use an advisory lock, and check the SHA-256 checksum of each applied file. Once a migration has run, leave it unchanged and add a new file for the next upgrade.
 
-`seed` runs only with `UAI_ENV=test`. It creates a zero-balance account, synthetic text/image profiles and a composite recipe. Rerunning it preserves an existing configured local installation. The sample rates are fixtures, not provider prices.
+`seed` requires `UAI_ENV=test`. It creates a zero-balance account, synthetic text/image profiles, and a composite recipe. You can run it again without replacing an existing configured local installation. The sample rates are fixtures, not provider prices.
 
-The command writes `.data/demo-config.json`, `.data/admin-config.json` and `.data/vault-key` with restricted permissions. These files contain generated passwords, service tokens and the encryption key. They are excluded from Git. Keep this installation's vault key with its database backup; replacing the key makes existing encrypted credentials inaccessible.
+Look for the generated passwords, service tokens, and encryption key in `.data/demo-config.json`, `.data/admin-config.json`, and `.data/vault-key`. The files have restricted permissions and are excluded from Git. Back up this installation's vault key with its database: without the original key, UAI cannot decrypt stored credentials.
 
 ## Start the services
 
@@ -60,7 +60,7 @@ Then start one command per terminal:
 | Admin | `pnpm dev:admin` | `http://127.0.0.1:4311` |
 | Demo | `pnpm dev:demo` | `http://127.0.0.1:4312` |
 
-Absolute configuration paths are necessary because pnpm starts Vite from the application's directory.
+Use absolute configuration paths because pnpm starts Vite from the application's directory, not the repository root.
 
 Check the HTTP process:
 
@@ -68,7 +68,7 @@ Check the HTTP process:
 curl http://127.0.0.1:4310/health
 ```
 
-A successful response does not independently establish PostgreSQL, Redis or blob-storage readiness.
+A successful response tells you the HTTP process is running. Check PostgreSQL, Redis, and blob storage separately.
 
 ## Sign in and run a synthetic request
 
@@ -76,9 +76,9 @@ Use `login_password` from `.data/demo-config.json` for the demo, and the separat
 
 In the demo, grant test credits, select a synthetic profile, request a quote and confirm execution. Check the result, wallet reservation and final charge. Keep API, worker and scheduler running for the complete workflow.
 
-The test-credit form can also set an available balance, including zero and fractional values, to test insufficient funds. This requires `UAI_ENV=test` in the demo and API, plus `credits:test-balance` scope. Open reservations block adjustment and stale revisions are rejected.
+To try insufficient-funds behavior, use the test-credit form to set the available balance to zero or a fractional value. Both the demo and API need `UAI_ENV=test`, and the key needs `credits:test-balance` scope. UAI rejects the change if reservations are open or the balance revision is stale.
 
-The demo persists history and files independently of UAI temporary storage. Deleting a conversation removes its saved content after confirmation; financial records remain. An integrated application must implement its own permanent persistence and deletion policy.
+The demo keeps its own history and files outside UAI's temporary storage. Deleting a conversation removes that saved content after confirmation, while financial records stay in place. Your application needs its own permanent storage and deletion policy too.
 
 ## Configure real providers
 
@@ -90,7 +90,7 @@ The demo persists history and files independently of UAI temporary storage. Dele
 
 `UAI_ALLOW_REAL_PROVIDERS=false` blocks real providers by default. `UAI_ALLOW_REPORTING_API` and `UAI_ENABLE_WEBHOOK_DELIVERY` control report imports and external delivery separately. An inference key does not imply permission to read financial reports.
 
-For real paid work, use processes without file watchers. With the installation environment loaded, run worker and scheduler in separate terminals:
+For paid work, run the worker and scheduler without file watchers. Load the installation environment first, then run these commands in separate terminals:
 
 ```sh
 UAI_ALLOW_REAL_PROVIDERS=true pnpm exec tsx apps/worker/src/index.ts
@@ -100,7 +100,7 @@ UAI_ALLOW_REAL_PROVIDERS=true pnpm exec tsx apps/worker/src/index.ts
 UAI_ALLOW_REAL_PROVIDERS=true pnpm exec tsx apps/scheduler/src/index.ts
 ```
 
-Stop any previous instances before starting replacements. A forced restart can leave an attempt with an unknown outcome; do not resolve it by blindly repeating the provider call. See [Execution](EXECUTION.md).
+Stop the previous instances before starting replacements. A forced restart can leave you unsure whether the provider finished a call. Follow the recovery rules in [Execution](EXECUTION.md) before trying it again.
 
 ## Queues, shared storage and deployment
 
@@ -125,6 +125,6 @@ For database-backed tests, use a separate test database:
 REQUIRE_INTEGRATION_TESTS=1 pnpm test
 ```
 
-The flag fails the run if `DATABASE_URL` is missing. Without a database, some suites are skipped and do not establish financial behavior. Isolated tests require a test role with `CREATEDB`; they must not target production or the active demo database.
+With this flag, the run fails if `DATABASE_URL` is missing. Without a database, some suites are skipped and won't verify financial behavior. Isolated tests need a role with `CREATEDB`. Use neither production nor the active demo database.
 
 The test suite also includes dedicated process-crash, Redis-restart, storage and container checks. Read the corresponding test command and environment requirements before running disruptive checks against shared services.

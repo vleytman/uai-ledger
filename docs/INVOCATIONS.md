@@ -1,12 +1,12 @@
 # Universal Invocation Integration
 
-Contracts: [API](API.md), [execution](EXECUTION.md), [quoting](QUOTING.md). All prices in the local environment are synthetic. Support for a specific model is declared by the catalog's published `text_features`, rather than the provider name.
+Use the SDK to submit work, follow its progress, and save the result. The [API](API.md), [execution](EXECUTION.md), and [quoting](QUOTING.md) references cover the full contracts. Local example prices are synthetic. Check a model's published `text_features` to see what it supports; the provider name alone isn't enough.
 
 ## Application Server
 
-The UAI token is stored on the application server. The browser calls its own server, which creates a `UaiClient` with `baseUrl` and `token`, checks `/health`, and passes a verified identity through `forIdentity`. Do not take an account, project, or identity from the browser without checking the owner's permissions. See [external authentication](EXTERNAL_AUTH.md).
+Keep the UAI token on your application server. The browser calls your backend, which creates a `UaiClient` with `baseUrl` and `token`, checks `/health`, and uses `forIdentity` to pass an identity it has verified. Check permissions before accepting any account, project, or identity from the browser. See [external authentication](EXTERNAL_AUTH.md).
 
-Each user invocation receives a persistent idempotency key. Store it together with the accepted `request_id`. After a network error, repeat the same call with the same bytes and key, or connect to the accepted request. A new key means new work and a possible new charge.
+Give each invocation a persistent idempotency key and save it with the accepted `request_id`. If the network fails, repeat the call with exactly the same bytes and key, or reconnect to the accepted request. A new key starts new work and can create a new charge.
 
 ```ts
 const result = await client.ai.run({
@@ -31,7 +31,7 @@ const result = await client.ai.run({
 });
 ```
 
-The application chooses the profile, parameters, and budget limit from the published configuration. This example is not a ready-to-use model configuration. With `estimated_actual`, the initial reservation follows the estimate; the actual charge may differ, including debt after a cache miss. `isInsufficientCredits(error)` lets the application show a top-up option without creating another invocation.
+Choose the profile, parameters, and budget limit from your published configuration; the example above does not configure a model for you. With `estimated_actual`, UAI reserves the estimate, but the final charge can differ and may create debt after a cache miss. Use `isInsufficientCredits(error)` to offer a top-up without starting another invocation.
 
 ## Request and delivery flow
 
@@ -41,13 +41,13 @@ This is the successful quote-based path, with UAI execution roles grouped into o
 
 ## Streaming and Delivery
 
-`ai.stream(body, {key, signal})` returns `accepted`, `attempt`, `delta`, and `result` events. A delta has a request, attempt, generation, sequence, and optional `field_path`. The SDK discards duplicates and outdated attempts. On `attempt`, the application clears provisional output. `live_incomplete` means part of the stream was missed; the final object remains the source of the result.
+`ai.stream(body, {key, signal})` returns `accepted`, `attempt`, `delta`, and `result` events. Each delta identifies its request, attempt, generation, sequence, and optional `field_path`. The SDK drops duplicates and deltas from outdated attempts. Clear provisional output when an `attempt` event arrives. If you see `live_incomplete`, some of the stream was missed; use the final object as the authoritative result.
 
 `delivery.field_paths`, for example `['/reply']`, streams selected JSON string fields as they arrive. These fragments remain provisional until the full schema is validated. With tools, exactly one call is validated; UAI returns the name and arguments, while the application decides whether to execute the tool.
 
-A disconnected connection or abort stops viewing. To stop the work, explicitly call `requests.cancel(requestId, key)`. Use `ai.resumeStream(requestId)` to recover; this does not create a new provider dispatch. Old deltas are not stored as financial events; recovery may include a gap and deliver only the final result.
+Closing the stream or aborting it stops viewing, not execution. Call `requests.cancel(requestId, key)` when you want to stop the work. To reconnect, use `ai.resumeStream(requestId)`; it does not dispatch another provider call. Old deltas are not saved as financial events, so recovery may have a gap or return only the final result.
 
-`ai.run` calls `persist` first, then ACK. If persistence fails, ACK is not sent. With low-level `ai.stream`, the application stores the result itself and calls `requests.acknowledge` with `result_version` and `manifest_hash` from `delivery`. After ACK, UAI's temporary result may be deleted: the application must display its own stored copy.
+With `ai.run`, the SDK calls `persist` before sending ACK. If saving fails, it sends no ACK. With low-level `ai.stream`, save the result yourself, then call `requests.acknowledge` with the `result_version` and `manifest_hash` from `delivery`. After ACK, UAI may delete its temporary copy. Display the copy your application saved.
 
 `execution_status` describes the work outcome; `settlement_status` describes whether financial settlement is complete. A `refused` outcome is not retried. By default, the platform bears refusal usage; the application may explicitly select `actual_usage`. Unknown provider usage does not become zero. `usage.attempts` exposes individual models and costs; `usage.summary.scope='all_attempts'` includes all attempts.
 
@@ -55,7 +55,7 @@ A disconnected connection or abort stops viewing. To stop the work, explicitly c
 
 `assets.upload` uploads the source file with SHA-256, type, and size. The order of image blocks determines image placement within the message. Preserve keeps the original bytes; transformation must be explicitly enabled in configuration. Images not used in blocks are rejected by the real text adapter.
 
-Accepted input use extends retention and holds the file for an active request. Result GET and ACK do not extend retention or delete shared input. Use `assets.renew(id, key)` to extend retention. If a file has already expired or been deleted, the application uploads its own original again; `reupload` only helps while the old content is available. The application stores the permanent media library.
+Accepting a request that uses an input file extends its retention and holds it while the request is active. Reading a result or sending ACK neither extends retention nor deletes shared input. Use `assets.renew(id, key)` when you need more time. Once a file has expired or been deleted, upload your own original again; `reupload` works only while the old content is still available. Keep the permanent media library in your application.
 
 `wallets.subscribe(walletId, {signal})` delivers an initial snapshot, followed by changes with increasing `revision`; after a disconnect it rereads the snapshot. `available_units` already excludes reservations. The application stores integer monetary values as strings, applies only newer revisions, and separately displays `reserved_units` and negative available balances.
 

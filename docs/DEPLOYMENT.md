@@ -2,7 +2,7 @@
 
 [Contents](README.md) · [Operations](OPERATIONS.md)
 
-The templates in `deploy/` split the backend across three nodes. Configure and validate networking, credentials, persistence and resource limits for your environment before routing user traffic. Build your product frontend and combined admin shell separately. The runtime image below contains the UAI API, scheduler, workers and migrations; the browser admin and demo are not included.
+Use the templates in `deploy/` to split the backend across three nodes. Before sending user traffic, check networking, credentials, persistence, and resource limits in your environment. Build your product frontend and combined admin shell separately: the runtime image contains the UAI API, scheduler, workers, and migrations, but no browser admin or demo.
 
 ## Roles
 
@@ -12,7 +12,7 @@ The templates in `deploy/` split the backend across three nodes. Configure and v
 | Application | `deploy/compose.app.yaml` | API, scheduler; a separate manual migration command |
 | Execution | `deploy/compose.workers.yaml` | generation, observation, maintenance |
 
-The API listens only on the host loopback interface at port 4310. The project's reverse proxy provides external HTTPS and product admin access. PostgreSQL/Redis require an explicit `UAI_DATA_BIND_IP`, a private-network or VPN address. Use a firewall to open their ports only to the required servers. Passwords do not replace transport encryption; the template assumes a protected private network/VPN and does not configure TLS.
+The API listens on the host's loopback interface at port 4310. Put your reverse proxy in front of it for external HTTPS and product admin access. PostgreSQL and Redis need an explicit `UAI_DATA_BIND_IP` on a private network or VPN. Restrict their ports to the servers that need them. The templates assume a protected network and do not configure TLS; passwords alone do not encrypt transport.
 
 ## Image and configuration
 
@@ -62,9 +62,9 @@ Use `--scale generation=N` to add execution replicas. Account for the total Post
 
 ## Updates and rollback
 
-Prepare a new image digest, validate it on staging, make a verifiable PostgreSQL backup and check access to shared S3. Apply additive migrations, then update scheduler/API/workers by role. Do not run old and new backends on the same request without the prescribed generation transition. Validate a backend transition on staging before applying it to active requests; preserve database and storage consistency during rollback.
+For an update, prepare a new image digest and validate it on staging. Take a verifiable PostgreSQL backup and check access to shared S3, then apply additive migrations and update scheduler, API, and workers by role. Follow the generation transition before moving a request between backends; never let old and new backends execute it together. Rehearse that transition on staging and keep database and storage state consistent if you roll back.
 
-Redis AOF does not replace a PostgreSQL or S3 backup. Do not restore financial tables alone without consistent operation/attempt/storage data. Configure S3 backups and rehearse a complete multi-host restore before relying on this deployment. The templates do not automate backups or rollback. `/health` checks HTTP availability; it does not establish database, queue or storage readiness.
+Back up PostgreSQL and S3 separately; Redis AOF cannot replace either. Restore financial tables together with the matching operation, attempt, and storage data. Configure S3 backups and rehearse a complete multi-host restore before relying on the deployment, because the templates do not automate backups or rollback. `/health` confirms the HTTP process is available; check the database, queue, and storage separately.
 
 ## PostgreSQL restore drill
 

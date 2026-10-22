@@ -4,9 +4,9 @@
 
 ## Purpose and Boundaries
 
-The user-facing frontend of your product is a separate application and build. It does not connect to this administrative shell.
+Build the customer-facing frontend as a separate application. This shell is for administration.
 
-One installation serves one owner-operated application. UAI provides financial accounting, model configuration, and request execution. The product adds its pages, settings, and payment integration. They are built into one interface with one administrative login. Product data does not become part of UAI's data model.
+An installation serves one application you operate. UAI contributes accounting, model configuration, and request execution; you add product pages, settings, and payment integration. The administrative pages share one interface and login, while your product data stays outside UAI's data model.
 
 Your product owns its user-facing frontend, authentication and payment integration. The UAI admin packages do not provide those product-specific features.
 
@@ -21,7 +21,7 @@ Your product owns its user-facing frontend, authentication and payment integrati
 | `apps/admin/src/server/backend.ts` | Server composition: registered product handlers |
 | `apps/admin/src/routes` | Thin TanStack Start routes |
 
-The shell knows nothing about logos, wallets, or providers. The UAI module does not import the product. The product is connected at build time. Dynamic loading of arbitrary plugins is unsupported.
+The shell handles layout and navigation without knowing about logos, wallets, or providers. The UAI module doesn't import your product. Compose the modules at build time; loading arbitrary plugins dynamically is unsupported.
 
 ## Connecting a Product
 
@@ -72,25 +72,29 @@ export const handle = createAdminBackend({
 
 `loadAdminConfig` returns server-side UAI configuration, including the service token and session secret. It is never imported by the client build. An additional handler receives `account_id` and `wallet_id`; in external mode it also receives verified staff `identity` and `role`. A command additionally receives `key`, `data`, and `id`. The service token is not passed to it. Product secrets reside in its server module.
 
-`account_id` and `wallet_id` identify resources from installation configuration. The logged-in employee's identity is passed separately. A `reads` handler currently receives neither `id`, query parameters, nor the original Request. A product command does not receive top-level `revision`: when resource version control is needed, pass it inside `data` and check it in your transaction. For pagination, filters, dynamic GET resources, and a custom error system, provide separate product server routes with authorization checks. An arbitrary product-handler error in the current shared adapter becomes a generic 503 response; this is not a complete product API framework.
+`account_id` and `wallet_id` come from installation configuration; the employee's identity is passed separately. A `reads` handler receives no `id`, query parameters, or original Request. A command also receives no top-level `revision`. If you need version checks, send the revision inside `data` and check it in the transaction.
 
-Client read call: `api('app.product.settings')`. Change: `command('app.product.save-settings', data, commandKey, resourceId)`. The UI page and server handler are registered separately; a menu page does not create an endpoint. Menu changes neither grant nor revoke server permissions.
+For pagination, filters, dynamic GET resources, or custom errors, add authorized product server routes. The shared adapter turns an arbitrary handler error into a generic 503. It is not a complete product API framework.
+
+Read with `api('app.product.settings')` and change state with `command('app.product.save-settings', data, commandKey, resourceId)`. Register the UI page and server handler separately. Adding a menu entry creates no endpoint and changes no server permissions.
 
 The administrative session is checked before the handler; changes also require Origin, JSON, and a command identifier. The product must validate `data`, implement transactional idempotency by `key`, audit, and rules for changing its resources. A key's presence does not replace idempotency.
 
 Standalone login grants installation-owner permissions. External mode connects the parent's session and staff `admin`/`viewer` roles with individual audit. It does not implement product registration or memberships. A customer-team administrator does not automatically receive staff access. The user frontend remains separate and uses product client APIs. Hiding a menu does not restrict the API. The shared service admin is for employees; ordinary users work through the product frontend.
 
-By default, `loadConfig` reads a JSON file at the path in `UAI_ADMIN_CONFIG`, rather than JSON directly from the variable. Fields: `api_url`, `admin_token`, `account_id`, `wallet_id`, `session_secret`, `login_password`. The session secret must contain at least 32 characters, and the password at least 16; generate separate random values per installation. A session lasts eight hours; its cookie has HttpOnly and SameSite=Strict, plus Secure on HTTPS. In standalone mode this is a separate owner login. Shared login requires explicitly connecting an external adapter; there is no automatic unification with the product. Behind a reverse proxy, preserve the correct public origin for change validation.
+Point `UAI_ADMIN_CONFIG` at a JSON file; `loadConfig` reads that path, not JSON from the variable itself. The fields are `api_url`, `admin_token`, `account_id`, `wallet_id`, `session_secret`, and `login_password`. Generate separate random secrets for each installation: at least 32 characters for the session secret and 16 for the password.
+
+Standalone mode uses this owner login with an eight-hour session. Its cookie is HttpOnly and SameSite=Strict, plus Secure on HTTPS. To share your product's login, connect an external adapter explicitly. Behind a reverse proxy, preserve the public origin so change validation works.
 
 ## Payments and Settings
 
 The unified interface already provides existing wallet, charge, refund, and pricing pages. They use existing APIs and financial rules. Product settings and the payment screen connect through the same kind of product module.
 
-Moving the interface does not implement payment acceptance. The product's payment adapter validates the webhook signature and external payment identifier, records incoming revenue separately from provider cost and customer charge, then idempotently calls a UAI credit grant. `/api/uai-admin`, protected by an administrative session, is not a payment-provider webhook endpoint.
+Adding payment pages doesn't connect a payment provider. Your payment adapter must verify the webhook signature and external payment ID, record revenue separately from provider costs and customer charges, then issue an idempotent UAI credit grant. Keep payment webhooks on their own endpoint; `/api/uai-admin` requires an administrative session.
 
 ## Migration and Deployment
 
-UAI is connected from the shared Git repository as the `vendor/uai` submodule, rather than copied or forked per product. The parent project's commit reference pins the version. Source workspace packages are connected to the product's administrative build; the user frontend does not depend on them. Packages are not yet published to npm.
+Add the shared Git repository as the `vendor/uai` submodule and pin it through the product repository's commit reference. The product admin build uses UAI's source workspace packages; the customer frontend doesn't depend on them. These packages aren't published on npm yet.
 
 The product workspace includes `apps/*`, `vendor/uai`, and `vendor/uai/packages/*`. The UAI root package is needed for current internal server-module dependencies. `vendor/uai/apps/*` is excluded from the product's administrative build: standalone UAI admin and demo must not become a second product frontend. UAI services use the same pinned commit separately.
 
