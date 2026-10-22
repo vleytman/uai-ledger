@@ -1,103 +1,103 @@
-# Контракт API и SDK
+# API and SDK Contract
 
-[Оглавление](README.md)
+[Contents](README.md)
 
-Контракт v1 реализуется в локальном API. [OpenAPI](openapi.json) и типы SDK генерируются из общих runtime-схем; актуальность проверяется `pnpm check:api`. Полнота реализации и проверки отражены в [матрице приёмки](ACCEPTANCE_RESULTS.md). Примеры сумм синтетические.
+The v1 contract is implemented in the local API. [OpenAPI](openapi.json) and SDK types are generated from shared runtime schemas; freshness is checked with `pnpm check:api`. Implementation completeness and verification are reflected in the [acceptance matrix](ACCEPTANCE_RESULTS.md). Example amounts are synthetic.
 
-## Общие правила
+## General Rules
 
-### Центральный расчёт и окончательная цена
+### Central Calculation and Final Price
 
-Новые single-call профили могут выбирать `pricing_mode: quoted_final`. Quote возвращает `settlement: quoted_final` и `price_units` строкой целых кредитных единиц. Совместимые поля `estimated_units` и `max_units` при этом содержат ту же сумму. Клиент показывает `price_units` до подтверждения; успешный результат списывает согласованную цену. Изменение входа требует нового quote. Legacy actual_usage и фиксированные таблицы сохраняют прежний контракт.
+New single-call profiles may select `pricing_mode: quoted_final`. The quote returns `settlement: quoted_final` and `price_units` as an integer credit-unit string. Compatible `estimated_units` and `max_units` fields contain the same amount. The client displays `price_units` before confirmation; a successful result charges the agreed price. Changing input requires a new quote. Legacy actual_usage and fixed tables retain their previous contract.
 
-`POST /v1/admin/model-versions/preview` требует `config:write`. Он принимает выбранную сохранённую модель либо несохранённую методику с версией ставок и тестовым входом. Ответ содержит количества и стоимость составляющих, оценку себестоимости, коэффициенты и окончательную цену. Preview не вызывает поставщика и не требует заполненных контрольных примеров; публикация требует успешных примеров. Версия ставок проверяется в области текущего приложения.
+`POST /v1/admin/model-versions/preview` requires `config:write`. It accepts a selected saved model or an unsaved calculation method with a rate version and test input. The response contains component quantities and costs, estimated provider cost, factors, and final price. Preview neither calls the provider nor requires completed verification examples; publication requires successful examples. The rate version is checked within the current application scope.
 
-Публичный каталог раскрывает схему параметров модели и правила подготовки вложений. Методика расчёта, внутренние ставки, запас и наценка остаются административными данными. Подробный контракт методики описан в [спецификации](MODEL_PRICING_SPEC.md).
+The public catalog exposes the model parameter schema and attachment preparation rules. Calculation method, internal rates, safety, and markup remain administrative data. The detailed calculation-method contract is in the [specification](MODEL_PRICING_SPEC.md).
 
-Base path: /v1. Сервер использует HTTPS в рабочей среде. JSON-поля имеют snake_case. Дата и время передаются в UTC ISO 8601. Идентификаторы непрозрачны, клиент не извлекает из них права доступа.
+Base path: /v1. The server uses HTTPS in operational environments. JSON fields use snake_case. Dates and times use UTC ISO 8601. Identifiers are opaque; the client does not infer access rights from them.
 
-Все суммы *_units передаются строками неотрицательных целых чисел. Signed amounts допускаются только в представлении postings. Quantity и rates, требующие дробной части, также передаются decimal strings. Display credits являются производными значениями.
+All *_units amounts are transmitted as nonnegative integer strings. Signed amounts are permitted only in postings representations. Quantities and rates requiring fractions also use decimal strings. Display credits are derived values.
 
-GET не запускает генерацию, повтор, оплату или изменение конфигурации. POST над командой сообщает о принятии, а не обязательно о завершении. Для заданий используется 202; чтение ресурса сообщает окончательный статус.
+GET does not start generation, retry, payment, or configuration changes. A command POST reports acceptance, not necessarily completion. Jobs use 202; reading a resource reports its final status.
 
-## Авторизация
+## Authorization
 
-Authorization: Bearer передаёт service token. Scope токена задаётся платформой. organization_id и application_id выводятся из авторизации. Account ID из тела проверяется на принадлежность и права, а не принимается как доказательство доступа.
+Authorization: Bearer carries a service token. The platform defines token scope. organization_id and application_id are derived from authorization. Account ID from the body is checked for ownership and permissions, rather than accepted as proof of access.
 
-| Scope | Возможности |
+| Scope | Capabilities |
 |---|---|
-| accounts:write | Создать и сопоставить аккаунт своего приложения |
-| accounts:spending | Приостановить/возобновить расход аккаунта по решению платёжного сервиса или оператора |
-| ai:quote | Получить оценку разрешённого действия |
-| ai:execute | Принять операцию, создать запрос, отменить |
-| ai:read | Читать результаты и события в своей области |
-| content:write | Подтверждать передачу и удалять содержимое своей области |
-| wallets:read | Читать свой разрешённый баланс и журнал |
-| credits:grant | Начислять в разрешённые wallets, с серверными пределами |
-| credits:refund | Возвращать ранее списанный расход в своей области |
-| credits:revoke | Готовить и подтверждать отзыв конкретного grant |
-| config:write | Управлять каталогом, ценами, маршрутами и рецептами |
-| operations:admin | Разрешать инциденты и управлять исполнением |
+| accounts:write | Create and map an account in the application |
+| accounts:spending | Suspend/resume account spending by payment-service or operator decision |
+| ai:quote | Obtain an estimate for an authorized action |
+| ai:execute | Accept an operation, create a request, cancel |
+| ai:read | Read results and events within its scope |
+| content:write | Acknowledge delivery and delete content within its scope |
+| wallets:read | Read its authorized balance and ledger |
+| credits:grant | Grant credits to permitted wallets within server limits |
+| credits:refund | Refund previously charged usage within its scope |
+| credits:revoke | Prepare and confirm revocation of a specific grant |
+| config:write | Manage catalog, prices, routes, and recipes |
+| operations:admin | Resolve incidents and manage execution |
 
-Обычный ключ приложения не содержит credits:grant. Платёжный сервис получает ограниченный ключ начислений без доступа к prompts и provider credentials. Admin UI использует пользовательские сессии с ролями и аудитом.
+An ordinary application key does not include credits:grant. The payment service receives a restricted grant key without access to prompts or provider credentials. Admin UI uses user sessions with roles and audit.
 
-В external-режиме сессией владеет родительское приложение. Дополнительный service scope `identity:assert` разрешает проверенный заголовок `x-uai-context` версии 1. User-контекст ограничивает account и запрещает административные/финансовые привилегии; staff-контекст имеет роль `admin` или `viewer`, не расширяя scopes токена. Viewer доступен только явный реестр безопасных чтений. Standalone-сборка сохраняет парольный вход владельца. Формат, настройка адаптера и персональная атрибуция описаны в [контракте внешней авторизации](EXTERNAL_AUTH.md). `/health` объявляет `capabilities.external_identity: 1`; SDK и внешний административный backend проверяют совместимость.
+In external mode, the parent application owns the session. The additional service scope `identity:assert` permits a verified version-1 `x-uai-context` header. User context restricts account and forbids administrative/financial privileges; staff context has an `admin` or `viewer` role without expanding token scopes. Viewer receives only an explicit registry of safe reads. The standalone build retains owner password login. Format, adapter setup, and individual attribution are described in the [external authentication contract](EXTERNAL_AUTH.md). `/health` declares `capabilities.external_identity: 1`; the SDK and external administrative backend check compatibility.
 
-## Идемпотентность
+## Idempotency
 
-Все создающие финансовый эффект и платную работу POST требуют Idempotency-Key. Ключ ограничен длиной и допустимыми символами; рекомендуемое значение является UUID. Область уникальности: organization + application + endpoint command + key.
+Every POST creating financial effects or paid work requires Idempotency-Key. Key length and characters are restricted; UUID is recommended. Uniqueness scope: organization + application + endpoint command + key.
 
-Сервер сохраняет hash канонического входа. Повтор того же тела возвращает прежний resource ID и результат команды. Тот же ключ с другим телом возвращает 409 idempotency_conflict. Конкурентные повторы не выполняют команду дважды.
+The server stores the canonical input hash. Repeating the same body returns the previous resource ID and command result. The same key with another body returns 409 idempotency_conflict. Concurrent replays do not execute the command twice.
 
-Источник grant дополнительно уникален по issuer + external_reference. Request дополнительно уникален по operation + client_request_key. У capture/refund есть доменные уникальные ссылки. Истечение кеша HTTP-ответов не удаляет эти ограничения.
+Grant source is additionally unique by issuer + external_reference. Request is additionally unique by operation + client_request_key. Capture/refund have unique domain references. HTTP-response cache expiry does not remove these constraints.
 
-Idempotency records финансовых эффектов сохраняются весь срок хранения финансовой истории. Для прочих команд нужен документированный срок; клиент после него читает ресурс по ID и не предполагает безопасность повторного создания.
+Financial-effect idempotency records are retained for the entire financial-history retention period. Other commands require a documented retention period; afterward the client reads the resource by ID rather than assuming recreation is safe.
 
-## Основные ресурсы
+## Main Resources
 
-| Метод и путь | Результат |
+| Method and path | Result |
 |---|---|
-| POST /accounts | Аккаунт приложения и необязательный кошелёк |
-| POST /accounts/{id}/spending/suspend | Запретить новые расходы; остановить неотправленные requests |
-| POST /accounts/{id}/spending/resume | Разрешить новую работу после внешнего решения |
-| GET /models | Разрешённые модели и capabilities |
-| GET /profiles | Профили маршрутизации, доступные приложению |
-| GET /recipes | Доступные опубликованные рецепты и input schemas |
-| POST /assets/uploads | Разрешение загрузить файл |
-| POST /assets/{id}/complete | Завершение загрузки и проверка файла |
-| GET /assets/{id} | Metadata и временный доступ к разрешённому файлу |
-| POST /invocations | Одиночный вызов: встроенная оценка, резерв, operation и request |
-| POST /quotes | Предварительная оценка без резерва |
-| GET /quotes/{id} | Условия оценки и срок действия |
-| POST /operations | Принятие quote и атомарный резерв |
-| GET /operations/{id} | Статус, результаты, бюджет и settlement |
-| POST /operations/{id}/amend | Принять дополнительную оценку и изменить разрешённый предел |
-| POST /operations/{id}/complete | Закрыть приём новых requests; ранее принятые продолжаются, settlement независим |
-| POST /operations/{id}/finish-partial | Закрыть приём и отменить ещё не отправленные requests; сохранить готовое |
-| POST /operations/{id}/cancel | Отменить новые и по возможности текущие запросы |
-| POST /operations/{id}/requests | Создать ограниченный запрос component |
-| GET /requests/{id} | Статус, metadata и готовый результат |
-| POST /requests/{id}/cancel | Запросить отмену |
-| POST /requests/{id}/acknowledge | Подтвердить сохранение результата приложением и удалить временную копию |
-| POST /content-deletions | Удалить содержимое operation либо поколения внешнего проекта |
-| GET /content-deletions/{id} | Состояние удаления и tombstone |
-| GET /events | SSE в разрешённой области с фильтром operation или wallet |
-| GET /wallets/{id} | Авторитетный остаток и ревизия |
-| GET /wallets/{id}/transactions | История проводок с пагинацией |
-| GET /wallets/{id}/lots | Пакеты, остатки и сроки |
-| POST /wallets/{id}/grants | Начислить отдельный пакет |
-| POST /wallets/{id}/refunds | Вернуть часть конкретного capture |
-| POST /wallets/{id}/grant-revocations | Подготовить отзыв доступной части grant |
-| POST /grant-revocations/{id}/commit | Подтвердить отзыв после внешнего решения |
-| POST /grant-revocations/{id}/cancel | Отменить подготовленный отзыв |
+| POST /accounts | Application account and optional wallet |
+| POST /accounts/{id}/spending/suspend | Prohibit new spending; stop unsent requests |
+| POST /accounts/{id}/spending/resume | Permit new work following an external decision |
+| GET /models | Permitted models and capabilities |
+| GET /profiles | Routing profiles available to the application |
+| GET /recipes | Available published recipes and input schemas |
+| POST /assets/uploads | Permission to upload a file |
+| POST /assets/{id}/complete | Complete upload and validate file |
+| GET /assets/{id} | Metadata and temporary access to an authorized file |
+| POST /invocations | Single call: built-in estimate, reservation, operation, and request |
+| POST /quotes | Preliminary estimate without reservation |
+| GET /quotes/{id} | Estimate terms and validity period |
+| POST /operations | Quote acceptance and atomic reservation |
+| GET /operations/{id} | Status, results, budget, and settlement |
+| POST /operations/{id}/amend | Accept an additional estimate and change the authorized limit |
+| POST /operations/{id}/complete | Close new-request admission; accepted requests continue, settlement is independent |
+| POST /operations/{id}/finish-partial | Close admission and cancel unsent requests; preserve completed work |
+| POST /operations/{id}/cancel | Cancel new and, where possible, current requests |
+| POST /operations/{id}/requests | Create a bounded component request |
+| GET /requests/{id} | Status, metadata, and completed result |
+| POST /requests/{id}/cancel | Request cancellation |
+| POST /requests/{id}/acknowledge | Confirm application persistence of the result and delete the temporary copy |
+| POST /content-deletions | Delete content of an operation or external project generation |
+| GET /content-deletions/{id} | Deletion state and tombstone |
+| GET /events | SSE within authorized scope, filtered by operation or wallet |
+| GET /wallets/{id} | Authoritative balance and revision |
+| GET /wallets/{id}/transactions | Paginated posting history |
+| GET /wallets/{id}/lots | Lots, balances, and expiry dates |
+| POST /wallets/{id}/grants | Grant a separate lot |
+| POST /wallets/{id}/refunds | Refund part of a specific capture |
+| POST /wallets/{id}/grant-revocations | Prepare revocation of the available grant portion |
+| POST /grant-revocations/{id}/commit | Confirm revocation after an external decision |
+| POST /grant-revocations/{id}/cancel | Cancel a prepared revocation |
 
-Пагинация использует непрозрачный cursor и limit с серверной верхней границей. Денежные и технические списки имеют стабильный порядок с дополнительным ID при одинаковом времени.
+Pagination uses an opaque cursor and limit with a server upper bound. Financial and technical lists have stable ordering with an additional ID when timestamps match.
 
-Audio assets принимают `audio/wav` и `audio/mpeg`. Загрузка и выдача provider output используют общий декодер и проверку целостности до сохранения. Пределы: 16 MiB encoded bytes и 16 777 216 декодированных значений каналов. Поддерживаемые WAV codecs, MP3 metadata и границы проверки описаны в `packages/execution/src/audio-validation.ts`. Повреждённый input получает `invalid_asset`, дефектный provider output оплачивается платформой по Q3/Q5.
+Audio assets accept `audio/wav` and `audio/mpeg`. Upload and provider-output delivery use a shared decoder and integrity validation before storage. Limits: 16 MiB encoded bytes and 16 777 216 decoded channel values. Supported WAV codecs, MP3 metadata, and validation boundaries are described in `packages/execution/src/audio-validation.ts`. Damaged input receives `invalid_asset`; defective provider output is paid for by the platform under Q3/Q5.
 
-Команды complete, finish-partial и cancel возвращают 200 с текущим OperationResponse. После терминального результата они не меняют итог и не повторяют финансовые эффекты или событие закрытия, в том числе при новом Idempotency-Key. Пока ранее принятые requests ещё активны, отмену можно усилить в порядке complete → finish-partial → cancel; обратный переход не действует. Повторный ключ с прежним телом читает текущее состояние исходной операции. Проверки ai:execute и области доступа выполняются и для команд без изменений. Семантика описана в [жизненном цикле выполнения](EXECUTION.md).
+The complete, finish-partial, and cancel commands return 200 with the current OperationResponse. After a terminal result they neither change the outcome nor repeat financial effects or the closing event, including with a new Idempotency-Key. While accepted requests remain active, cancellation may be strengthened in the order complete → finish-partial → cancel; the reverse transition has no effect. A repeated key with the original body reads the original operation’s current state. ai:execute and access-scope checks apply to no-op commands too. Semantics are described in the [execution lifecycle](EXECUTION.md).
 
-## Создание аккаунта
+## Account Creation
 
 ~~~json
 {
@@ -106,13 +106,13 @@ Audio assets принимают `audio/wav` и `audio/mpeg`. Загрузка и
 }
 ~~~
 
-External account ID уникален внутри приложения. Произвольное существующее account_id другого приложения нельзя присоединить через этот метод. Общий wallet access выдаётся административной командой.
+External account ID is unique within the application. This method cannot attach an arbitrary existing account_id from another application. Shared wallet access is granted through an administrative command.
 
-Spending suspend/resume требуют accounts:spending, Idempotency-Key, reason и external_reference. Suspend атомарно запрещает admission и будущий dispatch данного account, закрывает ещё не отправленные requests с release; уже отправленные проходят cancel/settlement. Resume разрешает новую работу, но не повторяет отменённые requests и не снимает provider lock. Обычный frontend не получает эти полномочия.
+Spending suspend/resume require accounts:spending, Idempotency-Key, reason, and external_reference. Suspend atomically prohibits admission and future dispatch for the account, closing unsent requests with release; dispatched requests proceed through cancel/settlement. Resume permits new work but neither retries canceled requests nor removes a provider lock. An ordinary frontend does not receive these permissions.
 
-## Простой вызов
+## Simple Invocation
 
-POST /invocations использует scopes ai:quote и ai:execute. Клиент передаёт разрешённую модель либо profile, ограниченный input и максимальный расход. Регистрировать собственный recipe не требуется:
+POST /invocations uses ai:quote and ai:execute scopes. The client supplies an allowed model or profile, bounded input, and maximum spending. No custom recipe registration is required:
 
 ~~~json
 {
@@ -121,7 +121,7 @@ POST /invocations использует scopes ai:quote и ai:execute. Клиен
   "profile": "text.medium",
   "kind": "text.generate",
   "input": {
-    "messages": [{ "role": "user", "content": "Подготовь краткий ответ." }]
+    "messages": [{ "role": "user", "content": "Prepare a brief response." }]
   },
   "parameters": { "max_output_tokens": 1500 },
   "budget": { "credit_unit_id": "ai-credit-usd-v1", "max_credits": "180" },
@@ -129,15 +129,15 @@ POST /invocations использует scopes ai:quote и ai:execute. Клиен
 }
 ~~~
 
-max_credits является точной decimal string и авторизованным пределом, а не присланной ценой. Сервер рассчитывает верхнюю границу по встроенному immutable single-call recipe. Если она выше предела, возвращается 409 budget_conflict с оценкой; платная работа не начинается. Иначе одна транзакция сохраняет внутренний quote, operation с закрытым admission, резерв рассчитанного максимума, request и outbox. Более дорогой клиентский предел не требует резервировать его целиком.
+max_credits is an exact decimal string and authorized limit, rather than a submitted price. The server calculates the upper bound using a built-in immutable single-call recipe. If it exceeds the limit, 409 budget_conflict returns with an estimate; paid work does not start. Otherwise one transaction stores an internal quote, an operation with closed admission, reservation of the calculated maximum, request, and outbox. A higher client limit does not require reserving it in full.
 
-Ответ 202 содержит operation_id, request_id, quote_id, accepted_max_units, execution_status, deadline_at и events_url. Повтор с тем же ключом возвращает те же ресурсы. Нет промежутка, в котором падение SDK оставило резерв без созданного запроса. Одиночный image вызов создаёт одну картинку; для пакета используются составные операции.
+The 202 response contains operation_id, request_id, quote_id, accepted_max_units, execution_status, deadline_at, and events_url. Replaying with the same key returns the same resources. There is no gap in which an SDK crash could leave a reservation without a request. A single image call creates one image; batches use composite operations.
 
-Для цепочки вызовов, которые появляются по ходу работы, POST /quotes принимает kind=pool, а каждый вызов передаёт operation_id принятого пула в POST /invocations; ответ тот же, request_id относится к этому вызову. Правила — в [оценке](QUOTING.md#резерв-на-составную-работу).
+For a chain of calls that emerge during work, POST /quotes accepts kind=pool, and each call passes the accepted pool’s operation_id to POST /invocations; the response is the same, with request_id referring to that call. Rules are in [quoting](QUOTING.md#reservation-for-compound-work).
 
-Для предварительной цены POST /quotes принимает kind=single_call и те же profile/model, input, parameters, budget. Возвращаемый quote может быть передан POST /invocations вместо исходных полей. Сервер связывает полный нормализованный input и его hash; quote нельзя использовать с подменённым prompt. Черновой input хранится лишь до принятия или expiry quote. Для generic invocation применяются те же правила cancellation, retry, дефектов, передачи и финансового закрытия.
+For preliminary pricing, POST /quotes accepts kind=single_call and the same profile/model, input, parameters, and budget. The returned quote may be passed to POST /invocations instead of the original fields. The server binds the entire normalized input and its hash; a quote cannot be used with a substituted prompt. Draft input is stored only until quote acceptance or expiry. Generic invocation follows the same cancellation, retry, defect, delivery, and financial-closing rules.
 
-## Оценка
+## Quoting
 
 POST /quotes:
 
@@ -155,13 +155,13 @@ POST /quotes:
 }
 ~~~
 
-Ответ включает id, input hash, версии рецепта/маршрутов/цен, estimated_units, max_units, credit_unit_id, confidence, breakdown, expires_at и warnings. Он также фиксирует partial_policy=successful_parts, cancellation policy, retry policy, execution deadlines и content_ttl_seconds. Полный пример суммы находится в [QUOTING](QUOTING.md).
+The response includes id, input hash, recipe/route/price versions, estimated_units, max_units, credit_unit_id, confidence, breakdown, expires_at, and warnings. It also fixes partial_policy=successful_parts, cancellation policy, retry policy, execution deadlines, and content_ttl_seconds. A complete amount example is in [QUOTING](QUOTING.md).
 
-Оценка не резервирует credits и не обещает слот у провайдера. Если нет подходящей цены, верхней границы или capability, возвращается структурированная ошибка. metadata имеет ограниченный размер и не влияет на авторизацию.
+A quote neither reserves credits nor promises a provider slot. Missing applicable price, upper bound, or capability returns a structured error. metadata has a size limit and does not affect authorization.
 
-Если передан external_project_id, поле project_generation обязательно и валидируется сервером. Эта пара задаёт привязку содержимого, наследуемую operation и её requests; дочерний запрос не может убрать или заменить её. Остальные произвольные metadata не управляют удалением. Отсутствие проектной привязки допускается для общего API; такой контент удаляется через operation scope или TTL. Интеграция Logo Panel всегда передаёт проектную привязку.
+When external_project_id is supplied, project_generation is required and validated server-side. This pair defines the content binding inherited by the operation and its requests; a child request cannot remove or replace it. Other arbitrary metadata does not control deletion. The general API permits no project binding; such content is deleted through operation scope or TTL. Logo Panel integration always supplies the project binding.
 
-## Принятие операции
+## Operation Acceptance
 
 POST /operations:
 
@@ -172,7 +172,7 @@ POST /operations:
 }
 ~~~
 
-Ответ:
+Response:
 
 ~~~json
 {
@@ -192,11 +192,11 @@ POST /operations:
 }
 ~~~
 
-Операция создаётся только после успешного резерва. При нехватке средств возвращается 402 insufficient_credits без частично созданного разрешения. Истёкший quote возвращает 409 quote_expired.
+An operation is created only after successful reservation. Insufficient funds return 402 insufficient_credits without a partially created authorization. An expired quote returns 409 quote_expired.
 
-Amend принимает новый quote, связанный с данной operation. Новый общий максимум не может быть меньше captures и активных claims. Увеличение требует атомарного дополнительного резерва. Старые captures не пересчитываются.
+Amend accepts a new quote tied to this operation. The new total maximum cannot fall below captures and active claims. An increase requires an atomic additional reservation. Old captures are not recalculated.
 
-## Выполнение запроса
+## Request Execution
 
 POST /operations/op_123/requests:
 
@@ -206,8 +206,8 @@ POST /operations/op_123/requests:
   "component": "participants",
   "kind": "text.generate",
   "input": {
-    "instructions": "Верни ответ по указанной схеме.",
-    "messages": [{ "role": "user", "content": "Входные данные приложения" }],
+    "instructions": "Return a response using the specified schema.",
+    "messages": [{ "role": "user", "content": "Application input data" }],
     "asset_ids": [],
     "response_schema": {
       "type": "object",
@@ -220,15 +220,15 @@ POST /operations/op_123/requests:
 }
 ~~~
 
-Сервер выводит route из component. Пользователь не может заменить его на более дорогую модель через поле body. Если рецепт допускает выбор, варианты и их цены входят в quote.
+The server derives the route from the component. A user cannot substitute a more expensive model through a body field. If the recipe permits selection, the options and their prices are included in the quote.
 
-Для image.generate input содержит prompt и asset_ids, а parameters содержит count, size и quality в пределах рецепта. Для speech.synthesize input содержит text и разрешённый voice reference. Для search input содержит query и разрешённые фильтры. Для specialized.run передаётся зарегистрированный operation type со своей схемой.
+For image.generate, input contains prompt and asset_ids, while parameters contains count, size, and quality within recipe bounds. For speech.synthesize, input contains text and an allowed voice reference. For search, input contains query and allowed filters. specialized.run receives a registered operation type with its own schema.
 
-В первой версии count image request равен 1; четыре картинки являются четырьмя отдельно учитываемыми requests. Техническая схема результата фиксируется до dispatch. Нельзя после получения валидного ответа поменять требования и объявить предыдущую работу бесплатной.
+In the first version, image-request count is 1; four images are four separately accounted requests. The technical result schema is fixed before dispatch. Requirements cannot be changed after receiving a valid response to declare previous work free.
 
-В asset_ids принимаются только загруженные input assets нужного владельца. Output asset предыдущего request не может использоваться напрямую: приложение сохраняет файл и загружает отдельный input asset. Нарушение отклоняется до dispatch как invalid_input. Это сохраняет независимость acknowledgement и активных входных файлов.
+asset_ids accepts only uploaded input assets owned by the correct party. An output asset from a previous request cannot be used directly: the application stores the file and uploads a separate input asset. Violations are rejected before dispatch as invalid_input. This preserves independence between acknowledgement and active input files.
 
-Ответ 202:
+202 response:
 
 ~~~json
 {
@@ -240,18 +240,18 @@ POST /operations/op_123/requests:
 }
 ~~~
 
-Повтор с тем же client_request_key и входом возвращает req_123. Изменённый input возвращает conflict. Повтор для восстановления результата не создаёт provider attempt.
+Replaying the same client_request_key and input returns req_123. Changed input returns a conflict. Replaying to recover a result does not create a provider attempt.
 
-Новая генерация после неизвестного исхода выполняется через новый разрешённый запрос с retry_of_request_id и явным acknowledged_duplicate_risk, только если у principal есть соответствующее разрешение и принят дополнительный бюджет. Boolean из браузера без авторизованного серверного действия не является достаточным основанием.
+A new generation after an unknown outcome uses a new authorized request with retry_of_request_id and explicit acknowledged_duplicate_risk, only if the principal has the required permission and an additional budget has been accepted. A browser boolean without an authorized server action is insufficient.
 
-## Чтение результата
+## Reading a Result
 
 ~~~json
 {
   "id": "req_123",
   "execution_status": "succeeded",
   "settlement_status": "settled",
-  "result": { "type": "json", "value": { "message": "Готовый ответ" } },
+  "result": { "type": "json", "value": { "message": "Completed response" } },
   "model": { "provider": "example", "model_id": "example-text-v1" },
   "usage_state": "final",
   "cost_state": "calculated",
@@ -267,21 +267,21 @@ POST /operations/op_123/requests:
 }
 ~~~
 
-Usage и provider cost в полном объёме могут быть доступны только административному principal. Клиент получает пользовательское списание, состояние точности и разрешённую информацию о модели. Ошибочные запросы не раскрывают сырые ответы с ключами или приватными данными другой области.
+Full usage and provider cost may be available only to an administrative principal. The client receives the customer charge, precision state, and permitted model information. Failed requests do not expose raw responses containing keys or another scope’s private data.
 
-У succeeded request может быть settlement_status=pending, если результат доступен, но usage недостаточен. Такой ответ не помечается settled и не сообщает charged_units как подтверждённый ноль. Финансовое закрытие спорной части происходит не позднее одного часа от первого unresolved_at, даже если polling продолжается.
+A succeeded request may have settlement_status=pending when the result is available but usage is insufficient. Such a response is not marked settled and does not report charged_units as a confirmed zero. The disputed portion closes financially no later than one hour after the first unresolved_at, even if polling continues.
 
-`attempt_timeout_seconds` в execution policy обрывает один молчащий вызов раньше дедлайна запроса, чтобы в оставшееся время поместился повтор. Оборванная попытка отмечается `timed_out_at`, её стоимость остаётся неизвестной. Повтор выполняется автоматически, если адаптер поддерживает идемпотентность (тот же ключ) или политика задаёт `timeout_retry: "accept_duplicate_cost"`; иначе запрос получает outcome_unknown в момент таймаута, а не дедлайна.
+`attempt_timeout_seconds` in the execution policy interrupts a silent call before the request deadline, leaving time for a retry. The interrupted attempt is marked `timed_out_at`; its cost remains unknown. Retry is automatic when the adapter supports idempotency (same key), or policy specifies `timeout_retry: "accept_duplicate_cost"`; otherwise the request receives outcome_unknown at timeout rather than at the deadline.
 
-Отказ поставщика до начала работы (401/403, 402 или insufficient_quota, 429), который адаптер помечает `billable: false`, не считается неизвестной стоимостью: попытка получает cost 0, окончательно отказанный запрос сразу получает settlement_status=settled без часового ожидания. Адаптер без такой отметки сохраняет прежнее часовое закрытие.
+A provider rejection before work begins (401/403, 402 or insufficient_quota, 429) marked by the adapter as `billable: false` is not unknown cost: the attempt receives cost 0, and a finally rejected request immediately receives settlement_status=settled without an hour’s wait. An adapter without this marker retains the previous one-hour closure.
 
-При waiting_recovery ответ содержит recovery_incident_id, cycle_index, attempt_count, next_retry_at, deadline_at и reason. Эти metadata не раскрывают чужие requests, выбранные контрольными. После locked новые вызовы получают provider_locked; ранее принятые requests без доступного пути получают терминальный provider_recovery_exhausted и отдельный settlement.
+For waiting_recovery, the response contains recovery_incident_id, cycle_index, attempt_count, next_retry_at, deadline_at, and reason. This metadata does not reveal other parties’ requests selected as probes. After locked, new calls receive provider_locked; accepted requests without an available path receive terminal provider_recovery_exhausted and separate settlement.
 
-Запрос, срок которого истёк до первой попытки, получает execution_status=canceled, attempt_count=0 и причину, указывающую, что вызов модели не начинался: `rate_limit_starved`, если он ждал concurrency или окна лимитера поставщика, и `admission_timeout` в остальных случаях ожидания допуска. Причина `deadline_exceeded` остаётся для запросов, у которых уже была попытка, а также для paused и waiting_recovery. Такой запрос не оплачивается.
+A request that expires before its first attempt receives execution_status=canceled, attempt_count=0, and a reason indicating no model call started: `rate_limit_starved` if it waited for provider concurrency or a limiter window, and `admission_timeout` for other admission waits. `deadline_exceeded` remains the reason for requests with a prior attempt, and for paused and waiting_recovery requests. Such a request is not charged.
 
-## Передача и удаление содержимого
+## Content Delivery and Deletion
 
-После сохранения текста и всех файлов в собственном долговечном хранилище приложение вызывает POST /requests/req_123/acknowledge с Idempotency-Key:
+After saving text and all files in its own durable storage, the application calls POST /requests/req_123/acknowledge with Idempotency-Key:
 
 ~~~json
 {
@@ -290,15 +290,15 @@ Usage и provider cost в полном объёме могут быть дост
 }
 ~~~
 
-Manifest идентифицирует весь результат: текст/JSON и content hashes файлов. API результата возвращает manifest_hash. Подтверждение только скачивания одного файла не удаляет остальные. Acknowledge атомарно фиксирует receipt, закрывает чтение этой версии и ставит purge в очередь. Повтор возвращает прежний receipt; несовпадающая версия или hash дают 409 result_version_conflict. Подтверждение не создаёт capture/refund и не требуется для списания за доступный валидный результат.
+The manifest identifies the entire result: text/JSON and file content hashes. The result API returns manifest_hash. Confirming download of only one file does not delete the others. Acknowledge atomically records a receipt, closes reads of that version, and queues purge. Replay returns the previous receipt; a mismatched version or hash yields 409 result_version_conflict. Acknowledgement creates no capture/refund and is not required to charge for an available valid result.
 
-После acknowledge, expiry или удаления GET /requests/{id} возвращает metadata с result=null, delivery.status=acknowledged|expired|deleted и временем события. Доступ к удалённому asset возвращает 410 content_unavailable. Повтор исходной команды с прежним ключом возвращает прежний ID и этот статус, без генерации и без старого payload из idempotency cache. После удаления контента сохраняются только допустимые hashes и финансовые metadata. Новый запрос на тот же результат является новой явно оплачиваемой работой.
+After acknowledgement, expiry, or deletion, GET /requests/{id} returns metadata with result=null, delivery.status=acknowledged|expired|deleted, and event time. Access to a deleted asset returns 410 content_unavailable. Replaying the original command with its previous key returns the original ID and this status, without generation or an old payload from idempotency cache. After content deletion, only permitted hashes and financial metadata remain. A new request for the same result is new explicitly paid work.
 
-POST /content-deletions принимает scope и reason. Scope может быть operation_id либо пара external_project_id/project_generation в области авторизованного приложения. Сервер создаёт tombstone и задачу удаления; ответ 202 содержит deletion_id. Повторы идемпотентны. Новый request, в том числе внутри старой operation, проверяет tombstone и не может записать результат в удалённое поколение проекта. Финансовый settlement уже отправленного вызова продолжается. GET deletion показывает accepted/purging/completed и проблемы физической очистки. Завершение не утверждается до проверки всех принадлежащих scope копий.
+POST /content-deletions accepts scope and reason. Scope may be operation_id or an external_project_id/project_generation pair within the authorized application. The server creates a tombstone and deletion task; the 202 response contains deletion_id. Replays are idempotent. A new request, including inside an old operation, checks the tombstone and cannot write a result into a deleted project generation. Financial settlement of an already dispatched call continues. GET deletion shows accepted/purging/completed and physical-cleanup problems. Completion is not claimed until every copy belonging to the scope has been checked.
 
-Предлагаемый content TTL без receipt равен одному часу от ready_at, согласно опубликованной конфигурации установки. Это отдельный таймер от финансового unresolved_at. Приложение получает оба срока и не предполагает возможность загрузить результат спустя несколько дней. Ссылки на assets и события не продлевают TTL.
+The proposed content TTL without receipt is one hour from ready_at, according to published installation configuration. This is a separate timer from financial unresolved_at. The application receives both deadlines and must not assume it can download the result several days later. Asset links and events do not extend TTL.
 
-## Начисление
+## Credit Grant
 
 POST /wallets/wallet_123/grants:
 
@@ -313,13 +313,13 @@ POST /wallets/wallet_123/grants:
 }
 ~~~
 
-Это 3 000 кредитов и $3 внутреннего бюджета. Стоимость продажи не требуется. Сервис сам фиксирует бюджет одного кредита из immutable unit registry; клиент не может прислать другой коэффициент.
+This is 3 000 credits and $3 of internal budget. The sale price is not required. The service fixes the budget of one credit from the immutable unit registry; the client cannot submit another conversion factor.
 
-expires_at обязателен: null явно создаёт бессрочный пакет. Для месячных кредитов без переноса платёжный сервис передаёт source=subscription, отдельную ссылку на период и точное expires_at, например 2026-10-18T00:00:00Z. Истечение не удаляет lot из истории. GET wallet учитывает уже наступивший срок даже при задержке фонового expire. Новый grant следующего периода не оживляет старый остаток.
+expires_at is required: null explicitly creates a nonexpiring lot. For monthly credits without rollover, the payment service sends source=subscription, a separate period reference, and exact expires_at, for example 2026-10-18T00:00:00Z. Expiry does not remove the lot from history. GET wallet accounts for expiry already reached even when background expire is delayed. A new grant for the next period does not revive the old balance.
 
-Ответ содержит grant_id, lot_id, неизменяемые исходные значения и wallet snapshot. Повтор external_reference с другим amount конфликтует даже при другом Idempotency-Key. Административные начисления требуют reason и аудита.
+The response contains grant_id, lot_id, immutable original values, and wallet snapshot. Reusing external_reference with another amount conflicts even with another Idempotency-Key. Administrative grants require reason and audit.
 
-## Возврат и отзыв
+## Refund and Revocation
 
 POST /wallets/wallet_123/refunds:
 
@@ -332,7 +332,7 @@ POST /wallets/wallet_123/refunds:
 }
 ~~~
 
-Сумма не превышает некомпенсированную часть capture. Refund возвращает новый transaction ID, wallet revision, lot allocations и их expires_at. Компенсация в уже истёкший пакет использует отдельный refund lot по зафиксированной политике; стартовая длительность 30 дней. Простое освобождение резерва после expiry не является refund и не создаёт новый пакет.
+The amount cannot exceed the uncompensated capture portion. Refund returns a new transaction ID, wallet revision, lot allocations, and their expires_at. Compensation into an already expired lot uses a separate refund lot under the fixed policy; initial duration is 30 days. Simply releasing a reservation after expiry is not a refund and creates no new lot.
 
 POST /wallets/wallet_123/grant-revocations:
 
@@ -345,11 +345,11 @@ POST /wallets/wallet_123/grant-revocations:
 }
 ~~~
 
-Prepare блокирует доступную часть конкретного grant и возвращает revocation_id и reconcile_after. Commit и cancel являются идемпотентными командами. reconcile_after запускает сверку/инцидент, а не автоматический release. Уже consumed или зарезервированный для AI бюджет не отзывается автоматически. Состояние внешнего платежа AI-сервис не угадывает. Часовой timeout неизвестного AI-расхода не применяется к revocation hold.
+Prepare holds the available portion of a specific grant and returns revocation_id and reconcile_after. Commit and cancel are idempotent commands. reconcile_after triggers reconciliation/an incident rather than automatic release. Budget already consumed or reserved for AI is not automatically revoked. The AI service does not guess external payment state. The one-hour unknown-AI-cost timeout does not apply to a revocation hold.
 
-## События
+## Events
 
-SSE и webhook используют общий envelope:
+SSE and webhook use a shared envelope:
 
 ~~~json
 {
@@ -369,57 +369,57 @@ SSE и webhook используют общий envelope:
 }
 ~~~
 
-Основные типы: operation.accepted, operation.paused, operation.completed, operation.settled, request.queued, request.waiting_rate_limit, request.waiting_recovery, request.started, request.output_delta, request.succeeded, request.settled, request.failed, request.outcome_unknown, result.ready, result.acknowledged, content.deleted, usage.updated, wallet.updated, provider.health_changed, provider.budget_low, provider.failover_started, provider.recovery_started, provider.recovery_exhausted, provider.recovered, reconciliation.discrepancy.
+Main types: operation.accepted, operation.paused, operation.completed, operation.settled, request.queued, request.waiting_rate_limit, request.waiting_recovery, request.started, request.output_delta, request.succeeded, request.settled, request.failed, request.outcome_unknown, result.ready, result.acknowledged, content.deleted, usage.updated, wallet.updated, provider.health_changed, provider.budget_low, provider.failover_started, provider.recovery_started, provider.recovery_exhausted, provider.recovered, reconciliation.discrepancy.
 
-Request.output_delta является временным SSE-потоком без долговечного payload. Остальные долговечные события содержат references/metadata и не копируют prompts, текст результата или bytes файлов. После удаления контента повтор outbox не должен его раскрывать.
+Request.output_delta is a temporary SSE stream without a durable payload. Other durable events contain references/metadata and do not copy prompts, result text, or file bytes. Outbox replay must not disclose deleted content.
 
-Окончание выполнения и финансовое закрытие могут приходить отдельными событиями. Клиент применяет только более новые wallet revisions. При пропуске событий он читает snapshot. События разных ресурсов не являются гарантией единого порядка во всех каналах доставки.
+Execution completion and financial closure may arrive as separate events. The client applies only newer wallet revisions. If events are missed, it reads a snapshot. Events from different resources do not guarantee one shared order across all delivery channels.
 
-Webhook содержит подпись тела, timestamp и event ID. Получатель проверяет подпись и окно времени, устраняет дубли и отвечает после надёжного принятия. Отправитель повторяет доставку с backoff. Бизнес-эффект не выполняется повторно при повторной доставке.
+A webhook contains body signature, timestamp, and event ID. The recipient checks the signature and time window, deduplicates, and responds after durable acceptance. The sender retries delivery with backoff. Redelivery does not repeat the business effect.
 
-## Административные методы
+## Administrative Methods
 
-Все конфигурации имеют draft и published versions. Редактирование draft использует revision/If-Match, чтобы два администратора не перезаписали изменения друг друга.
+All configurations have draft and published versions. Draft editing uses revision/If-Match so two administrators cannot overwrite each other’s changes.
 
-| Ресурс | Необходимые операции |
+| Resource | Required operations |
 |---|---|
-| /admin/connections | Создать, читать, изменить draft settings, enable/disable, проверить разрешённым неплатным методом |
-| /admin/recovery-incidents | Scope, цикл, probe lease, next_retry_at, история, ручное включение затронутой области с reason |
-| /admin/connections/{id}/credentials | Сохранить/ротировать secret через write-only вход |
-| /admin/model-versions | Каталог возможностей и жизненный цикл |
-| /admin/rate-cards | Создать draft с необязательным display_name, проверить расчёт, сравнить влияние, publish |
-| /admin/rate-cards/{id}/display-name | PATCH: переименовать draft или опубликованный тариф; config:write, If-Match и Idempotency-Key обязательны |
-| /admin/routes | Создать draft, проверить совместимость, publish |
-| /admin/recipes | Создать draft, проверить пределы и схемы, publish |
-| /admin/requests, /admin/attempts | Поиск, чтение, диагностика, разрешённые действия восстановления; `POST /admin/requests/{id}/resolve-unknown` разрешает неизвестный исход попытки по данным поставщика |
-| /admin/provider-snapshots | Последние балансы, лимиты и свежесть |
-| /admin/reconciliation-runs | Запустить read-only сверку, прочитать результат, оформить корректировку |
-| /admin/incidents | Acknowledge, resolve, история доставок |
-| /admin/notification-rules | Пороги, получатели, cooldown |
-| /admin/audit-events | Просмотр аудита с фильтрами |
-| /admin/credit-summary | Сводка кредитов всех кошельков приложения за период: выдано, списано, возвращено, сгорело, отозвано, текущий и истекающий остаток |
+| /admin/connections | Create, read, change draft settings, enable/disable, check through an allowed unpaid method |
+| /admin/recovery-incidents | Scope, cycle, probe lease, next_retry_at, history, manually enable affected scope with reason |
+| /admin/connections/{id}/credentials | Store/rotate secret through write-only input |
+| /admin/model-versions | Capability catalog and lifecycle |
+| /admin/rate-cards | Create draft with optional display_name, validate calculation, compare impact, publish |
+| /admin/rate-cards/{id}/display-name | PATCH: rename draft or published tariff; config:write, If-Match, and Idempotency-Key required |
+| /admin/routes | Create draft, check compatibility, publish |
+| /admin/recipes | Create draft, check limits and schemas, publish |
+| /admin/requests, /admin/attempts | Search, read, diagnose, permitted recovery actions; `POST /admin/requests/{id}/resolve-unknown` resolves an attempt’s unknown outcome using provider evidence |
+| /admin/provider-snapshots | Latest balances, limits, and freshness |
+| /admin/reconciliation-runs | Start read-only reconciliation, read result, record adjustment |
+| /admin/incidents | Acknowledge, resolve, delivery history |
+| /admin/notification-rules | Thresholds, recipients, cooldown |
+| /admin/audit-events | Audit viewing with filters |
+| /admin/credit-summary | Period credit summary across all application wallets: issued, consumed, refunded, expired, revoked, current and expiring balances |
 
-Просмотр секрета после сохранения не предусмотрен. Publish rate card не переписывает историю. Действие resolve unknown требует reason и допустимого финансового сценария из ACCOUNTING: тело содержит attempt_id, provider_charged и cost_units (только при provider_charged=true), клиенту ничего не списывается, попытка получает статус `abandoned` с известной стоимостью. Порядок действий описан в [операциях](OPERATIONS.md#слоты-лимитера-и-неизвестный-исход).
+Secrets cannot be viewed after storage. Publishing a rate card does not rewrite history. Resolve unknown requires reason and a permitted financial scenario from ACCOUNTING: the body contains attempt_id, provider_charged, and cost_units (only when provider_charged=true); the customer is not charged, and the attempt receives `abandoned` status with known cost. The procedure is described in [operations](OPERATIONS.md#limiter-slots-and-unknown-outcomes).
 
-`GET /admin/execution-metrics` дополнительно возвращает `limiters` (`concurrency_limit`, `held_slots`, `unknown_held_slots`, `oldest_unknown_held_seconds`) и по очередям `rate_limit_starved_24h`, `admission_timeout_24h` и `attempt_timeouts_24h` (вызовы, оборванные таймаутом попытки). Сигнал уведомлений `limiter.unknown_slots_held` срабатывает, когда неизвестные исходы занимают слоты лимитера.
+`GET /admin/execution-metrics` additionally returns `limiters` (`concurrency_limit`, `held_slots`, `unknown_held_slots`, `oldest_unknown_held_seconds`) and per-queue `rate_limit_starved_24h`, `admission_timeout_24h`, and `attempt_timeouts_24h` (calls interrupted by attempt timeout). Notification signal `limiter.unknown_slots_held` fires when unknown outcomes occupy limiter slots.
 
-### Сводка кредитов приложения
+### Application Credit Summary
 
-`GET /v1/admin/credit-summary` (scope `operations:admin`, токен без `account_ids`) одним запросом считает кредиты всех кошельков приложения токена. Параметры: `period_start`, `period_end` (полуинтервал `[start, end)`, оба необязательны, `period_start` раньше `period_end`), `account_id` (сужает выборку до одного аккаунта; чужой аккаунт даёт 404) и `expiring_before` (по умолчанию `as_of` + 30 дней). Метод только читает: отложенные проводки `expire` не записываются, их сумма учитывается расчётом. Все суммы — units строками.
+`GET /v1/admin/credit-summary` (scope `operations:admin`, token without `account_ids`) calculates credits across every wallet in the token’s application in one query. Parameters: `period_start`, `period_end` (half-open `[start, end)`, both optional, `period_start` earlier than `period_end`), `account_id` (narrows selection to one account; another party’s account returns 404), and `expiring_before` (default `as_of` + 30 days). The method is read-only: pending `expire` postings are not written, but their amount is included by calculation. All amounts are unit strings.
 
-| Поле | Значение | Основа |
+| Field | Meaning | Basis |
 |---|---|---|
-| issued_units, issued_by_source | Сумма `original_amount_units` пакетов, созданных в периоде, по `source`; компенсационные пакеты `refund` не входят | `lot_created_at` |
-| consumed_units | Кредиты, перешедшие в consumed: capture и погашение долга | `journal_created_at` |
-| refunded_units | Кредиты, возвращённые из consumed обратно в доступные | `journal_created_at` |
-| revoked_units | Подтверждённые отзывы | `journal_created_at` |
-| expired_units | Сгоревшее в пакетах с `expires_at` в периоде и не позже `as_of`, включая ещё не записанное `expire` | `lot_expires_at` |
-| expired_held_units | Резервы и блокировки отзыва в этих пакетах; позже станут consumed, revoked или expired | `lot_expires_at` |
-| available_units, reserved_units, revocation_reserved_units | Текущие суммы по действующим пакетам; reserved и блокировки — по всем пакетам | На `as_of` |
-| debt_units | Непогашенный долг фактического расхода; доступный остаток кошелька равен available минус долг | На `as_of` |
-| expiring_units | Доступное в пакетах, которые истекут после `as_of` и до `expiring_before` | На `as_of` |
+| issued_units, issued_by_source | Sum of `original_amount_units` for lots created in the period, by `source`; compensating `refund` lots are excluded | `lot_created_at` |
+| consumed_units | Credits moved into consumed: capture and debt repayment | `journal_created_at` |
+| refunded_units | Credits returned from consumed to available | `journal_created_at` |
+| revoked_units | Confirmed revocations | `journal_created_at` |
+| expired_units | Expired amount in lots with `expires_at` within the period and no later than `as_of`, including `expire` not yet written | `lot_expires_at` |
+| expired_held_units | Reservations and revocation holds in these lots; later become consumed, revoked, or expired | `lot_expires_at` |
+| available_units, reserved_units, revocation_reserved_units | Current amounts in valid lots; reserved and holds across all lots | At `as_of` |
+| debt_units | Unpaid actual-usage debt; wallet available balance equals available minus debt | At `as_of` |
+| expiring_units | Available amounts in lots expiring after `as_of` and before `expiring_before` | At `as_of` |
 
-`expired_precision` равен `partial`, пока `expired_held_units` больше нуля, иначе `final`. Сгоревшее отнесено к сроку пакета: освобождение резерва после срока увеличивает `expired_units` того периода, в котором пакет истёк. Списание здесь — движение кредитов из пакетов; начисленная клиенту сумма с учётом долга остаётся в `charged_units` [Overview](#административные-методы). Суммы совпадают с агрегатом `GET /v1/wallets/{id}/lots` по всем кошелькам выборки.
+`expired_precision` is `partial` while `expired_held_units` is above zero, otherwise `final`. Expired amounts are attributed to lot expiry: releasing a reservation after expiry increases `expired_units` in the period when the lot expired. Consumption here is credit movement out of lots; the amount charged to the customer including debt remains in Overview’s `charged_units` [Overview](#administrative-methods). Amounts match the aggregate of `GET /v1/wallets/{id}/lots` across all selected wallets.
 
 ~~~json
 {
@@ -445,15 +445,15 @@ Webhook содержит подпись тела, timestamp и event ID. Пол�
 }
 ~~~
 
-SDK: `client.admin.creditSummary({period_start, period_end, account_id, expiring_before})`. Admin BFF: `view=credit_summary` с теми же параметрами.
+SDK: `client.admin.creditSummary({period_start, period_end, account_id, expiring_before})`. Admin BFF: `view=credit_summary` with the same parameters.
 
-## Ошибки
+## Errors
 
 ~~~json
 {
   "error": {
     "code": "insufficient_credits",
-    "message": "Недостаточно доступных кредитов для резерва.",
+    "message": "Insufficient available credits for reservation.",
     "retryable": false,
     "correlation_id": "corr_123",
     "details": { "required_units": "180000000", "available_units": "100000000" }
@@ -461,49 +461,49 @@ SDK: `client.admin.creditSummary({period_start, period_end, account_id, expiring
 }
 ~~~
 
-| HTTP | Коды |
+| HTTP | Codes |
 |---|---|
 | 400/422 | invalid_input, unsupported_capability, request_exceeds_recipe, pricing_unavailable |
 | 401/403 | unauthenticated, scope_denied, account_denied |
 | 402 | insufficient_credits |
-| 404 | not_found, в том числе недоступный чужой ресурс |
+| 404 | not_found, including another party’s inaccessible resource |
 | 409 | idempotency_conflict, quote_expired, quote_already_bound, budget_conflict, revocation_unavailable |
 | 409 | result_version_conflict, operation_admission_closed, content_scope_deleted |
 | 410 | content_unavailable |
-| 429 | platform_rate_limited, с Retry-After при наличии |
+| 429 | platform_rate_limited, with Retry-After when available |
 | 503 | platform_unavailable, provider_unavailable_before_acceptance, provider_locked, platform_risk_budget_exhausted |
 
-Provider rate limit уже принятого задания обычно отражается в состоянии очереди, а не заставляет клиент повторять создание operation. Поле retryable не является разрешением создавать новую финансовую операцию с новым ключом.
+A provider rate limit for an accepted job is usually reflected in queue state, rather than forcing the client to repeat operation creation. The retryable field does not authorize creating a new financial operation with a new key.
 
-## Клиенты интерфейсов
+## Interface Clients
 
-Админка вызывает административные методы через серверный слой TanStack Start. Тестовое приложение использует SDK с backend; ключи сервиса не передаются браузеру. Форма тестового начисления вызывает существующий grant с отдельным разрешением и Idempotency-Key, не вводит обходной метод изменения balance. Ограничения окружения и аккаунта заданы в [ARCHITECTURE](ARCHITECTURE.md). Суммы продолжают передаваться строками; форматирование интерфейса не меняет API-контракт.
+The admin calls administrative methods through the TanStack Start server layer. The test application uses the SDK from its backend; service keys are not sent to the browser. The test-grant form calls the existing grant with a separate permission and Idempotency-Key, rather than adding a balance-change bypass. Environment and account restrictions are defined in [ARCHITECTURE](ARCHITECTURE.md). Amounts remain strings; interface formatting does not change the API contract.
 
 ## SDK
 
-SDK предоставляет ai.run/ai.quote для одиночного вызова и accounts, quotes, operations, requests, assets, wallets, content и events для составных действий. Ai.run вызывает POST /invocations, сохраняет IDs, ждёт результат через SSE/polling и возвращает result вместе с acknowledge(). Пользователь не регистрирует recipe для такого вызова. SDK поддерживает AbortSignal для явной команды отмены и typed errors.
+The SDK provides ai.run/ai.quote for single calls and accounts, quotes, operations, requests, assets, wallets, content, and events for composite actions. Ai.run calls POST /invocations, saves IDs, waits for the result through SSE/polling, and returns result with acknowledge(). The user does not register a recipe for this call. The SDK supports AbortSignal for an explicit cancellation command and typed errors.
 
-Приложение сначала сохраняет result и файлы, затем вызывает acknowledge(). SDK может принять persist callback и подтвердить передачу только после успешного завершения callback. Ошибка записи не вызывает acknowledge. После сбоя SDK возобновляет ожидание прежнего request, учитывает content_expires_at и показывает недоступность удалённого содержимого без нового платного вызова. Примеры интеграции обязаны включать постоянное сохранение и удаление проектного контента.
+The application first persists result and files, then calls acknowledge(). The SDK may accept a persist callback and acknowledge delivery only after the callback succeeds. A write failure does not call acknowledge. After a crash, the SDK resumes waiting for the original request, accounts for content_expires_at, and shows deleted-content unavailability without a new paid call. Integration examples must include permanent persistence and project-content deletion.
 
-Безопасные повторы SDK используют тот же Idempotency-Key и тот же payload. SDK не делает самостоятельный provider failover и не начисляет деньги. Закрытие HTTP/SSE не трактуется как отмена платной операции.
+Safe SDK retries use the same Idempotency-Key and payload. The SDK neither performs independent provider failover nor grants credits. Closing HTTP/SSE is not treated as canceling paid work.
 
-Модели и параметры выводятся из опубликованного контракта, а не хардкодятся в frontend каждого приложения. SDK version и API major совместимы; удаление поля или смена его семантики требует новой major version либо явного migration window.
+Models and parameters come from the published contract rather than being hardcoded in each application frontend. SDK version and API major are compatible; removing a field or changing its semantics requires a new major version or explicit migration window.
 
-## Установка остатка в тестовом окружении
+## Setting a Balance in a Test Environment
 
-`POST /v1/wallets/{id}/test-balance` доступен только при `UAI_ENV=test`, требует scope `credits:test-balance` и `Idempotency-Key`. Тело содержит `available_units` строкой и `expected_revision` целым числом. Целевой остаток ограничен `max_grant_units` токена; 0 допустим. При открытых резервах или несовпадении revision возвращается 409. Начисление либо отзыв по нескольким пакетам выполняются одной транзакцией через обычные проводки. Ответ содержит текущий `wallet`. Повтор принятой команды возвращает актуальный кошелёк без повторной корректировки. Вне тестового окружения маршрут отвечает 404.
+`POST /v1/wallets/{id}/test-balance` is available only with `UAI_ENV=test` and requires `credits:test-balance` scope and `Idempotency-Key`. The body contains string `available_units` and integer `expected_revision`. Target balance is limited by the token’s `max_grant_units`; 0 is valid. Open reservations or revision mismatch return 409. Grant or revocation across multiple lots executes in one transaction through ordinary postings. The response contains the current `wallet`. Replaying an accepted command returns the current wallet without another adjustment. Outside the test environment, the route returns 404.
 
-Название тарифа хранится отдельно от его `payload`. PATCH `/v1/admin/rate-cards/{id}/display-name` принимает только `display_name`, строку от 1 до 200 символов после удаления крайних пробелов. Изменяется название и `revision`, но не `version`, ставки, ключ или ссылки рецептов. Конфликт `If-Match` возвращает `revision_conflict`; повтор с тем же Idempotency-Key безопасен. Старые записи возвращают `display_name: null` и отображаются по ключу.
+A tariff’s display name is stored separately from its `payload`. PATCH `/v1/admin/rate-cards/{id}/display-name` accepts only `display_name`, a string of 1 to 200 characters after trimming surrounding whitespace. Name and `revision` change, while `version`, rates, key, and recipe references do not. An `If-Match` conflict returns `revision_conflict`; replay with the same Idempotency-Key is safe. Old records return `display_name: null` and display their key.
 
-## Прогнозный текст и отрицательный баланс
+## Estimated Text and Negative Balance
 
-В ответе quote поля `estimate_only: true` и `overdraft_allowed: true` обозначают согласованное списание по фактическому usage с возможным долгом. В таком режиме `max_units` является первоначальным резервом, не потолком списания; клиент показывает примерный расход `estimated_units`. Параметр модели `expected_output_tokens` используется только оценщиком и не ограничивает генерацию. Прямой invoke по готовому quote сохраняет эти условия.
+In a quote response, `estimate_only: true` and `overdraft_allowed: true` indicate agreed charging by actual usage with possible debt. In this mode, `max_units` is the initial reservation rather than a charge ceiling; the client displays approximate `estimated_units` usage. The model’s `expected_output_tokens` parameter is used only by the estimator and does not limit generation. Direct invoke with an existing quote preserves these terms.
 
-`Wallet.available_units` и `Wallet.balance_units` допускают отрицательные целочисленные строки. Суммы grant, refund, reserve и `reserved_units` остаются неотрицательными. Новые запросы при долге отклоняются с `insufficient_credits`; уже принятые завершаются по сохранённым условиям. Пополнение сначала погашает долг.
+`Wallet.available_units` and `Wallet.balance_units` allow negative integer strings. Grant, refund, reserve amounts, and `reserved_units` remain nonnegative. New requests during debt are rejected with `insufficient_credits`; accepted requests finish on stored terms. Top-ups repay debt first.
 
-## Ограничения публикации и выполнения очередей
+## Queue Publication and Execution Limits
 
-`GET /v1/admin/dispatch-policies` возвращает шесть политик установки. `PATCH /v1/admin/dispatch-policies/{kind}` изменяет выбранную политику, где `kind` — text, image, audio, tools, observe или maintenance. Доступ требует `operations:admin` и отсутствия account-ограничения у токена; изменение дополнительно требует `config:write` и `Idempotency-Key`. Область политики — вся установка, не application токена. Организация и приложение администратора сохраняются в аудите как источник изменения.
+`GET /v1/admin/dispatch-policies` returns six installation policies. `PATCH /v1/admin/dispatch-policies/{kind}` changes the selected policy, where `kind` is text, image, audio, tools, observe, or maintenance. Access requires `operations:admin` and a token without account restrictions; changes additionally require `config:write` and `Idempotency-Key`. Policy scope is the entire installation, rather than the token’s application. The administrator’s organization and application are stored in audit as the change source.
 
 ```json
 {
@@ -513,27 +513,27 @@ SDK предоставляет ai.run/ai.quote для одиночного вы�
     "application_limit": 32,
     "queue_limit": 128
   },
-  "reason": "Ограничить число одновременно опубликованных заданий"
+  "reason": "Limit the number of simultaneously published jobs"
 }
 ```
 
-Должно выполняться `1 <= account_limit <= application_limit <= queue_limit <= 100000`. Устаревшая ревизия возвращает HTTP 409. Изменение, увеличение ревизии и аудит before/after выполняются в одной транзакции. Повтор команды с прежним ключом не изменяет настройки повторно и возвращает текущую политику. Снижение предела не отменяет уже опубликованные задания: новые ждут освобождения места.
+`1 <= account_limit <= application_limit <= queue_limit <= 100000` must hold. An outdated revision returns HTTP 409. Change, revision increment, and before/after audit occur in one transaction. Replaying a command with its original key does not change settings again and returns the current policy. Lowering a limit does not cancel published jobs: new jobs wait for capacity.
 
-Для text/image/audio/tools поля `active_account_limit`, `active_application_limit`, `active_queue_limit` задают отдельные пределы активных lease. Они не ограничивают backlog. Выполняется `1 <= active_account_limit <= active_application_limit <= active_queue_limit <= 100000`. Не переданные active-поля сохраняют прежние значения; проверяется итоговая комбинация. Снижение предела не прерывает уже выполняющиеся запросы. Начальные значения 2/16/32 являются локальными настройками, не квотами провайдера.
+For text/image/audio/tools, `active_account_limit`, `active_application_limit`, and `active_queue_limit` set separate active-lease limits. They do not limit backlog. `1 <= active_account_limit <= active_application_limit <= active_queue_limit <= 100000` must hold. Omitted active fields retain previous values; the resulting combination is validated. Lowering a limit does not interrupt running requests. Initial values 2/16/32 are local settings rather than provider quotas.
 
-Поля без префикса active ограничивают передачу работы в BullMQ для text/image/audio/tools. В observe эти поля ограничивают одновременные наблюдения и количество выбранных для доставки текущих poll revisions. Выбор фиксируется в PostgreSQL до публикации; повторная доставка уже выбранного poll не занимает новое место. Новая ревизия poll или завершение наблюдаемой работы освобождает место. Исторические и устаревшие записи транспорта не входят в этот счётчик; отдельные active-поля для observe и maintenance пока отвергаются с HTTP 422, поскольку их исполнители не используют такие настройки. Maintenance выполняется одним владельцем lease цикла. Эти ограничения не заменяют квоты провайдера или concurrency процесса worker. Рабочая demo остаётся на legacy до завершения приёмки и переключения.
+Fields without the active prefix limit work delivery into BullMQ for text/image/audio/tools. For observe, these fields limit concurrent observations and the number of current poll revisions selected for delivery. Selection is recorded in PostgreSQL before publication; redelivery of an already selected poll occupies no new slot. A new poll revision or completion of observed work releases capacity. Historical and outdated transport records are excluded from this counter; separate active fields for observe and maintenance are currently rejected with HTTP 422 because their executors do not use these settings. Maintenance runs under one cycle-lease owner. These limits do not replace provider quotas or worker-process concurrency. The active demo remains on legacy until acceptance and switchover are complete.
 
-### Отказ при заполненной очереди
+### Rejection When the Queue Is Full
 
-При настроенной `execution_admission_policies` принятие quote и увеличение числа разрешённых вызовов через amendment проверяют backlog до финансового резерва. Новые приложения при первом принятии операции с backend BullMQ получают согласованные пределы 20 на account, 200 на application и возраст очереди 900000 мс. Legacy-приложения без явной политики сохраняют прежнее поведение.
+When `execution_admission_policies` is configured, quote acceptance and increasing the authorized call count through amendment check backlog before financial reservation. New applications receive agreed limits of 20 per account, 200 per application, and queue age 900000 ms on first operation acceptance with the BullMQ backend. Legacy applications without an explicit policy preserve previous behavior.
 
-Ответ HTTP 429 с `queue_backpressure` содержит причину `account_backlog`, `application_backlog` или `queue_age`, текущее число ожидающих вызовов и `retry_after_seconds: 5`. Это рекомендация повторить попытку позже, не обещание освобождения места через пять секунд. Резерв не создаётся и не увеличивается. Учитываются queued/waiting_retry/waiting_recovery и неиспользованные разрешения открытых операций до их deadline. Идемпотентный повтор ранее принятой операции возвращает прежний результат даже при заполненной очереди.
+An HTTP 429 response with `queue_backpressure` contains reason `account_backlog`, `application_backlog`, or `queue_age`, the current waiting-call count, and `retry_after_seconds: 5`. This recommends trying later rather than promising free capacity in five seconds. No reservation is created or increased. The count includes queued/waiting_retry/waiting_recovery and unused authorizations of open operations until their deadline. Idempotent replay of an accepted operation returns its prior result even when the queue is full.
 
-### Настройки admission policy приложения
+### Application Admission Policy Settings
 
-`GET /v1/admin/admission-policy` возвращает ограничения только приложения текущего токена. Нужен `operations:admin`, токен с account-ограничением запрещён. Отсутствующая политика возвращается как `enabled: false`, `revision: 0` и согласованные начальные значения; GET не создаёт политику.
+`GET /v1/admin/admission-policy` returns limits only for the current token’s application. It requires `operations:admin`; account-restricted tokens are forbidden. A missing policy returns `enabled: false`, `revision: 0`, and agreed initial values; GET does not create a policy.
 
-`PATCH /v1/admin/admission-policy` требует дополнительно `config:write`, `Idempotency-Key`, причину и revision в теле. Revision 0 означает первое включение. Настройки применяются к последующим проверкам приёма, уже принятая работа сохраняется. Допустимы account 1–100000, application от account до 1000000, max_queue_age_ms 1000–86400000.
+`PATCH /v1/admin/admission-policy` additionally requires `config:write`, `Idempotency-Key`, a reason, and revision in the body. Revision 0 means first enablement. Settings apply to subsequent admission checks; accepted work is preserved. Allowed ranges: account 1–100000, application from account to 1000000, max_queue_age_ms 1000–86400000.
 
 ```json
 {
@@ -543,41 +543,41 @@ SDK предоставляет ai.run/ai.quote для одиночного вы�
     "application_limit": 200,
     "max_queue_age_ms": 900000
   },
-  "reason": "Включить согласованные ограничения очереди"
+  "reason": "Enable the agreed queue limits"
 }
 ```
 
-Конкурирующее изменение возвращает HTTP 409. Сохранение и аудит `admission.policy.updated` с before/after выполняются атомарно. Повтор прежней команды не создаёт новый аудит и возвращает актуальную политику приложения. Приложение нельзя подменить в теле команды или URL.
+A competing change returns HTTP 409. Persistence and `admission.policy.updated` audit with before/after are atomic. Replaying the previous command creates no new audit and returns the current application policy. The application cannot be substituted in the command body or URL.
 
 
-### Операционные настройки квот
+### Operational Quota Settings
 
-Административный список `GET /v1/admin/provider-quotas` возвращает группы организации, правила, привязки моделей и удерживаемые concurrency slots. `PATCH /v1/admin/provider-quotas/{id}` изменяет операционные настройки с `settings_revision`, idempotency key и обязательной причиной. Ревизия правил допуска отделена от ревизии этих настроек. Права, ограничения текущего редактора и семантика snapshot описаны в [операционной спецификации](OPERATIONS.md#настройки-групп-provider-quota); точные схемы находятся в [OpenAPI](openapi.json).
+The administrative list `GET /v1/admin/provider-quotas` returns organization groups, rules, model bindings, and held concurrency slots. `PATCH /v1/admin/provider-quotas/{id}` changes operational settings with `settings_revision`, an idempotency key, and a required reason. Admission-rule revision is separate from these settings’ revision. Permissions, current editor limits, and snapshot semantics are described in the [operational specification](OPERATIONS.md#provider-quota-group-settings); exact schemas are in [OpenAPI](openapi.json).
 
-`PATCH /v1/admin/provider-quotas/{id}/rules` меняет лимиты существующих правил с `rules_revision`, idempotency key и причиной. `capacity` задаёт нашу долю; `provider_capacity` хранит известный предел провайдера либо null. Обе численные величины передаются целыми строками. Команда сохраняет окна и накопленный расход, а также уже выданные действующие допуски. Создание правил и изменение их метрик этим endpoint не поддерживается.
+`PATCH /v1/admin/provider-quotas/{id}/rules` changes existing-rule limits with `rules_revision`, an idempotency key, and reason. `capacity` defines our share; `provider_capacity` stores the known provider limit or null. Both numeric quantities are integer strings. The command preserves windows and accumulated usage, as well as existing valid admissions. This endpoint does not support creating rules or changing their metrics.
 
-`GET /v1/admin/provider-quotas/{id}/snapshot` возвращает rules revision, дату чтения, статус достоверности и остатки по правилам. Количества передаются строками; даты в ISO 8601. При статусе, отличном от ready, rules пуст. Токен должен иметь operations:admin без account_ids; чужая организация недоступна. Redis читается после завершения SQL-транзакции. Метод не создаёт admission и не восстанавливает квоту. Семантика локального и консервативного provider remainder описана в [операционной спецификации](OPERATIONS.md#настройки-групп-provider-quota).
+`GET /v1/admin/provider-quotas/{id}/snapshot` returns rules revision, read time, reliability status, and per-rule balances. Quantities are strings; dates use ISO 8601. With status other than ready, rules is empty. The token must have operations:admin without account_ids; another organization is inaccessible. Redis is read after the SQL transaction ends. The method neither creates admission nor restores quota. Local and conservative provider-remainder semantics are in the [operational specification](OPERATIONS.md#provider-quota-group-settings).
 
-### Входящие webhook провайдера
+### Incoming Provider Webhooks
 
-`POST /v1/provider-webhooks/{requestId}` принимает исходное подписанное тело до 1 MiB с Content-Type application/json или application/octet-stream. Bearer token не требуется: адаптер соответствующей сохранённой попытки обязан проверить подпись, срок её действия и идентификатор remote job. Scope берётся из execution_request, поля организации из тела не используются. Дублирующиеся HTTP-заголовки отклоняются. JSON не пересобирается перед проверкой подписи.
+`POST /v1/provider-webhooks/{requestId}` accepts the original signed body up to 1 MiB with Content-Type application/json or application/octet-stream. No Bearer token is required: the corresponding saved attempt’s adapter must validate signature, validity period, and remote job identifier. Scope comes from execution_request; organization fields in the body are ignored. Duplicate HTTP headers are rejected. JSON is not reconstructed before signature verification.
 
-После проверки используется тот же receiveNativeWebhook и settlement, что при внутреннем получении события. Повтор event_id уже сохранённого observation подтверждается без второго финансового эффекта. HTTP 200 с accepted=true подтверждает обработку; 401 означает недействительную подпись или привязку job, 404 неизвестный request/native job или отсутствие поддержки webhook адаптером, 503 временную невозможность обработки. Ответы не раскрывают контекст провайдера. При 503 провайдеру требуется повтор; незавершённые native jobs также остаются в контуре polling.
+After verification, the same receiveNativeWebhook and settlement are used as for internal event receipt. Repeating event_id of an already stored observation is acknowledged without a second financial effect. HTTP 200 with accepted=true confirms processing; 401 means invalid signature or job binding, 404 means unknown request/native job or no adapter webhook support, and 503 means temporary inability to process. Responses do not expose provider context. On 503 the provider must retry; unfinished native jobs also remain in polling.
 
-HTTP-вход проверен на подписанном synthetic native adapter. Текущие реальные адаптеры не реализуют verifyNativeWebhook, поэтому это не заявление о готовом webhook OpenAI/Cartesia. Конкретные заголовки, секреты и freshness/replay правила реализуются и проверяются вместе с native adapter провайдера; callback URL передаётся при его submitNative согласно контракту провайдера.
+HTTP ingress was verified with a signed synthetic native adapter. Current real adapters do not implement verifyNativeWebhook, so this does not claim a ready OpenAI/Cartesia webhook. Specific headers, secrets, and freshness/replay rules are implemented and verified with the provider’s native adapter; callback URL is passed during its submitNative according to the provider contract.
 
-## Расширение платных API
+## Paid API Extension
 
-Контракт PA-I01, единицы измерения, периоды, резервы allowance и границы совместимости описаны в [контракте платных API](PAID_API_CONTRACT.md). Статус реализации и стабильные сценарии PA-A01–PA-A25 приведены в [плане](PAID_API_PLAN.md). Проект контракта не подтверждает доступность новых HTTP handlers.
+The PA-I01 contract, measurement units, periods, allowance reservations, and compatibility boundaries are described in the [paid API contract](PAID_API_CONTRACT.md). Implementation status and stable PA-A01–PA-A25 scenarios are in the [plan](PAID_API_PLAN.md). A contract draft does not establish availability of new HTTP handlers.
 
-## Универсальная политика исполнения
+## Universal Execution Policy
 
-`QuoteBody.execution` допускает частичное переопределение известных полей: deadline_seconds, max_attempts, backoff, retry_reasons, retry_after_output, recovery, attempt_timeout_seconds, timeout_retry. Пустой объект эквивалентен отсутствию блока. Списки заменяются целиком; null и неизвестные поля отклоняются. `billing.refused` принимает platform по умолчанию или actual_usage. Quote возвращает итоговые execution и billing, а request исполняет сохранённые условия. Изменение политики при передаче существующего quote_id отклоняется.
+`QuoteBody.execution` permits partial overrides of known fields: deadline_seconds, max_attempts, backoff, retry_reasons, retry_after_output, recovery, attempt_timeout_seconds, timeout_retry. An empty object is equivalent to an absent block. Lists are replaced entirely; null and unknown fields are rejected. `billing.refused` accepts default platform or actual_usage. The quote returns final execution and billing, and the request executes stored terms. Policy changes when supplying an existing quote_id are rejected.
 
-Автоматический single-call с estimated_actual допускается без фиксированного budget; другие режимы по-прежнему требуют бюджет или принятый quote. Изображения с человеческим подтверждением используют quote и принятие операции.
+Automatic single-call with estimated_actual is permitted without a fixed budget; other modes still require a budget or accepted quote. Images with human confirmation use a quote and operation acceptance.
 
-Upload принимает retention_seconds и metadata с external_project_id/project_generation. По умолчанию доступный input хранится семь дней после завершения upload или принятого использования. GET не продлевает хранение. POST /v1/assets/{id}/renew продлевает действующий input с идемпотентным ключом. Истёкший input загружается заново из оригинала приложения. ACK результата не удаляет общий input asset.
+Upload accepts retention_seconds and metadata with external_project_id/project_generation. By default, available input is retained for seven days after completed upload or accepted use. GET does not extend retention. POST /v1/assets/{id}/renew extends valid input with an idempotency key. Expired input is uploaded again from the application’s original. Result ACK does not delete a shared input asset.
 
-## Контракты LogoPanel
+## LogoPanel Contracts
 
-См. [контракт доработок LogoPanel](LOGOPANEL_FOLLOWUP_INTEGRATION.md): API/SDK, ограничения и неактивированные примеры конфигураций. Реальные вызовы требуют отдельного согласования по [правилам проверки провайдеров](REAL_PROVIDER_CHECKS.md).
+See the [LogoPanel follow-up contract](LOGOPANEL_FOLLOWUP_INTEGRATION.md): API/SDK, limits, and unactivated configuration examples. Real calls require separate approval under the [provider verification rules](REAL_PROVIDER_CHECKS.md).

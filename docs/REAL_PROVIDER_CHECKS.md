@@ -1,46 +1,46 @@
-# Реальные проверки провайдеров
+# Real provider checks
 
-[Оглавление](README.md) · [Локальный запуск](LOCAL_RUN.md) · [Приёмка](ACCEPTANCE_RESULTS.md)
+[Contents](README.md) · [Local run](LOCAL_RUN.md) · [Acceptance](ACCEPTANCE_RESULTS.md)
 
-Обновлено 2026-09-19. Реальный прогон OpenAI через SDK/demo завершён: текст, отдельное изображение и составное действие прошли с первой попытки, всего четыре запроса. Расчётная себестоимость по terminal usage составила 0.004452 USD при разрешённом пределе 1 USD. Проверены ACK, reload и удаление файла с сохранением финансовой истории. Финансовая сверка с OpenAI не выполнялась. Выделенные процессы платного прогона завершены, обычный worker снова работает с выключенными реальными провайдерами.
+Updated 2026-09-19. The real OpenAI run through the SDK/demo completed: text, a standalone image and a composite action all succeeded on the first attempt, four requests in total. Calculated cost from terminal usage was 0.004452 USD against an authorized 1 USD limit. ACK, reload and file deletion with preserved financial history were verified. Financial reconciliation with OpenAI was not performed. Dedicated paid-run processes were stopped, and the regular worker again runs with real providers disabled.
 
-Проверка от 2026-09-25: embeddings, streaming и prompt cache, восемь реальных вызовов OpenAI, расчётный расход 0.0106614 USD из разрешённых 0.10 USD. Embeddings прошли; обнаруженная потеря хвоста JSON stream исправлена и проверена на четырёх последующих реальных ответах. В первом прогоне cache hit не подтверждён. Контролируемый повтор затем подтвердил 10880 cached tokens, сохранение hit при смене суффикса, miss при смене начала префикса и восстановление hit после его возврата. Общий расчётный расход обоих прогонов 0.0241598 USD из 0.10 USD.
+The 2026-09-25 check covered embeddings, streaming and prompt cache: eight real OpenAI calls, calculated cost 0.0106614 USD out of the authorized 0.10 USD. Embeddings passed; a truncated JSON stream tail was fixed and verified on four subsequent real responses. The first run did not confirm a cache hit. A controlled rerun then confirmed 10880 cached tokens, a retained hit after a suffix change, a miss after changing the start of the prefix and a restored hit after reverting it. Total calculated cost of both runs was 0.0241598 USD out of 0.10 USD.
 
-Проверка LogoPanel follow-up выявила отсутствие cache breakdown в ответе Quiver. Это ограничивает точность финансовой сверки; правило расчёта входа без разбивки кэша описано в [решениях](DECISIONS.md). Sandbox-ответ не подтверждает реальную генерацию.
+The LogoPanel follow-up check found no cache breakdown in Quiver's response. This limits the precision of financial reconciliation; the input-pricing rule without a cache split is described in the [decisions](DECISIONS.md). A sandbox response does not establish real generation.
 
-AMI: живая приёмка альтернативных моделей завершена в подтверждённом бюджете. 35 вызовов, 33 успешных, себестоимость 0.009948530 USD; неуспешные исходы разобраны, резервы закрыты. Численная Standard quota Gemini остаётся неизвестной; функциональная проверка не является SLA или invoice reconciliation.
+AMI: live acceptance of alternative models completed within the confirmed budget. There were 35 calls, 33 successful, with cost 0.009948530 USD; unsuccessful outcomes were investigated and reservations closed. Gemini's numerical Standard quota remains unknown; functional verification is not an SLA or invoice reconciliation.
 
-## До первого платного вызова
+## Before the first paid call
 
-1. Зафиксировать разрешённый владельцем общий предел расходов в USD и список подключений. Значения из fixture seed не являются таким разрешением.
-2. Использовать отдельную тестовую установку и ключи. Ввести ключ генерации через локальную админку, reporting credential отдельно. Не переносить ключи в chat, Git, fixtures или отчёт.
-3. Проверить доступные model IDs, параметры и текущие ставки по официальным источникам. Сохранить source и checked_at в rate card, границы входа/выхода в recipe и ограничения connection. Синтетические модели и цены seed не подходят.
-4. Назначить provider budgets так, чтобы сумма выделенных лимитов всех реальных подключений не превышала разрешённого общего бюджета. Для этой проверки нужны новые подключения без прежнего расхода. Period budget ограничивает потери платформы и не заменяет предел общей себестоимости провайдера.
-5. Получить quote без запуска, проверить обе ветви маршрута, максимум одной попытки, доступный provider exposure и риск повторов. Если достоверный максимум установить нельзя, вызов не отправляется.
-6. Включить `UAI_ALLOW_REAL_PROVIDERS=true` только для выделенных тестовых процессов после разрешения бюджета. Не запускать параллельно другие платные задачи этой установки. Сетевой импорт отчётов включается отдельно через `UAI_ALLOW_REPORTING_API`.
+1. Record the owner's authorized aggregate spending limit in USD and the list of connections. Fixture seed values are not such authorization.
+2. Use a separate test installation and keys. Enter the generation key through the local admin interface and the reporting credential separately. Do not put keys in chat, Git, fixtures or reports.
+3. Verify available model IDs, parameters and current rates against official sources. Store source and checked_at in the rate card, input/output bounds in the recipe and connection limits. Synthetic seed models and prices are unsuitable.
+4. Assign provider budgets so that the sum of limits allocated to all real connections does not exceed the authorized total budget. This check requires new connections without previous spending. The period budget limits platform losses and does not replace the total provider-cost ceiling.
+5. Obtain a quote without execution; verify both route branches, the per-attempt maximum, available provider exposure and retry risk. If a reliable maximum cannot be established, do not dispatch the call.
+6. Enable `UAI_ALLOW_REAL_PROVIDERS=true` only in dedicated test processes after budget authorization. Do not run other paid work from this installation concurrently. Network report import is enabled separately through `UAI_ALLOW_REPORTING_API`.
 
-## Матрица реального прогона
+## Live-run matrix
 
-| Проверка | Минимальный вызов | Что сохраняется в отчёт | Результат |
+| Check | Minimal call | Report evidence | Result |
 |---|---|---|---|
-| RP01 OpenAI text | Короткий текст, ограниченный output, SSE | Версии модели/route/card, quote, attempt, terminal usage, charge, deltas и сохранение до ACK | Пройдено, два текстовых запроса; cache hit не получен |
-| RP02 Anthropic text | Аналогичный отдельный запрос | Независимая семантика input/output/cache, provider request ID, cost и charge | Отложено владельцем; исключено из текущего платного прогона |
-| RP03 OpenAI image | Одно изображение в разрешённом размере/качестве | Usage по модальностям, decode/размер, SHA256, долговечная копия demo, ACK и повторное чтение | Пройдено, два PNG 1024×1024 low |
-| RP04 Cartesia speech | Короткий текст и явные voice/API version/output format | Валидный файл, доступность индивидуального billed usage. При отсутствии usage остаётся unknown, без выдуманного счётчика | Пройдено: один WAV 1.6 s, usage unknown, сохранение и ACK; реальный часовой timeout ещё не наступил |
-| RP05 Платный поиск | Один ограниченный Serper запрос | Ответ, явно сообщённые search credits, bound, charge либо unknown при неполных данных | Пройдено: 7 результатов, 1 credit, расчётная себестоимость 0.001 USD, capture и ACK |
-| RP06 Финансовые отчёты | Read-only отчёт доступного периода | Scope credential/account, все страницы, период покрытия, freshness, provider cost и локальная разница | Ожидает отдельного reporting credential |
-| RP07 Demo | Текст, изображение, составное действие через SDK | Максимум/резерв/списание на шагах, reload по прежним IDs, сохранение и удаление клиентских файлов | Пройдено с OpenAI, четыре запроса и три операции |
+| RP01 OpenAI text | Short text, bounded output, SSE | Model/route/card versions, quote, attempt, terminal usage, charge, deltas and persistence before ACK | Passed, two text requests; no cache hit |
+| RP02 Anthropic text | A comparable separate request | Independent input/output/cache semantics, provider request ID, cost and charge | Deferred by the owner; excluded from the current paid run |
+| RP03 OpenAI image | One image at an authorized size/quality | Usage by modality, decode/dimensions, SHA256, durable demo copy, ACK and reread | Passed, two PNG 1024×1024 low images |
+| RP04 Cartesia speech | Short text and explicit voice/API version/output format | Valid file, availability of individual billed usage. Missing usage stays unknown without an invented counter | Passed: one 1.6 s WAV, unknown usage, persistence and ACK; the real one-hour timeout had not yet elapsed |
+| RP05 Paid search | One bounded Serper request | Response, explicitly reported search credits, bound, charge or unknown if data is incomplete | Passed: 7 results, 1 credit, calculated cost 0.001 USD, capture and ACK |
+| RP06 Financial reports | Read-only report for an accessible period | Credential/account scope, all pages, coverage period, freshness, provider cost and local difference | Awaiting a separate reporting credential |
+| RP07 Demo | Text, image and a composite action through the SDK | Per-step maximum/reservation/charge, reload with previous IDs, persistence and deletion of client files | Passed with OpenAI, four requests and three operations |
 
-Реальный cache hit проверяется только если условия выбранной модели и согласованный бюджет это позволяют. Результат, не достигший cache hit, нельзя выдавать за его проверку. Принудительные повреждения, повторы, массовые 429 и unknown outcomes остаются детерминированными fault-injection проверками; новые платные попытки ради них не отправляются без отдельного обоснования расхода.
+A real cache hit is tested only when the selected model's conditions and authorized budget permit it. A result with no cache hit cannot be presented as cache-hit verification. Forced corruption, retries, widespread 429 responses and unknown outcomes remain deterministic fault-injection checks; new paid attempts for those checks require separate spending justification.
 
-## Доказательства и остановка
+## Evidence and stopping conditions
 
-В отчёте указываются ID версий и операций, денежные строки, количество попыток, состояние usage, SHA256 файла и итоговые суммы wallet/provider budget. Секреты и приватное содержимое не сохраняются в репозитории. Снимки provider account не объявляются локальным балансом установки или обещанием количества генераций.
+The report records version and operation IDs, monetary strings, attempt count, usage state, file SHA256 and final wallet/provider budget totals. Secrets and private content are not stored in the repository. Provider-account snapshots are not presented as the installation's internal balance or a promise of a number of generations.
 
-При unknown, неподтверждённой ставке, превышении разрешённого бюджета или неподдержанном endpoint прогон останавливается на соответствующем подключении. Повтор запроса не используется для выяснения неизвестного исхода. Недоступные reporting права или endpoint записываются как конкретное ограничение connection.
+On unknown usage, an unverified rate, an exceeded authorized budget or an unsupported endpoint, the run stops for the affected connection. Retrying a request is not a way to resolve an unknown outcome. Unavailable reporting permissions or endpoints are recorded as specific connection limitations.
 
-После прогона выключаются реальные generation и reporting flags, сверяются provider exposure, cost entries, journal и клиентские ACK. Цель закрывается только после проверки результатов и явного отражения оставшихся ограничений.
+After the run, disable real generation and reporting flags, reconcile provider exposure, cost entries, the journal and client ACKs. The goal is closed only after results are verified and remaining limitations are explicitly recorded.
 
 ## Jev
 
-Живая приёмка от 2026-09-26: пять успешных запросов jev-1.13.0, расчётный расход 0.000066948 USD из разрешённых 0.05 USD. Выбранный владельцем предел 32768 применён по отдельному решению; он не является доказанным ограничением поставщика.
+Live acceptance on 2026-09-26: five successful jev-1.13.0 calls, all on their first attempt, with calculated cost 0.000066948 USD out of an authorized 0.05 USD. The owner-selected limit of 32768 was applied under a separate decision; it is not a proven provider limit.

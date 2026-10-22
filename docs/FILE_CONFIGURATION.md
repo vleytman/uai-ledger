@@ -1,24 +1,24 @@
-# Файловые конфигурации: подготовительный этап PA-I00
+# File Configurations: Preparatory Phase PA-I00
 
-[Оглавление](README.md) · [План API](PAID_API_PLAN.md) · [Локальный запуск](LOCAL_RUN.md)
+[Contents](README.md) · [API Plan](PAID_API_PLAN.md) · [Local Run](LOCAL_RUN.md)
 
-Дата: 2026-09-22. Реализован локальный путь для одного существующего AI-профиля GPT-4.1 nano: ставки, метод расчёта, маршрут и рецепт. Это подготовка к расширению; новые API, Firecrawl, allowance и новые notifications сюда не входят.
+Date: 2026-09-22. A local path has been implemented for one existing GPT-4.1 nano AI profile: rates, calculation method, route, and recipe. This prepares for expansion; new APIs, Firecrawl, allowance, and new notifications are outside this phase.
 
-## Владение данными
+## Data Ownership
 
-| Источник | Данные |
+| Source | Data |
 |---|---|
-| JSON в Git | Идентификаторы профилей, параметры, расчётные компоненты, наценка, safety factor, ценовые примеры, ставки, определения маршрутов и рецептов. |
-| TypeScript | Версионированные адаптеры, авторизация провайдера, HTTP-протокол, нормализация usage и ошибок. |
-| Оперативная БД | Connections и секреты, бюджеты, квоты, уведомления, привязки установки, активная публикация. |
+| JSON in Git | Profile identifiers, parameters, calculation components, markup, safety factor, pricing examples, rates, route and recipe definitions. |
+| TypeScript | Versioned adapters, provider authentication, HTTP protocol, usage and error normalization. |
+| Operational database | Connections and secrets, budgets, quotas, notifications, installation bindings, active publication. |
 
-Пример: [openai-nano.json](../configurations/ai/openai-nano.json). Содержимое взято из существующего `demoModels().find(m => m.key === 'nano')`, с отдельными ключами `files.openai.nano.*`. Исходные demo-профили не присваиваются файловому владельцу и не удаляются. Ставки сохраняют дату прежней проверки 2026-09-19; эта работа не подтверждает актуальную цену или доступность модели у поставщика.
+Example: [openai-nano.json](../configurations/ai/openai-nano.json). Its contents come from the existing `demoModels().find(m => m.key === 'nano')`, with separate `files.openai.nano.*` keys. Original demo profiles are neither assigned to the file owner nor deleted. Rates retain the previous verification date of 2026-09-19; this work does not confirm current prices or model availability from the provider.
 
-[JSON Schema](../configurations/schema.json) задаёт версию формата, допустимые виды ресурсов, поля и ссылки. Вложенные методы расчёта, ставки и рецепты дополнительно проверяют существующие доменные валидаторы UAI. Проверка актуальности схемы: `pnpm check:configuration`; обновление после изменения формата: `pnpm generate:configuration`. Это данные существующего расчётного движка. Произвольный код, адрес HTTP endpoint, секрет или новый workflow через JSON не подключается.
+The [JSON Schema](../configurations/schema.json) defines the format version, allowed resource kinds, fields, and references. Existing UAI domain validators additionally check nested calculation methods, rates, and recipes. Check that the schema is current with `pnpm check:configuration`; update it after format changes with `pnpm generate:configuration`. These are data for the existing calculation engine. JSON cannot connect arbitrary code, an HTTP endpoint address, a secret, or a new workflow.
 
-Ссылки внутри набора: `@rate_card:key`, `@catalog:key`, `@route:key`. Ссылки на установку: `@connection:primary`, `@budget:period`. Они разрешаются только в предусмотренных полях. Publisher не заменяет строки внутри пользовательского текста или формул.
+References within the bundle: `@rate_card:key`, `@catalog:key`, `@route:key`. Installation references: `@connection:primary`, `@budget:period`. They are resolved only in designated fields. The publisher does not replace strings inside user text or formulas.
 
-Пример отдельного файла привязок установки, который не следует добавлять в Git:
+Example of a separate installation binding file, which must not be added to Git:
 
 ```json
 {
@@ -27,11 +27,11 @@
 }
 ```
 
-Это идентификаторы, не API-ключи. Connection обязан относиться к той же установке и совпадать с провайдером модели. Наличие средств, credential и enabled-состояние проверяются обычным admission при принятии работы. Publisher не создаёт и не перенастраивает эти оперативные ресурсы.
+These are identifiers, not API keys. A connection must belong to the same installation and match the model's provider. Funds, credentials, and enabled status are checked by normal admission when work is accepted. The publisher does not create or reconfigure these operational resources.
 
-## Проверка, публикация и активация
+## Validation, Publication, and Activation
 
-Сначала применить миграции к выбранной локальной БД через `pnpm db:migrate`. Команды ниже читают `DATABASE_URL` из окружения; `org_example` и `app_example` нужно заменить существующими идентификаторами.
+First apply migrations to the selected local database with `pnpm db:migrate`. The commands below read `DATABASE_URL` from the environment; replace `org_example` and `app_example` with existing identifiers.
 
 ```sh
 pnpm configuration validate --file configurations/ai/openai-nano.json --bindings .data/bindings.json --organization org_example --application app_example
@@ -41,51 +41,51 @@ pnpm configuration status --organization org_example --application app_example
 pnpm configuration activate --release release_example --revision 0 --organization org_example --application app_example --actor owner
 ```
 
-`validate` и `preview` требуют целевую БД: они выполняют настоящие проверки публикации в savepoint и откатывают все изменения. Preview показывает пути и значения изменений относительно последней публикации, включая привязки. Эти команды не активируют версии и не делают запросов к поставщику.
+`validate` and `preview` require the target database: they perform real publication checks in a savepoint and roll back all changes. Preview shows paths and changed values relative to the latest publication, including bindings. These commands do not activate versions or call providers.
 
-`publish` сохраняет весь набор одной транзакцией. Нормализованное содержимое и привязки образуют digest. Повторная и параллельная публикации того же набора возвращают существующий release и не создают новые версии. Изменение привязки создаёт новую версию. Все ссылки разрешаются в неизменяемые ID версий БД.
+`publish` stores the entire bundle in one transaction. Normalized content and bindings form a digest. Repeated and concurrent publication of the same bundle returns the existing release without creating versions. A changed binding creates a new version. All references resolve to immutable database version IDs.
 
-Публикация из изменённого рабочего дерева по умолчанию запрещена. Для локальной проверки есть явный флаг `--allow-dirty`. История фиксирует Git HEAD, признак изменения файла относительно HEAD, SHA-256 прочитанных байтов, относительный путь, schema version, publisher, release и опубликованные зависимости. Повтор одного содержимого сохраняет происхождение первой публикации. Файл должен находиться внутри текущего Git-репозитория, включая проверку реального пути symlink.
+Publication from a dirty working tree is prohibited by default. The explicit `--allow-dirty` flag is available for local verification. History records Git HEAD, whether the file differs from HEAD, SHA-256 of the bytes read, relative path, schema version, publisher, release, and published dependencies. Repeating the same content preserves the first publication's provenance. The file must reside inside the current Git repository, including checking the real symlink path.
 
-`activate` отдельно переключает весь набор. `--revision 0` означает отсутствие прежней активации; последующие значения берутся из `status`. Конфликт ревизии отклоняет устаревшее переключение. Повтор той же команды безопасен. Старый release можно активировать снова с текущей ревизией. История переключений сохраняется отдельно.
+`activate` separately switches the entire bundle. `--revision 0` means there was no previous activation; subsequent values come from `status`. A revision conflict rejects an outdated switch. Repeating the same command is safe. An old release can be reactivated with the current revision. Switch history is stored separately.
 
-Неактивные файловые версии доступны администратору, но не выдаются публичным discovery и не выбираются для новых quotes, даже по явному номеру рецепта. Уже созданный quote и принятая операция используют сохранённые ссылки, параметры, формулу и версию адаптера. Изменение Git-файла само по себе не влияет на исполнение.
+Inactive file versions are available to administrators but excluded from public discovery and new quote selection, even when an explicit recipe number is supplied. An existing quote and accepted operation use stored references, parameters, formula, and adapter version. Changing a Git file alone does not affect execution.
 
-Для себестоимости используется текущая активная ставка, для пользовательского списания сохраняется существующая политика сравнения с принятой ставкой. Сохранённая наценка берётся из принятой операции. Новая неактивная публикация не меняет текущую ставку. Это сохраняет разделение provider cost и customer charge, включая прежние правила `outcome_unknown`.
+Provider cost uses the currently active rate; customer charging preserves the existing comparison policy against the accepted rate. Stored markup comes from the accepted operation. A new inactive publication does not change the current rate. This preserves the separation between provider cost and customer charge, including existing `outcome_unknown` rules.
 
-Реестр TS-адаптеров содержит существующие `openai@1`, `anthropic@1`, `cartesia@1`, `serper@1`. Файловая модель указывает версию явно, quote переносит её в сохранённый маршрут, runtime выбирает реализацию по этой версии. Неизвестная версия не заменяется автоматически другой. Изменения поведения адаптера должны получать новую версию; старую реализацию сохраняют, пока на неё ссылается незавершённая работа. Произвольная подмена кода под тем же ID этим механизмом не предотвращается.
+The TS adapter registry contains the existing `openai@1`, `anthropic@1`, `cartesia@1`, and `serper@1`. A file model specifies its version explicitly; the quote carries it into the stored route, and runtime selects the implementation by that version. An unknown version is not automatically replaced with another. Adapter behavior changes must receive a new version; the old implementation is retained while unfinished work references it. This mechanism does not prevent arbitrary code replacement under the same ID.
 
-## Административный интерфейс
+## Administrative Interface
 
-На страницах Models, Pricing, Routes и Recipes файловые записи помечены `Git · Active` или `Git · Inactive`. Активная старая версия остаётся видимой при публикации новой. В карточке доступны источник, Git revision, hash, автор, зависимости и обычное визуальное представление модели, расчёта, ставок или рецепта.
+On Models, Pricing, Routes, and Recipes pages, file records are marked `Git · Active` or `Git · Inactive`. An active old version remains visible when a new one is published. The card provides source, Git revision, hash, author, dependencies, and the standard visual representation of the model, calculation, rates, or recipe.
 
-Редактирование, переименование и создание новой версии файловой записи через UI выключены. Старые HTTP-пути также возвращают `file_managed_configuration`; SQL triggers защищают источник и опубликованные записи. Создание версии с тем же ключом через legacy-путь не обходится новым номером версии. Read-only калькулятор позволяет менять пробные входы и рассчитывать цену без изменения определения или вызова модели.
+Editing, renaming, and creating a new version of a file record through the UI are disabled. Old HTTP paths also return `file_managed_configuration`; SQL triggers protect the source and published records. Creating a version with the same key through a legacy path cannot be bypassed using a new version number. The read-only calculator allows changing trial inputs and calculating prices without modifying the definition or calling the model.
 
-Connections, бюджеты, квоты и уведомления остаются оперативными настройками. Публикация их не перезаписывает. Активация подготовительного этапа выполняется CLI; отдельного редактора/экрана публикаций в админке пока нет.
+Connections, budgets, quotas, and notifications remain operational settings. Publication does not overwrite them. Activation in this preparatory phase uses the CLI; there is no separate publication editor/screen in the admin yet.
 
-## Приёмка и границы
+## Acceptance and Boundaries
 
-Проверены чистая БД и обновление заполненной схемы 0055 до 0056. PostgreSQL-тесты покрывают preview без записей, атомарный откат, конкурентную идемпотентность, отсутствие активации при публикации, конфликт переключения, изоляцию приложений, запрет обхода через API/SQL и исполнение старого запроса после новой активации. В последнем сценарии provider cost меняется по новой ставке, а списание остаётся по сохранённым условиям: 21 000 units на synthetic usage.
+A clean database and upgrading a populated schema from 0055 to 0056 were verified. PostgreSQL tests cover preview without writes, atomic rollback, concurrent idempotency, no activation on publication, switch conflicts, application isolation, preventing API/SQL bypass, and executing an old request after a new activation. In the last scenario, provider cost changes with the new rate while the charge follows stored terms: 21 000 units for synthetic usage.
 
-Браузерный fixture запускается командой `pnpm exec tsx scripts/run-file-configuration-fixture.ts` только против локальной БД `uai_file_config_test`. Он создаёт отдельную установку, отключает реальные провайдеры и запускает админку на loopback-порту 4331. Проверки выполняются через Aside. Временный service token хранится в исключённом из Git `.data/file-configuration-fixture.json`; при остановке процесса файл удаляется.
+The browser fixture runs with `pnpm exec tsx scripts/run-file-configuration-fixture.ts` only against the local `uai_file_config_test` database. It creates a separate installation, disables real providers, and starts the admin on loopback port 4331. Verification uses Aside. The temporary service token is stored in Git-excluded `.data/file-configuration-fixture.json`; the file is deleted when the process stops.
 
-После PA-I00 добавлены экспорт legacy-профилей и атомарный `adopt`: перенос владения с проверкой baseline, без изменения старых payload и ссылок принятой работы. 20 локальных профилей (65 ресурсов) сохранены в `configurations/ai/legacy-local.json`; это исторические ставки основной локальной установки, не проверка текущих цен провайдеров. Connections и бюджеты вынесены в локальные bindings, baseline содержит ID и hash прежних версий. Оба файла лежат вне Git. Публикация полного набора и adoption проверены в изолированной установке; затем 20 профилей основной локальной demo переключены на release `release_b666e880-bae1-4cdb-b20b-efe9d0f94c26`. Connections и wallets не изменились; перед adoption сохранён локальный pg_dump. Набор ключей опубликованного bundle пока фиксирован: переименование или удаление требует отдельной миграции. Формат v1 теперь включает `model.api` и `tariff`. Обновление кода адаптера требует дисциплины версионирования и контрактных тестов. Production, платные вызовы и полный distributed crash/load прогон не входят в PA-I00.
+After PA-I00, legacy-profile export and atomic `adopt` were added: ownership migration with baseline verification, without changing old payloads or references held by accepted work. 20 local profiles (65 resources) are saved in `configurations/ai/legacy-local.json`; these are historical rates from the primary local installation, not verification of current provider prices. Connections and budgets are moved to local bindings; the baseline contains IDs and hashes of previous versions. Both files remain outside Git. Full-bundle publication and adoption were verified in an isolated installation; then 20 profiles in the primary local demo were switched to release `release_b666e880-bae1-4cdb-b20b-efe9d0f94c26`. Connections and wallets did not change; a local pg_dump was saved before adoption. The published bundle's key set is currently fixed: renaming or deletion requires a separate migration. Format v1 now includes `model.api` and `tariff`. Adapter code updates require versioning discipline and contract tests. Production, paid calls, and a full distributed crash/load run are outside PA-I00.
 
 
-## Перенос существующих профилей
+## Migrating Existing Profiles
 
-`configuration export --file <repo-file.json> --bindings <local-bindings.json> --baseline <local-baseline.json> --bundle <key> --organization <id> --application <id>` читает определения без изменения БД. Выходные файлы создаются только при отсутствии файлов с такими именами. `scripts/export-local-configuration.ts` — ограниченная обёртка для локальной demo; она не читает credentials.
+`configuration export --file <repo-file.json> --bindings <local-bindings.json> --baseline <local-baseline.json> --bundle <key> --organization <id> --application <id>` reads definitions without changing the database. Output files are created only if files with those names do not already exist. `scripts/export-local-configuration.ts` is a limited wrapper for the local demo; it does not read credentials.
 
-`configuration adopt --file <repo-file.json> --bindings <local-bindings.json> --baseline <local-baseline.json> --reason <reason> --organization <id> --application <id> --actor <id>` сверяет ID/hash последних legacy-версий, передаёт ключи одному файловому владельцу и публикует release одной транзакцией. Изменившийся baseline требует нового экспорта. Активация выполняется отдельной командой `activate`; publication не меняет оперативные лимиты и credentials. Исходные версии сохраняются. После adoption их нельзя редактировать или переименовывать через legacy API/SQL. Возврат к DB-managed редактированию не предусмотрен; откат рабочего профиля выполняется публикацией/активацией проверенного файлового определения.
+`configuration adopt --file <repo-file.json> --bindings <local-bindings.json> --baseline <local-baseline.json> --reason <reason> --organization <id> --application <id> --actor <id>` checks IDs/hashes of the latest legacy versions, transfers keys to a single file owner, and publishes a release in one transaction. A changed baseline requires another export. Activation uses the separate `activate` command; publication does not change operational limits or credentials. Original versions are preserved. After adoption, they cannot be edited or renamed through legacy API/SQL. Returning to DB-managed editing is not supported; rolling back an operational profile requires publication/activation of a verified file definition.
 
-## Политики универсального исполнения
+## Universal Execution Policies
 
-Ресурс execution_policy хранит полную схему execution. Пример: [дефолт](../configurations/execution/default.json). Он использует тот же validate/preview/publish/activate; отдельный bundle политик не требует recipe. Активная политика с key=default задаёт дефолт приложения. Route может ссылаться на execution_policy_version_id через символ @execution_policy:key внутри bundle и частично переопределять execution. Принятые requests сохраняют итоговые условия и ID версии. Оперативные max_attempts и max_deadline_seconds находятся в invocation_execution_limits, а не в независимом редакторе файловой политики.
+The execution_policy resource stores the complete execution schema. Example: [default](../configurations/execution/default.json). It uses the same validate/preview/publish/activate path; a separate policy bundle does not require a recipe. An active policy with key=default sets the application default. A route may reference execution_policy_version_id through the @execution_policy:key symbol inside the bundle and partially override execution. Accepted requests store the final terms and version ID. Operational max_attempts and max_deadline_seconds live in invocation_execution_limits, rather than an independent file policy editor.
 
-## Дополнительные модели LogoPanel
+## Additional LogoPanel Models
 
-См. [контракт доработок LogoPanel](LOGOPANEL_FOLLOWUP_INTEGRATION.md): API/SDK, ограничения и неактивированные примеры конфигураций. Реальные вызовы требуют отдельного согласования по [правилам проверки провайдеров](REAL_PROVIDER_CHECKS.md).
+See the [LogoPanel follow-up contract](LOGOPANEL_FOLLOWUP_INTEGRATION.md): API/SDK, limits, and unactivated configuration examples. Real calls require separate approval under the [provider verification rules](REAL_PROVIDER_CHECKS.md).
 
 ## GPT-6 Luna
 
-Отдельный набор [openai-luna6.json](../configurations/ai/openai-luna6.json) добавляет `gpt-6-luna` с reasoning, Standard-ставками, кэшем и фактическим списанием. Параметры и ограничения профиля заданы в этом JSON-файле.
+A separate [openai-luna6.json](../configurations/ai/openai-luna6.json) bundle adds `gpt-6-luna` with reasoning, Standard rates, caching, and actual charging. Profile parameters and limits are defined in this JSON file.

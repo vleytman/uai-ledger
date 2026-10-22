@@ -1,16 +1,16 @@
-# Локальный запуск
+# Local run
 
-[Оглавление](README.md) · [Матрица приёмки](ACCEPTANCE_RESULTS.md)
+[Contents](README.md) · [Acceptance matrix](ACCEPTANCE_RESULTS.md)
 
-Требуются Node.js 22.12 или новее, pnpm 9.15 и Docker Compose. Проверены macOS с Node.js 23.6 и Linux amd64 с Node.js 22.23.2; команды CI прошли в отдельном контейнере. PostgreSQL 17 запускается только на loopback-порту 55432. Все примеры рассчитаны на локальную разработку.
+Requires Node.js 22.12 or newer, pnpm 9.15 and Docker Compose. Verified on macOS with Node.js 23.6 and Linux amd64 with Node.js 22.23.2; CI commands passed in a separate container. PostgreSQL 17 is exposed only on loopback port 55432. All examples target local development.
 
-## Уже настроенная локальная demo
+## Existing local demo installation
 
-Основная установка переведена на BullMQ и постоянный S3 2026-09-20. API: `http://127.0.0.1:4310`, admin: `http://127.0.0.1:4311`, demo: `http://127.0.0.1:4312`. Миграции до 0054; история сохранена. Результаты переключения и проверки.
+The primary installation was switched to BullMQ and persistent S3 on 2026-09-20. API: `http://127.0.0.1:4310`, admin: `http://127.0.0.1:4311`, demo: `http://127.0.0.1:4312`. Migrations through 0054; history preserved. Migration and verification results.
 
-Для этой установки закрытые параметры находятся в `.data/distributed-runtime.env`; файл исключён из Git. PostgreSQL/Redis запускаются основным compose, постоянный MinIO через `docker compose -f deploy/compose.local-storage.yaml up -d`. Не удаляйте volume хранилища. Повторный `pnpm seed` для уже настроенной установки не нужен.
+Private settings for this installation are in `.data/distributed-runtime.env`, which is excluded from Git. PostgreSQL/Redis use the main compose file; persistent MinIO uses `docker compose -f deploy/compose.local-storage.yaml up -d`. Do not delete the storage volume. Rerunning `pnpm seed` is unnecessary for an existing configured installation.
 
-API и scheduler запускаются в отдельных терминалах без watch:
+Start the API and scheduler in separate terminals without watch:
 
 ```sh
 node --env-file=.data/distributed-runtime.env --import tsx apps/api/src/index.ts
@@ -20,7 +20,7 @@ node --env-file=.data/distributed-runtime.env --import tsx apps/api/src/index.ts
 node --env-file=.data/distributed-runtime.env --import tsx apps/scheduler/src/index.ts
 ```
 
-Каждый из трёх workers также запускается отдельно:
+Start each of the three workers separately as well:
 
 ```sh
 UAI_WORKER_QUEUES=text,image,audio,tools UAI_WORKER_CONCURRENCY=4 node --env-file=.data/distributed-runtime.env --import tsx apps/worker/src/index.ts
@@ -34,9 +34,9 @@ UAI_WORKER_QUEUES=observe UAI_WORKER_CONCURRENCY=4 node --env-file=.data/distrib
 UAI_WORKER_QUEUES=maintenance UAI_WORKER_CONCURRENCY=1 node --env-file=.data/distributed-runtime.env --import tsx apps/worker/src/index.ts
 ```
 
-Не запускайте второй набор поверх работающих процессов. PID текущего локального запуска и логи перечислены в закрытом `.data/distributed-processes.json`; перед остановкой сверьте PID и команду процесса, поскольку файл может устареть. Это локальные процессы, не установленный системный supervisor. Для отдельного сервера используйте [инструкции развёртывания](DEPLOYMENT.md).
+Do not start a second set over running processes. PIDs and logs for the current local run are listed in the private `.data/distributed-processes.json`; verify the PID and process command before stopping anything, because the file may be stale. These are local processes, not an installed system supervisor. For a separate server, use the [deployment guide](DEPLOYMENT.md).
 
-## Подготовка новой установки
+## Preparing a new installation
 
 ```sh
 pnpm install --frozen-lockfile
@@ -44,7 +44,7 @@ docker compose up -d
 cp .env.example .env
 ```
 
-Загрузить переменные в каждый терминал перед запуском сервиса:
+Load variables into each terminal before starting a service:
 
 ```sh
 set -a
@@ -52,20 +52,20 @@ source .env
 set +a
 ```
 
-Затем:
+Then:
 
 ```sh
 pnpm db:migrate
 pnpm seed
 ```
 
-Миграции выполняются транзакционно с advisory lock и проверкой SHA-256 ранее применённых файлов. Не редактируйте уже применённую миграцию. Для теста обновлений создавайте новую базу и применяйте новые миграции. Команда seed работает только при `UAI_ENV=test`, повторный запуск сохраняет существующую локальную установку.
+Migrations run transactionally with an advisory lock and SHA-256 verification of previously applied files. Do not edit an applied migration. To test upgrades, create a new database and apply new migrations. Seed runs only with `UAI_ENV=test`; rerunning it preserves the existing local installation.
 
-Seed создаёт аккаунт с нулевым балансом, синтетические text/image профили и составной рецепт. Это fixtures, их ставки не являются ценами провайдеров. Настройки и случайные пароли записываются в `.data/demo-config.json` и `.data/admin-config.json` с правами 0600. Ключ шифрования credentials хранится в `.data/vault-key`, также 0600. Эти файлы исключены из Git.
+Seed creates a zero-balance account, synthetic text/image profiles and a composite recipe. These are fixtures; their rates are not provider prices. Settings and random passwords are written to `.data/demo-config.json` and `.data/admin-config.json` with permissions 0600. The credential encryption key is stored in `.data/vault-key`, also with permissions 0600. These files are excluded from Git.
 
-## Сервисы
+## Services
 
-Каждая команда запускается в отдельном терминале из корня репозитория. Пути UI-конфигурации должны быть абсолютными, поскольку pnpm запускает Vite из каталога приложения:
+Run each command in a separate terminal from the repository root. UI configuration paths must be absolute because pnpm starts Vite from the application directory:
 
 ```sh
 export UAI_DEMO_CONFIG="$PWD/.data/demo-config.json"
@@ -74,19 +74,19 @@ export UAI_DEMO_ROOT="$PWD/.data/demo"
 export UAI_BLOB_ROOT="$PWD/.data/blobs"
 ```
 
-- `pnpm dev:api`: HTTP API на 127.0.0.1:4310.
-- `pnpm dev:worker`: выполнение durable requests.
-- `pnpm dev:scheduler`: recovery, финансовое закрытие, expiry, purge, numeric monitors, outbox.
-- `pnpm dev:admin`: [административный интерфейс](http://127.0.0.1:4311).
-- `pnpm dev:demo`: [тестовый клиент](http://127.0.0.1:4312).
+- `pnpm dev:api`: HTTP API at 127.0.0.1:4310.
+- `pnpm dev:worker`: durable request execution.
+- `pnpm dev:scheduler`: recovery, financial closure, expiry, purge, numeric monitors, outbox.
+- `pnpm dev:admin`: [admin interface](http://127.0.0.1:4311).
+- `pnpm dev:demo`: [test client](http://127.0.0.1:4312).
 
-Войти можно паролем `login_password` из соответствующего локального config-файла. Не копируйте пароль, service tokens или vault key в Git, сообщения и отчёты. Браузер получает HttpOnly-сессию; ключи UAI остаются на backend.
+Sign in with `login_password` from the corresponding local configuration file. Do not copy passwords, service tokens or the vault key into Git, messages or reports. The browser receives an HttpOnly session; UAI keys stay on the backend.
 
-В demo начислите тестовые кредиты, получите quote и подтвердите максимум. В блоке «Кредиты для теста» можно также установить доступный остаток, включая 0 и дробные суммы до 6 знаков, для проверки нехватки. Команда требует `UAI_ENV=test` на demo и API и scope `credits:test-balance` у тестового токена; новый seed выдаёт его автоматически. Открытые резервы блокируют корректировку, устаревшая revision отклоняется. Повтор команды не устанавливает остаток заново. Профиль `demo.description-image` выполняет описание и изображение в одной операции. Demo сохраняет историю и файлы независимо от временного storage UAI; размер и digest файла проверяются до ACK. Удаление диалога требует подтверждения и удаляет локальную копию; UAI сохраняет только финансовую историю и технические metadata.
+In the demo, grant test credits, obtain a quote and confirm the maximum. The test-credit section also lets you set the available balance, including 0 and fractional amounts with up to 6 decimal places, to test insufficient funds. The command requires `UAI_ENV=test` on both demo and API, and `credits:test-balance` scope on the test token; a new seed grants it automatically. Open reservations block adjustment, and a stale revision is rejected. Replaying a command does not set the balance again. The `demo.description-image` profile executes description and image in one operation. Demo stores history and files independently of UAI temporary storage; file size and digest are verified before ACK. Deleting a conversation requires confirmation and removes the local copy; UAI keeps only financial history and technical metadata.
 
-## Проверка
+## Validation
 
-Для изолированной проверки внешних сессий есть `UAI_ENV=test DATABASE_URL=<test-db-url> pnpm exec tsx scripts/run-external-auth-fixture.ts`. Скрипт создаёт собственную тестовую БД, запускает API и родительский хост только на loopback-порту 4327 и отключает реальные провайдеры. Исходному тестовому пользователю нужно право CREATEDB. Эта команда не меняет вход действующей demo. [Сценарии и контракт](EXTERNAL_AUTH.md).
+For isolated external-session testing, run `UAI_ENV=test DATABASE_URL=<test-db-url> pnpm exec tsx scripts/run-external-auth-fixture.ts`. The script creates its own test database, starts the API and parent host only on loopback port 4327 and disables real providers. The initial test user needs CREATEDB. This command does not change login for the active demo. [Scenarios and contract](EXTERNAL_AUTH.md).
 
 ```sh
 pnpm typecheck
@@ -96,102 +96,102 @@ pnpm docs:check
 pnpm build
 ```
 
-Для воспроизводимой интеграционной проверки используйте отдельную чистую базу через `DATABASE_URL`. Тесты создают уникальные организации и не должны запускаться против production или действующей demo-базы. `REQUIRE_INTEGRATION_TESTS=1` завершает проверку ошибкой при отсутствии `DATABASE_URL`; этот флаг включён в CI. Без него и без `DATABASE_URL` PostgreSQL-наборы пропускаются; такой результат не считается приёмкой финансового ядра.
+For reproducible integration checks, use a separate clean database through `DATABASE_URL`. Tests create unique organizations and must not target production or the active demo database. `REQUIRE_INTEGRATION_TESTS=1` fails validation when `DATABASE_URL` is missing; CI enables this flag. Without that flag and without `DATABASE_URL`, PostgreSQL suites are skipped; such a result is not financial-core acceptance.
 
-Для интеграционных тестов relay, аварий worker и HTTP demo тестовому PostgreSQL-пользователю нужно право `CREATEDB`. Они создают отдельные `uai_isolated_test_*`, применяют миграции и удаляют эти базы после остановки соединений. Это исключает захват чужих fixtures при проверке общей очереди. Такое право требуется тестовому окружению, а не production runtime.
+Relay, worker-crash and HTTP demo integration tests require the test PostgreSQL user to have `CREATEDB`. They create separate `uai_isolated_test_*` databases, apply migrations and drop those databases after connections stop. This prevents interference with other fixtures while testing the shared queue. This privilege is required for the test environment, not the production runtime.
 
-`UAI_WORKER_ONCE=true` и `UAI_SCHEDULER_ONCE=true` выполняют один шаг соответствующего процесса. Управляемые часы в тестах позволяют проверять часовые сроки и recovery без ожидания реального часа.
+`UAI_WORKER_ONCE=true` and `UAI_SCHEDULER_ONCE=true` execute one step of the corresponding process. Controlled test clocks allow one-hour deadlines and recovery to be checked without waiting an actual hour.
 
-## Реальные подключения
+## Real connections
 
-`UAI_ALLOW_REAL_PROVIDERS=false` блокирует платные провайдеры. Для реального прогона нужны отдельное разрешение бюджета, provider credentials, опубликованные и проверенные модели/ставки, route и лимиты риска. Встроенные синтетические профили не подходят для реальных запросов.
+`UAI_ALLOW_REAL_PROVIDERS=false` blocks paid providers. A live run requires separate budget authorization, provider credentials, published and verified models/rates, a route and risk limits. Built-in synthetic profiles are unsuitable for real requests.
 
-`UAI_ENABLE_WEBHOOK_DELIVERY=false` оставляет внешнюю доставку отключённой. Fixtures проверяют подписи и повторы без отправки реальным получателям. Production deployment, платежи, Logo Panel и полный этап 7 не входят в текущую работу.
+`UAI_ENABLE_WEBHOOK_DELIVERY=false` leaves external delivery disabled. Fixtures check signatures and retries without sending to real recipients. Production deployment, payments, Logo Panel and full stage 7 are outside the current work.
 
-## Действующие ограничения и восстановление
+## Active limits and recovery
 
-В админке `execution-budgets` меняет таблицу бюджетов, которую проверяет worker. Суммы задаются строками в внутренних USD units, 1 USD = 1 000 000 000 units. Provider budget относится к connection, period budget к ключу рецепта. Уменьшение лимита не сбрасывает уже понесённый расход и открытые exposure, а останавливает дальнейший admission при нехватке бюджета. Поля `risk_policy` подключения сами по себе этот лимит не меняют. Правки требуют reason, idempotency key и совпадения предыдущего лимита.
+In the admin interface, `execution-budgets` changes the budget table checked by the worker. Amounts are strings in internal USD units, where 1 USD = 1 000 000 000 units. A provider budget belongs to a connection; a period budget belongs to a recipe key. Lowering a limit does not reset incurred spending or open exposure; it stops further admission when the budget is insufficient. Connection `risk_policy` fields do not change this limit by themselves. Edits require a reason, an idempotency key and a matching previous limit.
 
-`execution-limiters` редактирует действующие окна, RPM, token budget и concurrency групп, указанных в опубликованном route. Правка сохраняет счётчики текущего окна; CAS использует hash конфигурации без изменяющихся счётчиков. Общий period или limiter key, на который ссылаются несколько приложений одной организации, недоступен для изменения через application-scoped admin. Отдельного organization-admin API в v0.3 нет.
+`execution-limiters` edits active windows, RPM, token budget and concurrency of groups referenced by a published route. Edits preserve current-window counters; CAS uses a configuration hash that excludes mutable counters. A shared period or limiter key referenced by several applications in one organization cannot be edited through application-scoped admin access. There is no separate organization-admin API in v0.3.
 
-Перед открытием API запускается restore retention guard: он повторно применяет сохранённые tombstones и сроки хранения. При восстановлении сначала восстанавливайте журнал удаления. Guard не может восстановить записи удаления, отсутствующие в выбранной резервной копии.
+Before opening the API, the restore retention guard runs and reapplies persisted tombstones and retention deadlines. During restoration, restore the deletion journal first. The guard cannot recover deletion records absent from the selected backup.
 
-Reporting credential хранится отдельно от ключа генерации и зашифрован тем же локальным vault. `UAI_ALLOW_REPORTING_API=true` разрешает только импорт отчётов поставщика. По умолчанию сеть импорта отключена; fixture-проверки не используют реальные ключи.
+The reporting credential is stored separately from the generation key and encrypted by the same local vault. `UAI_ALLOW_REPORTING_API=true` permits only provider report import. Import networking is disabled by default; fixture checks do not use real keys.
 
-### Проверка реальных генераций во время разработки
+### Testing real generations during development
 
-Для платных проверок worker и scheduler следует запускать без file watcher. `tsx watch` может принудительно остановить процесс после изменения импортируемого файла во время запроса, оставив исход неизвестным. При загруженном окружении локальной установки:
+For paid checks, start worker and scheduler without a file watcher. `tsx watch` may forcibly terminate a process when an imported file changes during a request, leaving the outcome unknown. With the local installation environment loaded:
 
 ```sh
 UAI_ALLOW_REAL_PROVIDERS=true pnpm exec tsx apps/worker/src/index.ts
 UAI_ALLOW_REAL_PROVIDERS=true pnpm exec tsx apps/scheduler/src/index.ts
 ```
 
-Остановите прежние экземпляры до запуска этих процессов. Сохранённый `outcome_unknown` нельзя объявлять бесплатным или автоматически повторять: scheduler и reconciliation сохраняют правила неизвестного usage.
+Stop the previous instances before starting these processes. A persisted `outcome_unknown` must not be declared free or automatically retried: scheduler and reconciliation preserve unknown-usage rules.
 
-Настройка уточнённых OpenAI профилей для существующей demo-установки: `pnpm exec tsx scripts/setup-precise-demo.ts`. Команда публикует новые неизменяемые версии конфигураций в БД из `DATABASE_URL`; лимиты провайдеров не увеличивает. Её повторный запуск создаёт следующие версии. Перед применением проверьте ставки и дату проверки в конфигурациях.
+Configure refined OpenAI profiles for an existing demo installation with `pnpm exec tsx scripts/setup-precise-demo.ts`. The command publishes new immutable configuration versions to the database in `DATABASE_URL`; it does not raise provider limits. Rerunning it creates subsequent versions. Verify rates and their checked date in the configurations before applying them.
 
 
-## Профили центрального расчёта
+## Central pricing profiles
 
-В текущей локальной установке опубликован каталог `central.model-pricing.examples`. В админке Model cost calculation содержит составляющие и отдельные для модели Safety factor/Markup. Первые версии использовали запас 1 и наценку 0. Обновлённый набор из семи моделей и согласованные владельцем значения описаны ниже, в разделе «Упрощённое demo с семью моделями».
+The current local installation has the `central.model-pricing.examples` catalog published. In admin, Model cost calculation contains components and per-model Safety factor/Markup. Initial versions used safety factor 1 and markup 0. The updated seven-model set and owner-approved values are described below in "Simplified seven-model demo".
 
-Demo показывает окончательную цену до запуска. Изменение текста, параметров или референсов требует нового расчёта. Внутренняя резервация обеспечивает одно списание согласованной цены. Реальный вызов происходит только после подтверждения запуска и использует настроенный provider connection.
+Demo shows the final price before execution. Changing text, parameters or references requires a new calculation. The internal reservation ensures a single charge at the agreed price. A real call happens only after execution confirmation and uses the configured provider connection.
 
-`scripts/setup-model-pricing-demo.ts` создаёт новые версии этих профилей, используя существующие локальные опубликованные ставки и базовые профили `fixed.openai.sunburst` и `check.openai.nano`. Он требует `UAI_ENV=test` и настроенную DATABASE_URL; сам генерации не выполняет. Это не самостоятельный seed пустой установки и не команда обновления цен провайдера. Повторный запуск создаёт версии; для простого просмотра UI повторять его не требуется.
+`scripts/setup-model-pricing-demo.ts` creates new versions of these profiles using existing locally published rates and base profiles `fixed.openai.sunburst` and `check.openai.nano`. It requires `UAI_ENV=test` and a configured DATABASE_URL; it does not generate anything itself. It is neither an independent seed for an empty installation nor a provider-price update command. Rerunning creates new versions; there is no need to rerun it just to inspect the UI.
 
-Калькулятор админки не вызывает провайдера. Метаданные референсов в его проверочном входе задаются вручную; реальные quotes читают файлы, проверяют содержимое и подготавливают байты на backend. См. [спецификацию центрального расчёта](MODEL_PRICING_SPEC.md).
+The admin calculator does not call the provider. Reference metadata in its validation input is specified manually; real quotes read files, validate their content and prepare bytes on the backend. See the [central pricing specification](MODEL_PRICING_SPEC.md).
 
-### Упрощённое demo с семью моделями
+### Simplified seven-model demo
 
-Обновление от 2026-09-19. В [demo](http://127.0.0.1:4312) основные списки разделены на чат и изображения. По умолчанию показаны модели с окончательной ценой. Старые, составные и fixture-профили доступны через «Показать старые и тестовые профили». Формат и фон находятся в «Дополнительно»; проводки и лимиты в «Расходы и технические сведения». Смена модели сохраняет промпт, референсы и совместимые параметры, но сбрасывает рассчитанную цену.
+Updated 2026-09-19. The [demo](http://127.0.0.1:4312) separates the main lists into chat and images. Models with a final price are shown by default. Older, composite and fixture profiles are available through the option to show old and test profiles. Format and background are under advanced settings; postings and limits are under spending and technical details. Changing the model preserves the prompt, references and compatible parameters but resets the calculated price.
 
-Скрипт `scripts/setup-model-pricing-demo.ts` публикует новые версии каталога, ставок, маршрутов и рецептов только в локальной `uai_local`. Платных вызовов он не делает. Численные настройки согласованы владельцем: запас `1.1`, наценка `100%`, итоговый множитель `2.2`. Старые quotes и опубликованные версии сохраняются.
+`scripts/setup-model-pricing-demo.ts` publishes new catalog, rate, route and recipe versions only to local `uai_local`. It makes no paid calls. Numerical settings were approved by the owner: safety factor `1.1`, markup `100%`, total multiplier `2.2`. Old quotes and published versions are preserved.
 
-| Модель | Вход / кеш / выход, USD за миллион токенов | Расчёт |
+| Model | Input / cache / output, USD per million tokens | Calculation |
 | --- | --- | --- |
-| GPT-5.6 Sol | 4 / 0.4 / 20 | Вход и выбранный лимит выхода; запись кеша 5 |
-| GPT-5.6 Terra | 2 / 0.2 / 12 | Вход и выбранный лимит выхода; запись кеша 2.5 |
-| GPT-4.1 nano | 0.1 / 0.025 / 0.4 | Вход и выбранный лимит выхода |
-| GPT-4.1 | 2 / 0.5 / 8 | Вход и выбранный лимит выхода |
-| GPT Image 2 | Текст 5; изображение на входе 8; выход 30 | 90 строк таблицы плюс промпт и референсы |
-| GPT Image 2.5 Sunburst | Текст 5; изображение на входе 8; выход 30 | 150 строк таблицы плюс промпт и референсы |
-| GPT Image 2.5 Flare | Текст 5; изображение на входе 8; выход 30 | 150 строк таблицы плюс промпт и референсы |
+| GPT-5.6 Sol | 4 / 0.4 / 20 | Input and selected output limit; cache write 5 |
+| GPT-5.6 Terra | 2 / 0.2 / 12 | Input and selected output limit; cache write 2.5 |
+| GPT-4.1 nano | 0.1 / 0.025 / 0.4 | Input and selected output limit |
+| GPT-4.1 | 2 / 0.5 / 8 | Input and selected output limit |
+| GPT Image 2 | Text 5; image input 8; output 30 | 90 table rows plus prompt and references |
+| GPT Image 2.5 Sunburst | Text 5; image input 8; output 30 | 150 table rows plus prompt and references |
+| GPT Image 2.5 Flare | Text 5; image input 8; output 30 | 150 table rows plus prompt and references |
 
-Источники ставок проверены 2026-09-19: [Sol](https://developers.openai.com/api/docs/models/gpt-5.6-sol), [Terra](https://developers.openai.com/api/docs/models/gpt-5.6-terra), [GPT-4.1](https://developers.openai.com/api/docs/models/gpt-4.1), [nano](https://developers.openai.com/api/docs/models/gpt-4.1-nano), [Sunburst](https://developers.openai.com/api/docs/models/gpt-image-2.5-sunburst), [Flare](https://developers.openai.com/api/docs/models/gpt-image-2.5-flare), [изображения](https://developers.openai.com/api/docs/guides/image-generation). Sol и Terra используют доступные alias; остальные модели закреплены на snapshots.
+Rate sources verified on 2026-09-19: [Sol](https://developers.openai.com/api/docs/models/gpt-5.6-sol), [Terra](https://developers.openai.com/api/docs/models/gpt-5.6-terra), [GPT-4.1](https://developers.openai.com/api/docs/models/gpt-4.1), [nano](https://developers.openai.com/api/docs/models/gpt-4.1-nano), [Sunburst](https://developers.openai.com/api/docs/models/gpt-image-2.5-sunburst), [Flare](https://developers.openai.com/api/docs/models/gpt-image-2.5-flare), [images](https://developers.openai.com/api/docs/guides/image-generation). Sol and Terra use available aliases; other models are pinned to snapshots.
 
-Текстовые профили поддерживают лимиты ответа 128, 512, 1024, 2048, 4096 токенов. Окончательная цена рассчитывается по выбранному лимиту, включая reasoning; короткий фактический ответ не уменьшает цену. Для Sol/Terra вход оценён по более высокой ставке записи холодного кеша. Фактический учёт сохраняет обычные, кешированные и записанные токены отдельно. Оценка входа ограничена 16000 токенов, поэтому повышенные ставки длинного контекста здесь не применяются. Вложения и платные инструменты для текстовых профилей не включены.
+Text profiles support response limits of 128, 512, 1024, 2048 and 4096 tokens. The final price uses the selected limit, including reasoning; a shorter actual response does not reduce the price. For Sol/Terra, input is estimated at the higher cold-cache write rate. Actual accounting preserves ordinary, cached and written tokens separately. The input estimate is capped at 16000 tokens, so higher long-context rates do not apply here. Attachments and paid tools are not enabled for text profiles.
 
-Изображения поддерживают 10 пропорций: 1:1, 4:3, 3:4, 3:2, 2:3, 16:9, 9:16, 2:1, 1:2, 21:9. Каждый вариант имеет три уровня разрешения. 1K и 2K ориентированы на площадь 1024² и 2048²; 4K ограничен площадью 3840×2160 и стороной 3840. Размеры округлены вниз до кратных 16, точные пиксели видны в форме. Это позволяет сохранить все 30 вариантов в ограничениях провайдера. Например, квадратный 4K равен 2880×2880. Качества: low/medium/high для Image 2, дополнительно xhigh/max для 2.5. Auto не включён, поскольку не задаёт конкретное качество для предварительной цены. Разрешения выше 2560×1440 провайдер помечает экспериментальными.
+Images support 10 aspect ratios: 1:1, 4:3, 3:4, 3:2, 2:3, 16:9, 9:16, 2:1, 1:2 and 21:9. Each has three resolution levels. 1K and 2K target areas of 1024² and 2048²; 4K is bounded by area 3840×2160 and side length 3840. Dimensions are rounded down to multiples of 16, and exact pixels are shown in the form. This keeps all 30 variants within provider limits. For example, square 4K is 2880×2880. Quality levels are low/medium/high for Image 2, with xhigh/max additionally available for 2.5. Auto is excluded because it does not define a concrete quality for advance pricing. The provider marks resolutions above 2560×1440 as experimental.
 
-Все 390 сочетаний имеют строки таблиц; формат и фон в цену таблицы не входят. Входные изображения подготавливаются до 1024×1024; формула оценивает 1024 токена на референс. Оценки текстового обрамления и входных изображений остаются эмпирическими, а выходные таблицы являются оценкой калькулятора, не гарантией usage. Цена для пользователя фиксирована; расхождение фактической себестоимости видно после выполнения в диагностике.
+All 390 combinations have table rows; format and background are not included in table prices. Input images are prepared at up to 1024×1024; the formula estimates 1024 tokens per reference. Text framing and input-image estimates remain empirical, and output tables are calculator estimates rather than guaranteed usage. The customer price is fixed; any difference in actual provider cost is visible in diagnostics after execution.
 
-### Обновление текстовых профилей на прогнозную оплату
+### Updating text profiles to forecast billing
 
-`DATABASE_URL=postgresql://uai:uai_local_only@127.0.0.1:55432/uai_local UAI_ENV=test pnpm exec tsx scripts/setup-model-pricing-demo.ts --text-only` публикует новые версии четырёх текстовых профилей с `estimated_actual`. Изображения в каталоге сохраняются, их рецепты не обновляются. Перед запуском примените миграции, после изменения runtime перезапустите worker и scheduler. Скрипт не выполняет платные запросы. Demo показывает ожидаемые 4096 токенов и примерную стоимость; итог списывается по usage с наценкой, долг разрешён согласно [решению владельца](DECISIONS.md#текст-оценка-отдельно-от-ограничения-генерации).
+`DATABASE_URL=postgresql://uai:uai_local_only@127.0.0.1:55432/uai_local UAI_ENV=test pnpm exec tsx scripts/setup-model-pricing-demo.ts --text-only` publishes new versions of four text profiles with `estimated_actual`. Images remain in the catalog and their recipes are not updated. Apply migrations before running; restart worker and scheduler after runtime changes. The script performs no paid requests. Demo shows the expected 4096 tokens and approximate cost; final charging follows usage with markup, and debt is allowed under the [owner decision](DECISIONS.md#text-estimation-separate-from-generation-limits).
 
-## Файловая публикация PA-I00
+## File publication PA-I00
 
-[Команды validate/preview/publish/activate и изолированный UI fixture](FILE_CONFIGURATION.md). Миграция 0056 проверена в отдельной локальной БД; основная demo-установка этим этапом не переключалась.
+[validate/preview/publish/activate commands and isolated UI fixture](FILE_CONFIGURATION.md). Migration 0056 was checked in a separate local database; this stage did not switch the primary demo installation.
 
-## Платные API в demo
+## Paid APIs in the demo
 
-Раздел «Платные API» в [demo](http://127.0.0.1:4312/#api) содержит четыре настоящих Firecrawl-сценария. См. [контракт платных API](PAID_API_CONTRACT.md). Расчёт не вызывает провайдера; платный вызов требует кнопки подтверждения. Тестовые кредиты кошелька и credits Firecrawl показаны отдельно.
+The paid API section of the [demo](http://127.0.0.1:4312/#api) contains four real Firecrawl scenarios. See the [paid API contract](PAID_API_CONTRACT.md). Quoting does not call the provider; a paid call requires the confirmation button. Test wallet credits and Firecrawl credits are displayed separately.
 
 ## LogoPanel follow-up
 
-После обновления выполнить `pnpm db:migrate`: новые миграции сохраняют validation diagnostics и interactive reserve. Для worker с BullMQ `UAI_WORKER_INTERACTIVE_RESERVE=1` задаёт число локальных слотов для живых вызовов; требуется concurrency ≥2 для физического разделения. Профили из `configurations/ai/logopanel/` сами не публикуются и не активируются. См. [контракт](LOGOPANEL_FOLLOWUP_INTEGRATION.md) и [план проверки](LOGOPANEL_FOLLOWUP_PLAN.md).
+After updating, run `pnpm db:migrate`: new migrations persist validation diagnostics and interactive reserve. For a BullMQ worker, `UAI_WORKER_INTERACTIVE_RESERVE=1` sets the number of local slots for live invocations; concurrency ≥2 is required for physical separation. Profiles in `configurations/ai/logopanel/` do not publish or activate themselves. See the [contract](LOGOPANEL_FOLLOWUP_INTEGRATION.md) and [validation plan](LOGOPANEL_FOLLOWUP_PLAN.md).
 
 ## Jev offline fixture
 
-После миграций в отдельной локальной БД с префиксом `uai_jev_`:
+After migrations in a separate local database prefixed with `uai_jev_`:
 
 ```sh
 UAI_ENV=test UAI_ALLOW_REAL_PROVIDERS=false pnpm exec tsx scripts/run-jev-fixture.ts
 ```
 
-Скрипт использует DATABASE_URL этой БД, запускает API 4345, admin 4346, demo 4347. Пароль только этой тестовой установки: `jev-local-fixture`. Transport подменён; провайдер не вызывается. [Контракт и ограничения](JEV.md).
+The script uses this database's DATABASE_URL and starts API 4345, admin 4346 and demo 4347. The password for this test installation only is `jev-local-fixture`. Transport is substituted; the provider is not called. [Contract and limitations](JEV.md).
 
-## Локальные отчёты приёмки
+## Local acceptance reports
 
-Отчёты прогонов хранятся только в игнорируемом `.data/reports/` и не входят в Git. `pnpm exec tsx scripts/update-acceptance.ts` читает оттуда файлы `*-acceptance.json` и обновляет матрицу A01–A91. Перед обновлением проверьте наличие полного набора отчётов: отсутствующий сценарий будет отмечен как непроверенный. Публикуемая матрица сохраняет ссылки на тесты и ограничения, но не имена локальных JSON-артефактов.
+Run reports are stored only in ignored `.data/reports/` and are not included in Git. `pnpm exec tsx scripts/update-acceptance.ts` reads `*-acceptance.json` files there and updates matrix A01–A91. Before updating, check that the full report set is available: a missing scenario will be marked unverified. The published matrix keeps test references and limitations, but not local JSON artifact names.

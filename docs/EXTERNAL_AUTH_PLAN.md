@@ -1,200 +1,200 @@
-# План подключения внешней авторизации
+# External Authentication Integration Plan
 
-[Оглавление](README.md) · [Модульная админка](MODULAR_ADMIN.md) · [Решения](DECISIONS.md)
+[Contents](README.md) · [Modular Admin](MODULAR_ADMIN.md) · [Decisions](DECISIONS.md)
 
-Статус: согласованные границы реализованы локально 2026-09-20. Этот документ сохраняет исходный план и EA-критерии; точные реализованные интерфейсы описаны в [контракте](EXTERNAL_AUTH.md), доказательства и ограничения в приёмке. Раздел «Проверенная исходная реализация» описывает состояние до изменений.
+Status: agreed boundaries implemented locally on 2026-09-20. This document preserves the original plan and EA criteria; exact implemented interfaces are described in the [contract](EXTERNAL_AUTH.md), with evidence and limitations in acceptance results. The “Verified Original Implementation” section describes the state before changes.
 
-## Цель и согласованные границы
+## Goal and Agreed Boundaries
 
-Подключать UAI к авторизации родительского приложения без второй регистрации и копии его пользователей. Один человек может участвовать в нескольких командах. Каждая команда имеет общий кошелёк; отдельные личные кошельки в этой интеграции не нужны. Сотрудники приложения получают доступ к общей админке продукта и UAI через тот же источник identity.
+Connect UAI to the parent application's authentication without a second registration or a copy of its users. One person may belong to multiple teams. Each team has a shared wallet; separate personal wallets are unnecessary in this integration. Application staff access the shared product and UAI admin through the same identity source.
 
-Родительское приложение выбирает систему входа. Для LogoPanel предполагается Better Auth, но UAI не зависит от него и не реализует его настройку. Контракт проверяется на тестовом приложении.
+The parent application chooses its login system. Better Auth is planned for LogoPanel, but UAI neither depends on it nor implements its configuration. The contract is verified using a test application.
 
-| Ответственность UAI | Ответственность родительского приложения |
+| UAI responsibility | Parent application responsibility |
 |---|---|
-| Контракт серверного адаптера внешней авторизации | Регистрация, вход, сессии, восстановление доступа |
-| Приём проверенной личности и финансовой области запроса | Пользователи, команды, приглашения, членство и выбранная команда |
-| Привязка внешней команды к account и wallet | Проверка актуального членства и прав на проекты |
-| Роли сотрудников `admin` и `viewer` для общей админки | Назначение сотрудникам этих ролей |
-| Изоляция ресурсов и существующие service scopes | Роли команды: просмотр; просмотр и чат; просмотр, чат и генерация |
-| Персональная атрибуция в аудите | Переопределение прав в проекте, включая расширение общей роли |
-| Исполнение принятой операции и расчёт с её командой | Согласования, присутствие участников, раунды, уведомления |
+| Server adapter contract for external authentication | Registration, login, sessions, account recovery |
+| Accepting verified identity and request financial scope | Users, teams, invitations, membership, and selected team |
+| Binding an external team to account and wallet | Checking current membership and project permissions |
+| Staff `admin` and `viewer` roles for the shared admin | Assigning these roles to staff |
+| Resource isolation and existing service scopes | Team roles: view; view and chat; view, chat, and generation |
+| Individual audit attribution | Project permission overrides, including extending a general role |
+| Executing an accepted operation and settling with its team | Approvals, participant presence, rounds, notifications |
 
-Администратор команды является обычным пользователем продукта. Он может управлять участниками и их продуктовыми правами, но это не даёт доступа к служебной админке. Каждый участник видит доступный баланс команды; решение о запуске конкретного действия принимает родительский backend.
+A team administrator is an ordinary product user. They may manage participants and their product permissions, but this does not grant service-admin access. Each participant sees the team's available balance; the parent backend decides whether a specific action may start.
 
-В LogoPanel обычный ответ AI в чате разрешён участнику с правом чата и оплачивается командой. Создание изображений, файлов и запросы к исследователю требуют продуктового права генерации либо согласования. Выбор подтверждающего и разрешения на запрос, раунд или проект полностью принадлежат LogoPanel. UAI не получает сущностей `approval`, `round`, `researcher` или продуктового флага `can_generate`.
+In LogoPanel, an ordinary AI chat response is permitted to a participant with chat permission and paid for by the team. Creating images, files, and researcher requests requires product generation permission or approval. Choosing the approver and permissions for a request, round, or project belongs entirely to LogoPanel. UAI does not receive `approval`, `round`, or `researcher` entities, or a product `can_generate` flag.
 
-## Проверенная исходная реализация
+## Verified Original Implementation
 
-- [packages/auth](../packages/auth/src/index.ts) проверяет service token, срок, отзыв, scopes, organization/application и разрешённые account IDs. Principal пока представляет сервис, а не человека.
-- [Создание аккаунта](../apps/api/src/server.ts) уже сопоставляет `external_account_id` внутри приложения через upsert. [Схема accounts](../migrations/0001_foundation.sql) обеспечивает уникальность пары `application_id + external_account_id`.
-- [Архитектура](ARCHITECTURE.md) уже допускает команду как плательщика `account_id`. Команда не является `organization_id` UAI.
-- [createAdminBackend](../packages/admin-module/src/server/backend.ts) использует локальную парольную сессию владельца и один серверный admin token. Внешний resolver identity отсутствует; account/wallet берутся из конфигурации.
-- [UI админки](../packages/admin-module/src/admin.tsx) самостоятельно показывает парольный вход и выполняет выход. [Контекст страницы](../packages/admin-module/src/application.ts) пока не содержит человека и его прав.
-- Административные и финансовые команды используют `actor_id = service principal ID`. Персональный инициатор не различается.
-- [SDK](../packages/sdk/src/index.ts) имеет отдельные пути обычных HTTP-запросов, передачи файлов и SSE; контекст нужно провести через все эти пути.
-- В [API](API.md) описание пользовательских сессий с ролями опережает реализацию. При выполнении плана согласовать спецификацию с фактическим состоянием.
+- [packages/auth](../packages/auth/src/index.ts) validates the service token, expiry, revocation, scopes, organization/application, and allowed account IDs. The principal currently represents a service rather than a human.
+- [Account creation](../apps/api/src/server.ts) already matches `external_account_id` within an application through upsert. The [accounts schema](../migrations/0001_foundation.sql) ensures uniqueness of `application_id + external_account_id`.
+- The [architecture](ARCHITECTURE.md) already permits a team as the `account_id` payer. A team is not a UAI `organization_id`.
+- [createAdminBackend](../packages/admin-module/src/server/backend.ts) uses a local owner password session and one server admin token. There is no external identity resolver; account/wallet come from configuration.
+- The [admin UI](../packages/admin-module/src/admin.tsx) displays password login and performs logout itself. The [page context](../packages/admin-module/src/application.ts) does not yet contain the person or their permissions.
+- Administrative and financial commands use `actor_id = service principal ID`. Individual initiators are not distinguished.
+- The [SDK](../packages/sdk/src/index.ts) has separate paths for ordinary HTTP requests, file transfer, and SSE; context must pass through all these paths.
+- The [API](API.md) description of user sessions with roles is ahead of implementation. Align the specification with actual behavior when implementing this plan.
 
-## Контракт и границы доверия
+## Contract and Trust Boundaries
 
-### Идентичность и кошелёк
+### Identity and Wallet
 
-Стабильный ID человека принадлежит родительскому приложению. Email не является ключом доступа или финансовой привязки. Изменение email не меняет identity. Одинаковые внешние user IDs разных приложений не смешиваются: идентичность всегда рассматривается вместе с application, полученным из проверенного service token.
+A person's stable ID belongs to the parent application. Email is not an access key or financial binding. Changing email does not change identity. Identical external user IDs in different applications do not mix: identity is always considered with the application from the verified service token.
 
-Стабильный ID команды используется как `external_account_id`. Один UAI account соответствует одной команде. Wallet принадлежит account в существующей кредитной единице. UAI не хранит таблицу memberships; уход пользователя из команды не удаляет её account, wallet и финансовую историю.
+The stable team ID is used as `external_account_id`. One UAI account corresponds to one team. A wallet belongs to an account in the existing credit unit. UAI does not store a memberships table; a user's departure from a team does not delete its account, wallet, or financial history.
 
-Родительский сервер проверяет membership, затем получает или идемпотентно создаёт привязку team → account/wallet. Привязку можно сохранять у родителя. Не создавать account на каждый HTTP-запрос; повторное создание служит безопасным восстановлением привязки. Provisioning выполняется отдельным серверным действием с `accounts:write`, не универсальной командой из браузера.
+The parent server verifies membership, then obtains or idempotently creates the team → account/wallet binding. The parent may store the binding. Do not create an account for each HTTP request; repeated creation is a safe way to restore a binding. Provisioning is a separate server action with `accounts:write`, rather than a universal browser command.
 
-Активная команда передаётся явно для каждого пользовательского запроса и проверяется сервером. Не хранить её в глобальном изменяемом экземпляре SDK: параллельные вкладки и запросы могут работать с разными командами. При переключении команды старая операция сохраняет исходного плательщика.
+The active team is explicitly passed for each user request and checked by the server. Do not store it in a globally mutable SDK instance: parallel tabs and requests may work with different teams. When switching teams, an old operation retains its original payer.
 
-### Серверный адаптер
+### Server Adapter
 
-Расширить серверный контракт следующими обязанностями, сохраняя библиотечную независимость:
+Extend the server contract with these responsibilities while preserving library independence:
 
-1. Получить проверенного пользователя из Request через сессию родителя. Отсутствующая или истёкшая сессия даёт 401; ошибка источника identity не открывает доступ.
-2. Для пользовательского вызова проверить выбранную команду и продуктовые права на действие/ресурс. Это код родителя, не универсальная модель проектных ролей UAI.
-3. Для общей админки вернуть отдельно назначенную роль сотрудника `admin` или `viewer`. Team role не преобразуется в staff role.
-4. Сформировать неизменяемый контекст одного серверного запроса: внешний user ID, финансовая область для пользовательского вызова, staff role только для административного вызова.
+1. Obtain a verified user from Request through the parent's session. An absent or expired session yields 401; an identity-source error does not grant access.
+2. For a user call, check the selected team and product permissions for the action/resource. This is parent code, rather than a universal UAI project-role model.
+3. For the shared admin, return a separately assigned staff `admin` or `viewer` role. A team role is not converted into a staff role.
+4. Build an immutable context for one server request: external user ID, financial scope for a user call, and staff role only for an administrative call.
 
-В `createAdminBackend` предусмотреть явно выбираемые режимы `standalone` и `external`. Первый сохраняет локальный вход владельца. Второй требует адаптер, не требует локального пароля и никогда не переключается на standalone при ошибке внешней авторизации. Общие серверные credentials отделить от настроек локальной сессии.
+Provide explicitly selected `standalone` and `external` modes in `createAdminBackend`. The former preserves local owner login. The latter requires an adapter, needs no local password, and never switches to standalone on external-authentication failure. Separate shared server credentials from local session settings.
 
-Не делать `account_id` и `wallet_id` из конфигурации доказательством доступа. В новой внешней административной сборке они могут быть только явно выбранной целью просмотра; доступ определяют роль сотрудника и service scope. У пользовательского вызова финансовая область обязательна.
+Do not treat configured `account_id` and `wallet_id` as proof of access. In a new external administrative build, they may only be an explicitly selected viewing target; access is determined by staff role and service scope. A user call requires financial scope.
 
-### Передача контекста в отдельный API UAI
+### Passing Context to the Separate UAI API
 
-Предлагаемый минимальный транспорт: один версионированный служебный заголовок с проверяемой схемой и ограничением размера. Его создаёт серверный SDK поверх существующей Bearer-аутентификации. В контексте нет email, cookies, паролей, произвольных ролей или секретов родителя.
+Proposed minimal transport: one versioned service header with a validated schema and size limit. The server SDK creates it on top of existing Bearer authentication. Context contains no email, cookies, passwords, arbitrary roles, or parent secrets.
 
-Для передачи внешней личности предусмотреть отдельное разрешение service token, предварительное имя `identity:assert`. Без него присланный контекст отклоняется, а не игнорируется. Organization/application всегда извлекаются из service token. В пользовательском контексте account ограничивает запрос дополнительно к ограничениям токена. Для административного контекста staff role ограничивает разрешённые действия дополнительно к scopes.
+Provide a separate service-token permission for asserting external identity, provisionally named `identity:assert`. Without it, submitted context is rejected rather than ignored. Organization/application always come from the service token. In user context, account further restricts the request beyond token restrictions. In administrative context, staff role further restricts permitted actions beyond scopes.
 
-Проверять типы контекста отдельно: пользовательский вызов с account не превращается в административный; внешнее административное действие требует staff role. Контекст не выдаёт scopes, которых нет у service token. Viewer не становится admin из-за широких прав серверного токена.
+Validate context types separately: a user call with an account does not become administrative; an external administrative action requires a staff role. Context cannot grant scopes missing from the service token. Viewer does not become admin because the server token has broad permissions.
 
-Родительский backend является доверенной стороной, утверждающей identity и полномочия. Заголовок сам по себе не доказывает membership. Backend обязан создавать его из проверенной сессии и своих данных, не пересылать одноимённый входящий заголовок браузера. Server-to-server транспорт в рабочей среде использует HTTPS. Отдельный JWT issuer, обмен токенами и собственный OAuth-сервер для этой интеграции не нужны.
+The parent backend is the trusted party asserting identity and authority. A header alone does not establish membership. The backend must create it from a verified session and its own data, rather than forwarding an identically named browser header. Operational server-to-server transport uses HTTPS. This integration needs no separate JWT issuer, token exchange, or custom OAuth server.
 
-Обычные service-only вызовы workers, платежей и существующих интеграций сохраняются. Их ключи остаются привилегированными серверными credentials. Этот план не обещает защиту от скомпрометированного доверенного backend с таким ключом.
+Ordinary service-only calls from workers, payments, and existing integrations remain supported. Their keys remain privileged server credentials. This plan does not promise protection against a compromised trusted backend holding such a key.
 
-Приоритет проверок: аутентификация сервиса → валидация внешнего контекста → scopes и staff role → принадлежность account и ресурса → доменная команда. Проверки доступа обязательны и при идемпотентном повторе. Повтор не переписывает исходного автора, плательщика и параметры операции.
+Check order: service authentication → external context validation → scopes and staff role → account and resource ownership → domain command. Access checks are mandatory on idempotent replay too. Replay does not rewrite the operation's original author, payer, or parameters.
 
-### Две роли сотрудников
+### Two Staff Roles
 
-| Действия в общей админке | `viewer` | `admin` |
+| Shared admin actions | `viewer` | `admin` |
 |---|---|---|
-| Разрешённые страницы, отчёты и безопасные данные аудита | Да | Да |
-| Изменение конфигурации, цен, провайдеров, лимитов | Нет | Да, в пределах service scopes |
-| Начисление, возврат, отзыв кредитов и другие финансовые команды | Нет | Да, в пределах service scopes и финансовых правил |
-| Запуск, отмена, повтор, разрешение инцидента, платная проверка | Нет | Да, в пределах service scopes |
-| Получение секретов провайдеров, токенов и cookies | Нет | Не добавляется этим планом |
+| Permitted pages, reports, and safe audit data | Yes | Yes |
+| Changing configuration, prices, providers, limits | No | Yes, within service scopes |
+| Grants, refunds, credit revocation, and other financial commands | No | Yes, within service scopes and financial rules |
+| Start, cancel, retry, resolve incident, paid check | No | Yes, within service scopes |
+| Obtaining provider secrets, tokens, and cookies | No | Not added by this plan |
 
-Составить один явный реестр административных действий и требуемых разрешений. Viewer допускается только к явно разрешённым чтениям; неизвестное действие запрещено. Не определять безопасность только HTTP-методом: preview через POST и GET с побочным эффектом требуют классификации по поведению. Preview, который запускает внешнюю работу или меняет состояние, не является чтением.
+Create one explicit registry of administrative actions and required permissions. Viewer is allowed only explicitly permitted reads; unknown actions are forbidden. Do not determine safety solely from the HTTP method: POST preview and GET with side effects require classification by behavior. A preview that starts external work or changes state is not a read.
 
-Использовать реестр и в серверных проверках встроенных действий, и в описаниях UI. Продуктовые расширения должны явно объявлять требуемый доступ; не предоставлять viewer доступ ко всем `reads` автоматически. Backend проверяет права заново на каждом запросе. API UAI также проверяет роль переданному административному контексту, поэтому обход UI или BFF не снимает ограничения.
+Use the registry both in built-in server action checks and UI descriptions. Product extensions must explicitly declare required access; do not automatically grant viewer access to all `reads`. The backend rechecks permissions on each request. The UAI API also checks the asserted administrative context's role, so bypassing UI or BFF does not remove restrictions.
 
-Роли продукта и список его сотрудников не копируются в UAI. Доступ к содержимому клиентских проектов не возникает из доступности административной страницы; существующие правила выдачи контента сохраняются. Реестр должен отличать безопасное представление административных данных от выдачи prompts, файлов и иных клиентских материалов.
+Product roles and staff lists are not copied into UAI. Access to customer project content does not arise from availability of an administrative page; existing content-delivery rules remain. The registry must distinguish a safe administrative-data view from delivery of prompts, files, and other customer materials.
 
-### Персональный аудит
+### Individual Audit
 
-Сохранять раздельно service principal и внешнего человека. Для новых вызовов нужны application, внешний user ID при наличии, service principal ID, account при наличии, действие, ресурс, связь с операцией при наличии, время и существующая причина команды. Для командной операции также сохранять стабильный внешний team ID, соответствующий `external_account_id` выбранного account. Получать его из проверенной привязки account, а не доверять независимому полю браузера. Контекст аудита формируется сервером, не берётся из произвольных metadata или полей формы. Смена email и удаление membership не меняют сохранённые user/team IDs и не мешают чтению исторической атрибуции.
+Store the service principal and external person separately. New calls need application, external user ID when present, service principal ID, account when present, action, resource, operation link when present, time, and the existing command reason. For a team operation, also store the stable external team ID matching the selected account's `external_account_id`. Obtain it from the verified account binding rather than trusting an independent browser field. Audit context is formed server-side, rather than taken from arbitrary metadata or form fields. Email changes and membership deletion do not alter stored user/team IDs or prevent reading historical attribution.
 
-Не менять смысл исторического `actor_id` без миграционного решения. Рекомендуемый путь: сохранить прежнюю сервисную атрибуцию и добавить отдельные поля внешнего инициатора новой миграцией. Старые записи остаются с неизвестным человеком; нельзя приписывать их текущему администратору.
+Do not change historical `actor_id` semantics without a migration decision. Recommended path: preserve previous service attribution and add separate external-initiator fields with a new migration. Old entries retain an unknown human; do not attribute them to the current administrator.
 
-Сохранить инициатора при принятии пользовательской операции. Worker/scheduler действует как система и сохраняет ссылку на исходный контекст, не выдавая себя за человека. Если позже другой сотрудник отменяет операцию или выполняет возврат, аудит отражает именно этого сотрудника, не переписывая автора запуска.
+Preserve the initiator when accepting a user operation. Worker/scheduler acts as the system and retains a reference to the original context without impersonating a human. If another employee later cancels an operation or issues a refund, audit reflects that employee without rewriting the launch author.
 
-Плательщик фиксируется при принятии операции. Фоновые повторы, восстановление и поздний результат используют исходный account/wallet в пределах принятых финансовых правил. Возврат связан с исходным списанием и его командой; текущая активная команда инициатора возврата не определяет получателя средств. Историческая атрибуция не зависит от сохранности текущего членства пользователя.
+The payer is fixed on operation acceptance. Background retries, recovery, and late results use the original account/wallet under accepted financial rules. A refund links to the original charge and its team; the refund initiator's currently active team does not determine the recipient. Historical attribution does not depend on the user's continued membership.
 
-UAI не хранит историю согласований LogoPanel. Родитель определяет проверенного инициатора переданного действия; кто предложил и кто одобрил продуктовый запрос, хранится в родителе. Не добавлять специальные поля одобрения в финансовое ядро.
+UAI does not store LogoPanel approval history. The parent determines the verified initiator of the submitted action; who proposed and who approved a product request is stored in the parent. Do not add special approval fields to the financial core.
 
-### Завершение сессии и отзыв доступа
+### Session Termination and Access Revocation
 
-Внешний UI использует настроенные хостом вход и выход, показывает безопасные сведения о пользователе и роли. Вызов logout завершает сессию через адаптер родителя; простое удаление локального React state не считается выходом. Не принимать произвольный URL перенаправления из браузера.
+The external UI uses host-configured login and logout and displays safe user and role information. Logout terminates the session through the parent adapter; merely clearing local React state does not count as logout. Do not accept arbitrary redirect URLs from the browser.
 
-Для cookie-аутентификации сохранить защиту изменений от CSRF, проверку публичного origin и JSON. За reverse proxy origin должен определяться из доверенной конфигурации. Внешняя авторизация не отменяет эти проверки.
+For cookie authentication, preserve CSRF protection for changes, public-origin checks, and JSON. Behind a reverse proxy, origin must be determined from trusted configuration. External authentication does not cancel these checks.
 
-После удаления из команды или снятия staff role новые действия запрещены. Долгие пользовательские потоки событий проходят через backend родителя, который перепроверяет доступ перед дальнейшей выдачей событий и закрывает поток при отзыве. Копия старой роли в браузере не сохраняет доступ. UAI продолжает проверять отзыв service token и финансовую область собственных потоков.
+After team removal or staff-role revocation, new actions are forbidden. Long user event streams pass through the parent backend, which rechecks access before delivering further events and closes the stream upon revocation. A stale role copy in the browser does not preserve access. UAI continues checking service-token revocation and the financial scope of its own streams.
 
-Уже принятые генерации и задачи продолжаются за счёт исходной команды, в том числе после удаления инициатора. Продолжение принятой работы не разрешает человеку новые действия и не переносит результаты в другую команду. Новое расширение операции требует новой проверки родителем. Сохраняются существующие правила cancellation, recovery и settlement.
+Already accepted generations and tasks continue at the original team's expense, including after initiator removal. Continuing accepted work does not authorize new human actions or transfer results to another team. Extending an operation requires a new parent check. Existing cancellation, recovery, and settlement rules remain.
 
-## Этапы реализации
+## Implementation Phases
 
-### 1. Зафиксировать типы и таблицу прав
+### 1. Define Types and Permission Table
 
-- Описать внешний request context и две формы: пользовательскую с account и административную со staff role.
-- Описать интерфейс адаптера для серверной сборки и безопасный session response для UI.
-- Перечислить все встроенные административные действия, классифицировать чтения/изменения и правила продуктовых расширений. Согласовать с текущими service scopes, не ослабляя их.
-- Обновить [API](API.md), [архитектуру](ARCHITECTURE.md), [модульную админку](MODULAR_ADMIN.md) и схемы API. Не описывать ещё не работающие роли как готовые.
+- Describe external request context and its two forms: user with account, and administrative with staff role.
+- Describe the server-build adapter interface and safe session response for UI.
+- List all built-in administrative actions, classify reads/changes, and define product-extension rules. Align with current service scopes without weakening them.
+- Update [API](API.md), [architecture](ARCHITECTURE.md), [modular admin](MODULAR_ADMIN.md), and API schemas. Do not describe unimplemented roles as ready.
 
-Результат: один контракт без зависимости от Better Auth и от сущностей LogoPanel. Не создавать отдельный сервис авторизации; использовать существующие auth/contracts и публичный server export административного модуля.
+Result: one contract independent of Better Auth and LogoPanel entities. Do not create a separate authentication service; use existing auth/contracts and the administrative module's public server export.
 
-### 2. Контекст запроса, SDK и проверки API
+### 2. Request Context, SDK, and API Checks
 
-- Расширить [auth](../packages/auth/src/index.ts) валидацией доверенного контекста и дополнительным ограничением account/staff role.
-- Провести контекст через обычные запросы SDK, upload/download и SSE. Предоставить неизменяемый клиент на контекст либо явный per-request параметр, без глобального переключателя пользователя.
-- Проверить все пути API: операции, quotes, requests, assets, results, wallets, events, финансовые и административные команды. ID вложенного ресурса должен проверяться через его фактического владельца.
-- Provisioning team account оставить серверной операцией с отдельными правами. Не выдавать `accounts:write`, `credits:grant` и admin scopes пользовательским вызовам только ради удобства адаптера.
-- Проверить совместимость идемпотентности: ключи родителя уникальны для логического действия; transport retry сохраняет контекст, ключ и тело; чужой account не получает ответ из кеша повторов.
+- Extend [auth](../packages/auth/src/index.ts) with trusted-context validation and additional account/staff-role restrictions.
+- Pass context through ordinary SDK requests, upload/download, and SSE. Provide an immutable context-bound client or explicit per-request parameter, without a global user switch.
+- Check all API paths: operations, quotes, requests, assets, results, wallets, events, financial and administrative commands. A nested resource ID must be checked against its actual owner.
+- Keep team-account provisioning as a server operation with separate permissions. Do not give user calls `accounts:write`, `credits:grant`, or admin scopes merely for adapter convenience.
+- Check idempotency compatibility: parent keys are unique per logical action; transport retry preserves context, key, and body; another account does not receive a cached replay response.
 
-Результат: пользовательские вызовы ограничены выбранным account и исходными service scopes; персональный контекст не расширяет права сервиса.
+Result: user calls are constrained to the selected account and original service scopes; individual context does not expand service permissions.
 
-### 3. Аудит и контекст принятой работы
+### 3. Audit and Accepted-work Context
 
-- Найти все места сохранения actor, включая accounting, configuration, quotes/operations и execution. Не ограничиваться административным audit_events.
-- Добавить новую миграцию для выбранного хранения внешней личности и привязки к принятой работе. Не редактировать применённые миграции.
-- В одной транзакции с изменением сохранять необходимую атрибуцию. Продолжение операции системой сохраняет первоначальную связь с инициатором.
-- Обновить безопасные представления аудита и SDK-схемы; не раскрывать секреты или данные сессии.
+- Find every actor persistence point, including accounting, configuration, quotes/operations, and execution. Do not limit this to administrative audit_events.
+- Add a new migration for the selected external-identity storage and link to accepted work. Do not edit applied migrations.
+- Store necessary attribution in the same transaction as the change. System continuation of an operation preserves the original initiator link.
+- Update safe audit projections and SDK schemas; do not expose secrets or session data.
 
-Результат: действия разных сотрудников различимы даже с одним service token. Для старых данных личность человека честно остаётся неизвестной.
+Result: different employees' actions are distinguishable even with one service token. For old data, the human identity honestly remains unknown.
 
-### 4. Внешняя авторизация общей админки
+### 4. External Authentication for the Shared Admin
 
-- Расширить `createAdminBackend`, `AdminPageContext` и контексты расширений проверенной identity и разрешениями.
-- Подключить серверный реестр прав ко всем встроенным и продуктовым handlers, включая прямой вызов endpoint.
-- В `UaiAdmin` добавить внешний вход/выход и состояния 401/403/недоступности источника identity. Для viewer скрыть или отключить запрещённые действия, сохранив серверный запрет.
-- Сохранить standalone-режим явно и отдельно. Обновить генератор [create-admin-host](../scripts/create-admin-host.mjs) и [шаблон](../templates/product-admin/README.md) примером внешнего адаптера без привязки к конкретному auth provider.
+- Extend `createAdminBackend`, `AdminPageContext`, and extension contexts with verified identity and permissions.
+- Apply the server permission registry to all built-in and product handlers, including direct endpoint calls.
+- Add external login/logout and 401/403/identity-source-unavailable states to `UaiAdmin`. Hide or disable prohibited viewer actions while preserving server rejection.
+- Preserve standalone mode explicitly and separately. Update the [create-admin-host](../scripts/create-admin-host.mjs) generator and [template](../templates/product-admin/README.md) with an external-adapter example independent of a specific auth provider.
 
-Результат: пользователь родительского приложения входит один раз; только сотрудник с разрешённой ролью получает доступ к служебной админке.
+Result: a parent-application user signs in once; only an employee with an authorized role accesses the service admin.
 
-### 5. Тестовая интеграция
+### 5. Test Integration
 
-Создать локальный тестовый хост с заменяемым источником identity, fake provider и синтетическими данными. Не подключать Better Auth и не создавать настоящий LogoPanel. Тестовый источник должен поддерживать изменение membership и staff role во время сессии; это fixture, а не пример production-регистрации.
+Create a local test host with a replaceable identity source, fake provider, and synthetic data. Do not connect Better Auth or create a real LogoPanel. The test source must support changing membership and staff role during a session; it is a fixture rather than a production-registration example.
 
-Данные: две команды, человек в обеих, человек только в первой, администратор команды без staff role, staff viewer и staff admin. Общий человек имеет разные продуктовые права в двух командах. Тестовый backend родителя проверяет их до UAI, не передавая названия проектных ролей в ядро.
+Data: two teams, a person in both, a person only in the first, a team administrator without a staff role, staff viewer, and staff admin. The shared person has different product permissions in the two teams. The parent's test backend checks them before UAI without passing project-role names into the core.
 
-Результат: проверенный пример server-to-server подключения, который другой родительский проект может повторить со своим источником сессий.
+Result: a verified server-to-server integration example another parent project can reproduce with its own session source.
 
-### 6. Документация и приёмка
+### 6. Documentation and Acceptance
 
-- Согласовать описание текущей реализации в DECISIONS, API, MODULAR_ADMIN, LOCAL_RUN и ACCEPTANCE_RESULTS. Сохранить существующие requirement/acceptance IDs, новые сценарии добавить отдельно.
-- Документировать trust boundary, порядок provisioning, отзыв доступа, работу SSE, audit attribution и standalone-совместимость.
-- Выполнить проверки из следующего раздела и записать фактические результаты. Не объявлять проверку fixture интеграцией Better Auth или готовностью production.
+- Align current implementation descriptions in DECISIONS, API, MODULAR_ADMIN, LOCAL_RUN, and ACCEPTANCE_RESULTS. Preserve existing requirement/acceptance IDs; add new scenarios separately.
+- Document trust boundary, provisioning order, access revocation, SSE behavior, audit attribution, and standalone compatibility.
+- Perform the next section's checks and record actual results. Do not describe fixture verification as Better Auth integration or production readiness.
 
-## Критерии приёмки
+## Acceptance Criteria
 
-Новые идентификаторы `EA-*` относятся к этому плану и не заменяют существующие критерии.
+New `EA-*` identifiers belong to this plan and do not replace existing criteria.
 
-| ID | Проверка |
+| ID | Check |
 |---|---|
-| EA-01 | Один человек работает с двумя командами; параллельные запросы и вкладки не смешивают account, wallet и результаты |
-| EA-02 | Повторный и конкурентный provisioning одной команды возвращает тот же account/wallet; смена email не создаёт новый account |
-| EA-03 | Подмена team/account/wallet/operation/request/asset/quote ID не открывает чужие ресурсы, включая download и SSE |
-| EA-04 | Заголовок внешней личности без разрешённого service token отклоняется; подделанные браузерные identity/staff role не проходят через тестовый backend |
-| EA-05 | Администратор команды без staff role не входит в служебную админку, даже если его продуктовая роль называется admin |
-| EA-06 | Viewer читает разрешённые разделы; встроенные и продуктовые изменения запрещены при прямом HTTP-вызове, включая нетипичные методы и неизвестные actions |
-| EA-07 | Staff admin действует только в пределах service scopes; внешний контекст не выдаёт отсутствующие права или доступ к другому application |
-| EA-08 | Два человека с общим service token различимы в аудите; user ID, внешний team ID, account и связь с операцией сохраняются после смены email и удаления membership; старые записи не получают выдуманного автора; secret/session данные отсутствуют |
-| EA-09 | Logout, истечение сессии, отзыв membership и смена staff role блокируют новые вызовы; долгий поток прекращает выдачу данных после проверки отзыва |
-| EA-10 | Принятая задача после удаления инициатора завершается и списывает исходный wallet; переключение команды, фоновые повторы и поздний результат не меняют плательщика; возврат относится к исходному списанию и команде |
-| EA-11 | Transport retry и повтор идемпотентной команды не создают второй расход и не изменяют автора; доступ проверяется до возврата результата повтора |
-| EA-12 | Ошибка resolver не включает standalone; CSRF и origin-проверки работают в обоих режимах |
-| EA-13 | Встроенные формы, продуктовые страницы, загрузка/скачивание файлов и SSE используют один корректный контекст; SDK не теряет его в обходных HTTP-путях |
-| EA-14 | Существующие service-only вызовы и standalone admin проходят регрессию; финансовые правила не меняются |
-| EA-15 | Роль проекта и решение о генерации проверяет тестовый родитель; UAI не содержит продуктовых таблиц команд, approvals, раундов или исследователей |
+| EA-01 | One person works with two teams; parallel requests and tabs do not mix accounts, wallets, or results |
+| EA-02 | Repeated and concurrent provisioning of one team returns the same account/wallet; changing email does not create a new account |
+| EA-03 | Substituting team/account/wallet/operation/request/asset/quote IDs does not expose other parties' resources, including download and SSE |
+| EA-04 | An external-identity header without an authorized service token is rejected; forged browser identity/staff roles do not pass the test backend |
+| EA-05 | A team administrator without a staff role cannot enter the service admin, even when their product role is called admin |
+| EA-06 | Viewer reads permitted sections; built-in and product changes are forbidden on direct HTTP calls, including unusual methods and unknown actions |
+| EA-07 | Staff admin acts only within service scopes; external context does not grant missing permissions or access to another application |
+| EA-08 | Two people using a shared service token are distinguishable in audit; user ID, external team ID, account, and operation link survive email changes and membership deletion; old entries receive no invented author; secret/session data is absent |
+| EA-09 | Logout, session expiry, membership revocation, and staff-role changes block new calls; a long stream stops delivering data after revocation is checked |
+| EA-10 | An accepted task completes and charges the original wallet after initiator removal; team switching, background retries, and late results do not change the payer; refund links to the original charge and team |
+| EA-11 | Transport retry and idempotent command replay create no second expense or author change; access is checked before returning a replay result |
+| EA-12 | Resolver failure does not enable standalone; CSRF and origin checks work in both modes |
+| EA-13 | Built-in forms, product pages, upload/download, and SSE use one correct context; the SDK does not lose it in alternative HTTP paths |
+| EA-14 | Existing service-only calls and standalone admin pass regression; financial rules do not change |
+| EA-15 | Project role and the generation decision are checked by the test parent; UAI contains no product tables for teams, approvals, rounds, or researchers |
 
-Проверки реализации: целевые unit/API/DB-тесты, миграции на чистой БД и на снимке старой схемы с синтетическими данными, затем typecheck и сборка затронутых пакетов. Регрессия accounting/execution обязательна при изменении принятия операции или атрибуции финансовых команд. UI проверить в браузере через Aside на точном локальном хосте: вход, viewer/admin, прямые ссылки, отзыв роли, выход и две команды в разных вкладках.
+Implementation checks: targeted unit/API/DB tests, migrations on a clean database and on an old-schema snapshot with synthetic data, then typecheck and builds of affected packages. Accounting/execution regression is mandatory when changing operation acceptance or financial-command attribution. Check UI in the browser through Aside on the exact local host: login, viewer/admin, direct links, role revocation, logout, and two teams in different tabs.
 
-Команды существующего репозитория: `pnpm docs:check`, `pnpm check:api`, `pnpm typecheck`, `pnpm build`, целевые запуски `pnpm exec vitest run ...`. Состав новых тестов фиксируется при реализации; успешная проверка документации сама по себе не является выполнением EA-сценариев.
+Existing repository commands: `pnpm docs:check`, `pnpm check:api`, `pnpm typecheck`, `pnpm build`, targeted `pnpm exec vitest run ...` runs. The new test set is determined during implementation; successful documentation validation alone does not fulfill EA scenarios.
 
-## Порядок выпуска и ограничения
+## Release Order and Limitations
 
-Сначала контракт и API/SDK с обратной совместимостью, затем аудит, административный backend/UI и тестовая интеграция. Новый контекст включается согласованно на API и вызывающем SDK; не включать внешний режим, пока API не умеет проверять его. Рекомендуется capability/version check при запуске внешнего хоста, чтобы старый API не молча игнорировал новый заголовок.
+First contract and API/SDK with backward compatibility, then audit, administrative backend/UI, and test integration. Enable the new context consistently in the API and calling SDK; do not enable external mode until the API can validate it. A capability/version check at external-host startup is recommended so an old API cannot silently ignore the new header.
 
-Старые service tokens не получают `identity:assert` автоматически. Выдача новых credentials и включение внешнего режима являются отдельными действиями развёртывания. Изменение версии приложения не откатывает миграции или финансовую историю.
+Old service tokens do not automatically receive `identity:assert`. Issuing new credentials and enabling external mode are separate deployment actions. Changing the application version does not roll back migrations or financial history.
 
-В объём не входят реализация auth LogoPanel/Better Auth, production-деплой, платные provider calls, платёжная интеграция, приглашения, редактор ролей, индивидуальные кошельки и система согласований. План не требует создания ветки или PR без отдельного разрешения.
+Scope excludes implementing LogoPanel/Better Auth authentication, production deployment, paid provider calls, payment integration, invitations, a role editor, personal wallets, and an approval system. The plan does not require creating a branch or PR without separate permission.

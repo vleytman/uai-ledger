@@ -1,33 +1,33 @@
-# Единая модульная админка
+# Unified Modular Admin
 
-[Оглавление](README.md) · [Архитектура](ARCHITECTURE.md) · [Решения](DECISIONS.md)
+[Contents](README.md) · [Architecture](ARCHITECTURE.md) · [Decisions](DECISIONS.md)
 
-Сверено с исходным кодом 2026-09-20. Команды повторной проверки приведены в [локальном запуске](LOCAL_RUN.md).
+Checked against source code on 2026-09-20. Reverification commands are in [local run](LOCAL_RUN.md).
 
-## Назначение и границы
+## Purpose and Boundaries
 
-Пользовательский frontend LogoPanel или другого продукта является отдельным приложением и отдельной сборкой. Он не подключается к этой административной оболочке.
+The user-facing frontend of LogoPanel or another product is a separate application and build. It does not connect to this administrative shell.
 
-Одна установка обслуживает одно приложение владельца. UAI предоставляет финансовый учёт, настройки моделей и выполнение запросов. Продукт добавляет свои страницы, настройки и платёжную интеграцию. Они собираются в один интерфейс с одним административным входом. Данные LogoPanel не становятся частью модели данных UAI.
+One installation serves one owner-operated application. UAI provides financial accounting, model configuration, and request execution. The product adds its pages, settings, and payment integration. They are built into one interface with one administrative login. LogoPanel data does not become part of UAI's data model.
 
-Подключение конкретного LogoPanel выполняется в его репозитории. Здесь нет копии LogoPanel или страниц-заглушек, которые изображают готовую интеграцию. Локальная приёмка распределённого выполнения завершена отдельно; её границы описаны в [плане](DISTRIBUTED_EXECUTION_PLAN.md). Она не доказывает готовность интеграции LogoPanel или платежей.
+Connecting a specific LogoPanel is done in its repository. There is no LogoPanel copy or placeholder pages pretending to be a complete integration here. Local distributed-execution acceptance was completed separately; its boundaries are described in the [plan](DISTRIBUTED_EXECUTION_PLAN.md). It does not establish LogoPanel integration or payment readiness.
 
-## Структура
+## Structure
 
-| Путь | Ответственность |
+| Path | Responsibility |
 |---|---|
-| `packages/admin-shell` | Макет, бренд, группы навигации, проверка идентификаторов модулей |
-| `packages/admin-module` | Страницы UAI, формы, финансовые представления, клиент административного API и серверный адаптер |
-| `packages/ui` | Общие элементы и тема |
-| `apps/admin/src/application.ts` | Состав конкретного интерфейса: бренд и продуктовые модули |
-| `apps/admin/src/server/backend.ts` | Серверная сборка: зарегистрированные продуктовые обработчики |
-| `apps/admin/src/routes` | Тонкие маршруты TanStack Start |
+| `packages/admin-shell` | Layout, brand, navigation groups, module identifier validation |
+| `packages/admin-module` | UAI pages, forms, financial views, administrative API client, and server adapter |
+| `packages/ui` | Shared elements and theme |
+| `apps/admin/src/application.ts` | Composition of the specific interface: brand and product modules |
+| `apps/admin/src/server/backend.ts` | Server composition: registered product handlers |
+| `apps/admin/src/routes` | Thin TanStack Start routes |
 
-Оболочка не знает о логотипах, кошельках или провайдерах. Модуль UAI не импортирует продукт. Продукт подключается в сборке. Динамическая загрузка произвольных плагинов не поддерживается.
+The shell knows nothing about logos, wallets, or providers. The UAI module does not import the product. The product is connected at build time. Dynamic loading of arbitrary plugins is unsupported.
 
-## Подключение продукта
+## Connecting a Product
 
-Клиентский модуль предоставляет `id`, `label` и массив `pages`. Страница содержит `id`, `label`, необязательный `description` и React-компонент. Компонент получает проверенную ранее административную сессию для отображения, счётчик обновления и функцию навигации. Серверные действия всё равно требуют новой проверки сессии.
+A client module provides `id`, `label`, and a `pages` array. A page contains `id`, `label`, optional `description`, and a React component. The component receives the previously verified administrative session for display, a refresh counter, and a navigation function. Server actions still require a new session check.
 
 ```tsx
 import {UaiAdmin, type AdminApplication} from '@uai/admin-module';
@@ -47,19 +47,19 @@ export function Administration() {
 }
 ```
 
-`ProductSettings` в примере принадлежит приложению, а не UAI. Бренд используется в меню и на входе. Заголовок документа задаётся корневым маршрутом приложения. Стили подключаются через `@uai/admin-module/styles.css`.
+`ProductSettings` in the example belongs to the application rather than UAI. The brand is used in the menu and login. The document title is set by the application's root route. Styles are imported through `@uai/admin-module/styles.css`.
 
-Адреса дополнительных страниц имеют вид `#app.product.settings`. Идентификаторы модулей и страниц проверяются; дубликаты отклоняются. Старые ссылки UAI, включая кошелёк и панель операции, сохраняются. Кнопка обновления увеличивает `refresh`; продуктовая страница использует его в зависимостях загрузки.
+Additional page addresses have the form `#app.product.settings`. Module and page identifiers are validated; duplicates are rejected. Old UAI links, including wallet and operation panel links, are preserved. The refresh button increments `refresh`; a product page uses it in its loading dependencies.
 
-Идентификатор начинается с маленькой латинской буквы и содержит до 64 символов: маленькие латинские буквы, цифры и дефис. Модуль должен иметь непустой `label` и хотя бы одну страницу. Продуктовые группы отображаются перед группой UAI. `description` страницы становится описанием в заголовке. `navigate` принимает ключ вида `app.product.settings`, без `#`.
+An identifier starts with a lowercase Latin letter and contains up to 64 characters: lowercase Latin letters, digits, and hyphens. A module must have a nonempty `label` and at least one page. Product groups appear before the UAI group. A page's `description` becomes the header description. `navigate` accepts a key such as `app.product.settings`, without `#`.
 
-Компонент страницы сам загружает данные и обрабатывает ошибки; оболочка не вызывает продуктовый API автоматически. Внутри страницы можно использовать формы, таблицы и табы React. Базовые элементы доступны через `@uai/ui/components/*`, форматирование через `@uai/ui/format`. Внутренние компоненты UAI, включая его DataTable и редакторы, не экспортированы как публичный API пакета. Стили хоста должны сканировать его страницы через Tailwind `@source`; генератор добавляет `@source "./"` в `apps/admin/src/styles.css`.
+The page component loads data and handles errors itself; the shell does not automatically call product APIs. React forms, tables, and tabs can be used inside a page. Basic elements are available through `@uai/ui/components/*`, formatting through `@uai/ui/format`. Internal UAI components, including its DataTable and editors, are not exported as public package API. Host styles must scan its pages through Tailwind `@source`; the generator adds `@source "./"` to `apps/admin/src/styles.css`.
 
-## Сервер и доступ
+## Server and Access
 
-Браузер обращается к `/api/uai-admin`. В standalone-сборке старый `/api` сохранён как совместимый адрес. Новое приложение может оставить `/api` своим маршрутам и подключить только `/api/uai-admin`.
+The browser calls `/api/uai-admin`. The standalone build preserves the old `/api` as a compatible address. A new application may keep `/api` for its own routes and connect only `/api/uai-admin`.
 
-`createAdminBackend` принимает `loadConfig`, `reads`, `commands`, а также `auth` и `permissions` для внешних сессий. Подключение описано в [контракте внешней авторизации](EXTERNAL_AUTH.md). Описание парольной сессии ниже относится к standalone-режиму. Имена дополнительных обработчиков должны иметь вид `app.<module>.<operation>`; они не могут перекрывать `grant`, `refund` и другие команды UAI. Клиентские функции `api` и `command` экспортируются из `@uai/admin-module/client`.
+`createAdminBackend` accepts `loadConfig`, `reads`, and `commands`, plus `auth` and `permissions` for external sessions. Setup is described in the [external authentication contract](EXTERNAL_AUTH.md). The password-session description below applies to standalone mode. Additional handler names must have the form `app.<module>.<operation>`; they cannot override `grant`, `refund`, or other UAI commands. Client functions `api` and `command` are exported from `@uai/admin-module/client`.
 
 ```ts
 import {createAdminBackend} from '@uai/admin-module/server';
@@ -72,66 +72,66 @@ export const handle = createAdminBackend({
 });
 ```
 
-`loadAdminConfig` возвращает серверную конфигурацию UAI, включая служебный токен и секрет сессии. Она никогда не импортируется клиентской сборкой. Дополнительный обработчик получает `account_id` и `wallet_id`; в external-режиме также проверенную staff `identity` и `role`. Команда дополнительно получает `key`, `data`, `id`. Служебный токен ему не передаётся. Секреты продукта находятся в его серверном модуле.
+`loadAdminConfig` returns server-side UAI configuration, including the service token and session secret. It is never imported by the client build. An additional handler receives `account_id` and `wallet_id`; in external mode it also receives verified staff `identity` and `role`. A command additionally receives `key`, `data`, and `id`. The service token is not passed to it. Product secrets reside in its server module.
 
-`account_id` и `wallet_id` обозначают ресурсы из конфигурации установки. Identity вошедшего сотрудника передаётся отдельно. Обработчик `reads` сейчас не получает `id`, query-параметры или исходный Request. Продуктовая команда не получает верхнеуровневый `revision`: если нужен контроль версии ресурса, передавайте его внутри `data` и проверяйте в своей транзакции. Для пагинации, фильтров, динамических GET-ресурсов и собственной системы ошибок предусмотрите отдельные серверные маршруты продукта с проверкой авторизации. Произвольная ошибка продуктового обработчика в текущем общем адаптере превращается в общий ответ 503; это не полноценный API-framework продукта.
+`account_id` and `wallet_id` identify resources from installation configuration. The logged-in employee's identity is passed separately. A `reads` handler currently receives neither `id`, query parameters, nor the original Request. A product command does not receive top-level `revision`: when resource version control is needed, pass it inside `data` and check it in your transaction. For pagination, filters, dynamic GET resources, and a custom error system, provide separate product server routes with authorization checks. An arbitrary product-handler error in the current shared adapter becomes a generic 503 response; this is not a complete product API framework.
 
-Клиентский вызов чтения: `api('app.product.settings')`. Изменение: `command('app.product.save-settings', data, commandKey, resourceId)`. UI-страница и серверный обработчик регистрируются отдельно; наличие страницы в меню не создаёт endpoint. Изменение меню не выдаёт и не отнимает серверные права.
+Client read call: `api('app.product.settings')`. Change: `command('app.product.save-settings', data, commandKey, resourceId)`. The UI page and server handler are registered separately; a menu page does not create an endpoint. Menu changes neither grant nor revoke server permissions.
 
-Перед обработчиком проверяются административная сессия, для изменений также Origin, JSON и наличие идентификатора команды. Продукт обязан валидировать `data`, реализовать транзакционную идемпотентность по `key`, аудит и правила изменения своих ресурсов. Наличие ключа не заменяет идемпотентность.
+The administrative session is checked before the handler; changes also require Origin, JSON, and a command identifier. The product must validate `data`, implement transactional idempotency by `key`, audit, and rules for changing its resources. A key's presence does not replace idempotency.
 
-Standalone-вход даёт права владельца установки. External-режим подключает сессию родителя и роли сотрудников `admin`/`viewer` с персональным аудитом. Это не реализация регистрации и memberships LogoPanel. Администратор клиентской команды не получает staff-доступ автоматически. Пользовательский frontend остаётся отдельно и использует клиентские API продукта. Скрытие меню не ограничивает API. Общая служебная админка предназначена для сотрудников; обычные пользователи работают через frontend продукта.
+Standalone login grants installation-owner permissions. External mode connects the parent's session and staff `admin`/`viewer` roles with individual audit. It does not implement LogoPanel registration or memberships. A customer-team administrator does not automatically receive staff access. The user frontend remains separate and uses product client APIs. Hiding a menu does not restrict the API. The shared service admin is for employees; ordinary users work through the product frontend.
 
-По умолчанию `loadConfig` читает JSON-файл по пути из `UAI_ADMIN_CONFIG`, а не JSON прямо из переменной. Поля: `api_url`, `admin_token`, `account_id`, `wallet_id`, `session_secret`, `login_password`. Секрет сессии должен содержать не менее 32 символов, пароль не менее 16; создавайте отдельные случайные значения для каждой установки. Сессия действует восемь часов, cookie имеет HttpOnly и SameSite=Strict, на HTTPS также Secure. В standalone это отдельный вход владельца. Для общего входа требуется явно подключить внешний адаптер, автоматического объединения с LogoPanel нет. За reverse proxy нужно сохранить корректный публичный origin для проверки изменений.
+By default, `loadConfig` reads a JSON file at the path in `UAI_ADMIN_CONFIG`, rather than JSON directly from the variable. Fields: `api_url`, `admin_token`, `account_id`, `wallet_id`, `session_secret`, `login_password`. The session secret must contain at least 32 characters, and the password at least 16; generate separate random values per installation. A session lasts eight hours; its cookie has HttpOnly and SameSite=Strict, plus Secure on HTTPS. In standalone mode this is a separate owner login. Shared login requires explicitly connecting an external adapter; there is no automatic unification with LogoPanel. Behind a reverse proxy, preserve the correct public origin for change validation.
 
-## Платежи и настройки
+## Payments and Settings
 
-В едином интерфейсе уже доступны существующие страницы кошельков, списаний, возвратов и цен. Они используют прежние API и финансовые правила. Настройки продукта и экран платежей подключаются таким же продуктовым модулем.
+The unified interface already provides existing wallet, charge, refund, and pricing pages. They use existing APIs and financial rules. Product settings and the payment screen connect through the same kind of product module.
 
-Приём денег не реализуется переносом интерфейса. Платёжный адаптер продукта проверяет подпись webhook и идентификатор внешнего платежа, сохраняет поступление денег отдельно от provider cost и customer charge, затем идемпотентно вызывает начисление через UAI. Закрытый административной сессией `/api/uai-admin` не является endpoint для webhook платёжного провайдера.
+Moving the interface does not implement payment acceptance. The product's payment adapter validates the webhook signature and external payment identifier, records incoming revenue separately from provider cost and customer charge, then idempotently calls a UAI credit grant. `/api/uai-admin`, protected by an administrative session, is not a payment-provider webhook endpoint.
 
-## Перенос и развёртывание
+## Migration and Deployment
 
-UAI подключается из общего Git-репозитория как submodule `vendor/uai`, а не копируется и не форкается для каждого продукта. Версия фиксируется commit-ссылкой родительского проекта. Исходные workspace-пакеты подключаются к административной сборке продукта; пользовательский frontend от них не зависит. Пакеты пока не публикуются в npm.
+UAI is connected from the shared Git repository as the `vendor/uai` submodule, rather than copied or forked per product. The parent project's commit reference pins the version. Source workspace packages are connected to the product's administrative build; the user frontend does not depend on them. Packages are not yet published to npm.
 
-В workspace продукта включаются `apps/*`, `vendor/uai` и `vendor/uai/packages/*`. Корневой пакет UAI нужен для текущих зависимостей внутренних серверных модулей. `vendor/uai/apps/*` не включается в административную сборку продукта: standalone UAI admin и demo не должны становиться вторым frontend продукта. Сервисы UAI используют тот же зафиксированный commit отдельно.
+The product workspace includes `apps/*`, `vendor/uai`, and `vendor/uai/packages/*`. The UAI root package is needed for current internal server-module dependencies. `vendor/uai/apps/*` is excluded from the product's administrative build: standalone UAI admin and demo must not become a second product frontend. UAI services use the same pinned commit separately.
 
-Генератор создаёт только файлы административной сборки, не копирует UAI, credentials и данные и отказывается перезаписывать существующие файлы:
+The generator creates only administrative-build files, does not copy UAI, credentials, or data, and refuses to overwrite existing files:
 
 ```sh
 node scripts/create-admin-host.mjs /path/to/new-product-admin "Product name"
 ```
 
-В сборку входят значки провайдеров и сведения об источниках в `apps/admin/public/providers`: модуль обращается к `/providers/…`. Это статический снимок при генерации. При последующих обновлениях UAI сверяйте этот каталог с `vendor/uai/apps/admin/public/providers`; автоматическое обновление submodule не заменяет файлы хоста. Личный favicon и manifest standalone-админки не копируются: бренд и публичные ресурсы продукта задаёт хост.
+The build includes provider icons and source information in `apps/admin/public/providers`: the module accesses `/providers/…`. This is a static snapshot at generation time. On subsequent UAI updates, compare this directory with `vendor/uai/apps/admin/public/providers`; automatically updating the submodule does not replace host files. The standalone admin's personal favicon and manifest are not copied: the host defines product branding and public resources.
 
-После этого в Git-репозитории продукта подключается `https://github.com/vleytman/uai-ledger.git` по инструкции созданного README. Генератор не создаёт репозиторий, ветку, submodule или PR. Для существующего проекта шаблон создаётся отдельно и нужные настройки объединяются с его workspace; пользовательский frontend не заменяется.
+Next, connect `https://github.com/vleytman/uai-ledger.git` in the product's Git repository using the generated README instructions. The generator does not create a repository, branch, submodule, or PR. For an existing project, generate the template separately and merge the required settings into its workspace; the user frontend is not replaced.
 
-### Общие изменения и обновления
+### Shared Changes and Updates
 
-1. Общее исправление делается в исходном репозитории UAI и проходит его тесты.
-2. После публикации commit становится доступен всем продуктам.
-3. В каждом продукте обновляется только ссылка `vendor/uai` и при необходимости его lockfile. Продуктовые страницы и настройки остаются в собственном коде.
-4. Проверяется административная сборка и тесты продукта; миграции UAI рассматриваются отдельно перед развёртыванием.
+1. Make a shared fix in the original UAI repository and run its tests.
+2. Once published, the commit becomes available to all products.
+3. In each product, update only the `vendor/uai` reference and, if necessary, its lockfile. Product pages and settings remain in its own code.
+4. Verify the administrative build and product tests; review UAI migrations separately before deployment.
 
-Шаблон содержит конфигурацию Dependabot для еженедельных PR обновления submodule и CI проверки сборки. Автоматическое слияние и production-деплой не включены. Для приватного UAI нужны разрешения чтения для Dependabot и CI; они не настроены генератором. Dependabot для submodule обновляет commit, но не пересчитывает pnpm-lock: если зависимости изменились, lockfile нужно обновить в том же PR. CI с `--frozen-lockfile` обнаружит расхождение.
+The template includes Dependabot configuration for weekly submodule-update PRs and build-check CI. Automatic merge and production deployment are disabled. Private UAI requires read access for Dependabot and CI; the generator does not configure this. Dependabot updates the submodule commit but does not recalculate pnpm-lock: if dependencies change, update the lockfile in the same PR. CI with `--frozen-lockfile` detects divergence.
 
-Это не обещание доставки только SemVer-релизов: `gitsubmodule` отслеживает Git-ветку. Для релизной политики следует держать отслеживаемую ветку проверенной или выбирать tag/commit вручную. Возврат старого commit не откатывает миграции БД. [Поддержка submodule в Dependabot](https://docs.github.com/en/code-security/reference/supply-chain-security/supported-ecosystems-and-repositories).
+This does not promise delivery of SemVer releases only: `gitsubmodule` tracks a Git branch. For a release policy, keep the tracked branch verified or select a tag/commit manually. Restoring an old commit does not roll back database migrations. [Dependabot submodule support](https://docs.github.com/en/code-security/reference/supply-chain-security/supported-ecosystems-and-repositories).
 
-Другой проект должен ссылаться на опубликованный commit, содержащий пакеты и генератор из этой инструкции. Документационного commit без реализации недостаточно. Подключение реального LogoPanel выполняется отдельно и не следует из публикации UAI.
+Another project must reference a published commit containing the packages and generator from these instructions. A documentation commit without implementation is insufficient. Actual LogoPanel integration is performed separately and does not follow from publishing UAI.
 
-Нельзя переносить `.data`, пароли, ключи и базы из существующей установки. Новая установка получает свои секреты, базу, namespace Redis и конфигурацию приложения.
+Do not migrate `.data`, passwords, keys, or databases from an existing installation. A new installation receives its own secrets, database, Redis namespace, and application configuration.
 
-Целевая схема владельца: сервер данных с PostgreSQL/Redis; сервер приложения с общей админкой и API; сервер выполнения с workers/scheduler и отдельным процессом Mastra при его подключении. Общий интерфейс не требует общего процесса с worker. Sandbox и постоянные файлы подключаются отдельно. Production-развёртывание этой схемы не выполнено текущим изменением.
+The owner's target topology: a data server with PostgreSQL/Redis; an application server with shared admin and API; an execution server with workers/scheduler and a separate Mastra process when connected. A shared interface does not require sharing a process with the worker. Sandbox and persistent files connect separately. This change did not deploy this topology to production.
 
-Для локального запуска административной сборки из корня продукта: `UAI_ADMIN_CONFIG=/absolute/path/to/admin-config.json pnpm dev:admin`. Шаблон использует `127.0.0.1:4311`; если standalone UAI admin уже занимает порт, остановите его или выберите другой порт в скрипте хоста. UAI API, workers и scheduler запускаются отдельно по [инструкции локального запуска](LOCAL_RUN.md). Для новой установки нужны собственные БД, Redis namespace, credentials и S3; не копируйте окружение действующей demo. Инструкции production-развёртывания находятся в [DEPLOYMENT.md](DEPLOYMENT.md).
+To run the administrative build locally from the product root: `UAI_ADMIN_CONFIG=/absolute/path/to/admin-config.json pnpm dev:admin`. The template uses `127.0.0.1:4311`; if standalone UAI admin already occupies this port, stop it or choose another port in the host script. UAI API, workers, and scheduler run separately according to [local run instructions](LOCAL_RUN.md). A new installation requires its own database, Redis namespace, credentials, and S3; do not copy the active demo's environment. Production deployment instructions are in [DEPLOYMENT.md](DEPLOYMENT.md).
 
-## Проверка
+## Verification
 
 - `pnpm --filter @uai/admin typecheck`
 - `pnpm --filter @uai/admin build`
 - `pnpm exec vitest run apps/admin/test packages/admin-module/src/components/configuration-labels.test.ts`
 - `pnpm exec vitest run packages/admin-shell/test/scaffold.test.ts`
 
-Для свежего сгенерированного продукта выполните `pnpm install`, затем `pnpm build`, затем `pnpm typecheck`: сборка создаёт файл маршрутов TanStack. После фиксации lockfile используйте `pnpm install --frozen-lockfile`. Эти команды проверяют совместимость административной сборки, но не запускают сервисы UAI и не применяют миграции.
+For a freshly generated product, run `pnpm install`, then `pnpm build`, then `pnpm typecheck`: the build generates the TanStack route file. Once the lockfile is committed, use `pnpm install --frozen-lockfile`. These commands verify administrative-build compatibility, but do not start UAI services or apply migrations.
 
-Тесты модульности проверяют дополнительную страницу вместе с UAI, прямую ссылку, обновление, возврат к кошелькам и выход; серверные тесты проверяют авторизацию, CSRF, отсутствие служебного токена в контексте и запрет подмены штатных команд. Регрессия проверяет существующие формы, калькулятор и таблицы. Это не проверка LogoPanel или платёжного провайдера.
+Modularity tests verify an additional page alongside UAI, direct links, refresh, returning to wallets, and logout; server tests verify authorization, CSRF, absence of the service token from context, and prohibition of overriding standard commands. Regression verifies existing forms, calculator, and tables. This does not test LogoPanel or a payment provider.

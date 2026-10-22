@@ -7,7 +7,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Проверить доступность API */
+        /** Check API availability */
         get: operations["health"];
         put?: never;
         post?: never;
@@ -26,7 +26,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Создать аккаунт приложения */
+        /** Create an application account */
         post: operations["createAccount"];
         delete?: never;
         options?: never;
@@ -43,7 +43,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Возобновить новые расходы */
+        /** Resume new spending */
         post: operations["resumeSpending"];
         delete?: never;
         options?: never;
@@ -60,7 +60,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Приостановить новые расходы */
+        /** Suspend new spending */
         post: operations["suspendSpending"];
         delete?: never;
         options?: never;
@@ -75,14 +75,14 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать ограничения приёма операций приложения токена */
+        /** Read operation-admission limits for the token's application */
         get: operations["getAdmissionPolicy"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        /** Изменить ограничения приёма операций приложения с ревизией и аудитом */
+        /** Change application operation-admission limits with revision checks and audit */
         patch: operations["updateAdmissionPolicy"];
         trace?: never;
     };
@@ -95,7 +95,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Управление allowance поставщика */
+        /** Manage provider allowance */
         post: operations["postv1adminallowanceadjustments"];
         delete?: never;
         options?: never;
@@ -112,7 +112,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Управление allowance поставщика */
+        /** Manage provider allowance */
         post: operations["postv1adminallowancesnapshots"];
         delete?: never;
         options?: never;
@@ -129,7 +129,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Рассчитать API без вызова провайдера */
+        /** Quote an API call without calling the provider */
         post: operations["previewApiOperation"];
         delete?: never;
         options?: never;
@@ -144,7 +144,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать административный ресурс в области установки */
+        /** Read an administrative resource within the installation scope */
         get: operations["admin_get_attempts"];
         put?: never;
         post?: never;
@@ -161,7 +161,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать административный ресурс в области установки */
+        /** Read an administrative resource within the installation scope */
         get: operations["admin_get_audit-events"];
         put?: never;
         post?: never;
@@ -178,10 +178,10 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать административный ресурс в области установки */
+        /** Read an administrative resource within the installation scope */
         get: operations["admin_get_connections"];
         put?: never;
-        /** Выполнить административную команду с reason и аудитом */
+        /** Execute an administrative command with a reason and audit */
         post: operations["admin_post_connections"];
         delete?: never;
         options?: never;
@@ -202,7 +202,7 @@ export type paths = {
         delete?: never;
         options?: never;
         head?: never;
-        /** Выполнить административную команду с reason и аудитом */
+        /** Execute an administrative command with a reason and audit */
         patch: operations["admin_patch_connections_id"];
         trace?: never;
     };
@@ -215,7 +215,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Обновить остаток Firecrawl из credit-usage */
+        /** Refresh the Firecrawl balance from credit-usage */
         post: operations["refreshFirecrawlAllowance"];
         delete?: never;
         options?: never;
@@ -232,7 +232,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Выполнить административную команду с reason и аудитом */
+        /** Execute an administrative command with a reason and audit */
         post: operations["admin_post_connections_id_credential"];
         delete?: never;
         options?: never;
@@ -249,7 +249,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Выполнить административную команду с reason и аудитом */
+        /** Execute an administrative command with a reason and audit */
         post: operations["admin_post_connections_id_health"];
         delete?: never;
         options?: never;
@@ -266,7 +266,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Выполнить административную команду с reason и аудитом */
+        /** Execute an administrative command with a reason and audit */
         post: operations["admin_post_connections_id_import-cost-report"];
         delete?: never;
         options?: never;
@@ -282,7 +282,7 @@ export type paths = {
             cookie?: never;
         };
         get?: never;
-        /** Управление allowance поставщика */
+        /** Manage provider allowance */
         put: operations["putv1adminconnectionsidprovideraccount"];
         post?: never;
         delete?: never;
@@ -298,10 +298,10 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать административный ресурс в области установки */
+        /** Read an administrative resource within the installation scope */
         get: operations["admin_get_connections_id_report-credential"];
         put?: never;
-        /** Выполнить административную команду с reason и аудитом */
+        /** Execute an administrative command with a reason and audit */
         post: operations["admin_post_connections_id_report-credential"];
         delete?: never;
         options?: never;
@@ -318,7 +318,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Выполнить административную команду с reason и аудитом */
+        /** Execute an administrative command with a reason and audit */
         post: operations["admin_post_connections_id_status"];
         delete?: never;
         options?: never;
@@ -333,10 +333,10 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать административный ресурс в области установки */
+        /** Read an administrative resource within the installation scope */
         get: operations["admin_get_corrections"];
         put?: never;
-        /** Выполнить административную команду с reason и аудитом */
+        /** Execute an administrative command with a reason and audit */
         post: operations["admin_post_corrections"];
         delete?: never;
         options?: never;
@@ -351,7 +351,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Сводка кредитов всех кошельков приложения: выдано, списано, сгорело и отозвано за период, текущий и истекающий остаток */
+        /** Credit summary across all application wallets: grants, charges, expiration and revocation during the period, current balance and expiring balance */
         get: operations["admin_get_credit-summary"];
         put?: never;
         post?: never;
@@ -368,7 +368,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать административный ресурс в области установки */
+        /** Read an administrative resource within the installation scope */
         get: operations["admin_get_deliveries"];
         put?: never;
         post?: never;
@@ -387,7 +387,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Выполнить административную команду с reason и аудитом */
+        /** Execute an administrative command with a reason and audit */
         post: operations["admin_post_deliveries_id_retry"];
         delete?: never;
         options?: never;
@@ -402,7 +402,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать ограничения публикации и активного выполнения очередей всей установки */
+        /** Read installation-wide queue publication and active-execution limits */
         get: operations["listDispatchPolicies"];
         put?: never;
         post?: never;
@@ -425,7 +425,7 @@ export type paths = {
         delete?: never;
         options?: never;
         head?: never;
-        /** Изменить ограничения публикации и активного выполнения всей установки с ревизией и аудитом */
+        /** Change installation-wide publication and active-execution limits with revision checks and audit */
         patch: operations["updateDispatchPolicy"];
         trace?: never;
     };
@@ -436,10 +436,10 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать административный ресурс в области установки */
+        /** Read an administrative resource within the installation scope */
         get: operations["admin_get_execution-budgets"];
         put?: never;
-        /** Выполнить административную команду с reason и аудитом */
+        /** Execute an administrative command with a reason and audit */
         post: operations["admin_post_execution-budgets"];
         delete?: never;
         options?: never;
@@ -454,10 +454,10 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать административный ресурс в области установки */
+        /** Read an administrative resource within the installation scope */
         get: operations["admin_get_execution-limiters"];
         put?: never;
-        /** Выполнить административную команду с reason и аудитом */
+        /** Execute an administrative command with a reason and audit */
         post: operations["admin_post_execution-limiters"];
         delete?: never;
         options?: never;
@@ -472,7 +472,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Состояние очередей приложения и время до первого dispatch за последние 24 часа */
+        /** Application queue state and time to first dispatch over the last 24 hours */
         get: operations["getExecutionMetrics"];
         put?: never;
         post?: never;
@@ -489,7 +489,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать административный ресурс в области установки */
+        /** Read an administrative resource within the installation scope */
         get: operations["admin_get_incidents"];
         put?: never;
         post?: never;
@@ -508,7 +508,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Выполнить административную команду с reason и аудитом */
+        /** Execute an administrative command with a reason and audit */
         post: operations["admin_post_incidents_id_acknowledge"];
         delete?: never;
         options?: never;
@@ -525,7 +525,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Выполнить административную команду с reason и аудитом */
+        /** Execute an administrative command with a reason and audit */
         post: operations["admin_post_incidents_id_resolve"];
         delete?: never;
         options?: never;
@@ -540,10 +540,10 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать версии конфигурации */
+        /** Read configuration versions */
         get: operations["listConfiguration_model-versions"];
         put?: never;
-        /** Создать draft конфигурации */
+        /** Create a configuration draft */
         post: operations["createConfiguration_model-versions"];
         delete?: never;
         options?: never;
@@ -564,7 +564,7 @@ export type paths = {
         delete?: never;
         options?: never;
         head?: never;
-        /** Изменить draft с If-Match */
+        /** Edit a draft with If-Match */
         patch: operations["updateConfiguration_model-versions"];
         trace?: never;
     };
@@ -577,7 +577,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Опубликовать проверенную immutable версию */
+        /** Publish a verified immutable version */
         post: operations["publishConfiguration_model-versions"];
         delete?: never;
         options?: never;
@@ -594,7 +594,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Проверить расчёт модели без вызова провайдера */
+        /** Check model pricing without calling the provider */
         post: operations["previewModelCalculation"];
         delete?: never;
         options?: never;
@@ -609,10 +609,10 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать административный ресурс в области установки */
+        /** Read an administrative resource within the installation scope */
         get: operations["admin_get_notification-rules"];
         put?: never;
-        /** Выполнить административную команду с reason и аудитом */
+        /** Execute an administrative command with a reason and audit */
         post: operations["admin_post_notification-rules"];
         delete?: never;
         options?: never;
@@ -633,7 +633,7 @@ export type paths = {
         delete?: never;
         options?: never;
         head?: never;
-        /** Выполнить административную команду с reason и аудитом */
+        /** Execute an administrative command with a reason and audit */
         patch: operations["admin_patch_notification-rules_id"];
         trace?: never;
     };
@@ -644,7 +644,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать административный ресурс в области установки */
+        /** Read an administrative resource within the installation scope */
         get: operations["admin_get_operations"];
         put?: never;
         post?: never;
@@ -661,7 +661,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать административный ресурс в области установки */
+        /** Read an administrative resource within the installation scope */
         get: operations["admin_get_operations_id"];
         put?: never;
         post?: never;
@@ -678,7 +678,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать административный ресурс в области установки */
+        /** Read an administrative resource within the installation scope */
         get: operations["admin_get_overview"];
         put?: never;
         post?: never;
@@ -695,10 +695,10 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать административный ресурс в области установки */
+        /** Read an administrative resource within the installation scope */
         get: operations["admin_get_provider-accounts"];
         put?: never;
-        /** Управление allowance поставщика */
+        /** Manage provider allowance */
         post: operations["postv1adminprovideraccounts"];
         delete?: never;
         options?: never;
@@ -713,7 +713,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать административный ресурс в области установки */
+        /** Read an administrative resource within the installation scope */
         get: operations["admin_get_provider-allowance-bindings"];
         put?: never;
         post?: never;
@@ -730,9 +730,9 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Привязки квот конкретного подключения и модели с revision набора */
+        /** Quota bindings for a specific connection and model with a set revision */
         get: operations["getProviderQuotaBindings"];
-        /** Атомарно изменить привязки модели без сброса ещё действующих квот */
+        /** Atomically change model bindings without resetting still-active quotas */
         put: operations["updateProviderQuotaBindings"];
         post?: never;
         delete?: never;
@@ -748,10 +748,10 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Группы квот организации, правила, модели и занятые слоты */
+        /** Organization quota groups, rules, models and occupied slots */
         get: operations["getProviderQuotas"];
         put?: never;
-        /** Создать группу квот с правилами и аудитом, без изменения привязок существующих маршрутов */
+        /** Create a quota group with rules and audit, without changing existing route bindings */
         post: operations["createProviderQuotaGroup"];
         delete?: never;
         options?: never;
@@ -772,7 +772,7 @@ export type paths = {
         delete?: never;
         options?: never;
         head?: never;
-        /** Изменить название, источник и параллельность группы без изменения правил выданного допуска */
+        /** Change a group's name, source and concurrency without changing the rules of granted admission */
         patch: operations["updateProviderQuotaSettings"];
         trace?: never;
     };
@@ -784,13 +784,13 @@ export type paths = {
             cookie?: never;
         };
         get?: never;
-        /** Заменить состав правил после завершения вызовов и истечения окна восстановления расхода */
+        /** Replace the rule set after calls complete and the usage-recovery window expires */
         put: operations["replaceProviderQuotaRules"];
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        /** Изменить лимиты существующих правил без сброса расхода квоты */
+        /** Change existing rule limits without resetting quota usage */
         patch: operations["updateProviderQuotaRuleLimits"];
         trace?: never;
     };
@@ -801,7 +801,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Локальный остаток квот с учётом наблюдений провайдера; без допуска и восстановления */
+        /** Local remaining quota adjusted for provider observations; no admission or recovery */
         get: operations["getProviderQuotaSnapshot"];
         put?: never;
         post?: never;
@@ -818,7 +818,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать административный ресурс в области установки */
+        /** Read an administrative resource within the installation scope */
         get: operations["admin_get_provider-snapshots"];
         put?: never;
         post?: never;
@@ -835,10 +835,10 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать административный ресурс в области установки */
+        /** Read an administrative resource within the installation scope */
         get: operations["admin_get_provider-subscriptions"];
         put?: never;
-        /** Управление allowance поставщика */
+        /** Manage provider allowance */
         post: operations["postv1adminprovidersubscriptions"];
         delete?: never;
         options?: never;
@@ -853,7 +853,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Управление allowance поставщика */
+        /** Manage provider allowance */
         get: operations["getv1adminprovidersubscriptionsidallowance"];
         put?: never;
         post?: never;
@@ -870,7 +870,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать административный ресурс в области установки */
+        /** Read an administrative resource within the installation scope */
         get: operations["admin_get_provider-tariffs"];
         put?: never;
         post?: never;
@@ -887,7 +887,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать административный ресурс в области установки */
+        /** Read an administrative resource within the installation scope */
         get: operations["admin_get_queue"];
         put?: never;
         post?: never;
@@ -904,10 +904,10 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать версии конфигурации */
+        /** Read configuration versions */
         get: operations["listConfiguration_rate-cards"];
         put?: never;
-        /** Создать draft конфигурации */
+        /** Create a configuration draft */
         post: operations["createConfiguration_rate-cards"];
         delete?: never;
         options?: never;
@@ -928,7 +928,7 @@ export type paths = {
         delete?: never;
         options?: never;
         head?: never;
-        /** Изменить draft с If-Match */
+        /** Edit a draft with If-Match */
         patch: operations["updateConfiguration_rate-cards"];
         trace?: never;
     };
@@ -945,7 +945,7 @@ export type paths = {
         delete?: never;
         options?: never;
         head?: never;
-        /** Изменить название тарифа без изменения ставок и версии */
+        /** Change a rate card's name without changing its rates or version */
         patch: operations["renameRateCard"];
         trace?: never;
     };
@@ -958,7 +958,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Опубликовать проверенную immutable версию */
+        /** Publish a verified immutable version */
         post: operations["publishConfiguration_rate-cards"];
         delete?: never;
         options?: never;
@@ -975,7 +975,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Сравнить две ставки на сохранённом usage без изменения кошельков */
+        /** Compare two rates against persisted usage without changing wallets */
         post: operations["admin_compare_rate_cards"];
         delete?: never;
         options?: never;
@@ -990,10 +990,10 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать административный ресурс в области установки */
+        /** Read an administrative resource within the installation scope */
         get: operations["admin_get_recipes"];
         put?: never;
-        /** Выполнить административную команду с reason и аудитом */
+        /** Execute an administrative command with a reason and audit */
         post: operations["admin_post_recipes"];
         delete?: never;
         options?: never;
@@ -1008,10 +1008,10 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать административный ресурс в области установки */
+        /** Read an administrative resource within the installation scope */
         get: operations["admin_get_reconciliation-runs"];
         put?: never;
-        /** Выполнить административную команду с reason и аудитом */
+        /** Execute an administrative command with a reason and audit */
         post: operations["admin_post_reconciliation-runs"];
         delete?: never;
         options?: never;
@@ -1026,7 +1026,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать административный ресурс в области установки */
+        /** Read an administrative resource within the installation scope */
         get: operations["admin_get_recovery-incidents"];
         put?: never;
         post?: never;
@@ -1045,7 +1045,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Выполнить административную команду с reason и аудитом */
+        /** Execute an administrative command with a reason and audit */
         post: operations["admin_post_recovery-incidents_id_enable"];
         delete?: never;
         options?: never;
@@ -1060,7 +1060,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать административный ресурс в области установки */
+        /** Read an administrative resource within the installation scope */
         get: operations["admin_get_requests"];
         put?: never;
         post?: never;
@@ -1079,7 +1079,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Выполнить административную команду с reason и аудитом */
+        /** Execute an administrative command with a reason and audit */
         post: operations["admin_post_requests_id_resolve-unknown"];
         delete?: never;
         options?: never;
@@ -1094,7 +1094,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать административный ресурс в области установки */
+        /** Read an administrative resource within the installation scope */
         get: operations["admin_get_revocation-incidents"];
         put?: never;
         post?: never;
@@ -1111,10 +1111,10 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать версии конфигурации */
+        /** Read configuration versions */
         get: operations["listConfiguration_routes"];
         put?: never;
-        /** Создать draft конфигурации */
+        /** Create a configuration draft */
         post: operations["createConfiguration_routes"];
         delete?: never;
         options?: never;
@@ -1135,7 +1135,7 @@ export type paths = {
         delete?: never;
         options?: never;
         head?: never;
-        /** Изменить draft с If-Match */
+        /** Edit a draft with If-Match */
         patch: operations["updateConfiguration_routes"];
         trace?: never;
     };
@@ -1148,7 +1148,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Опубликовать проверенную immutable версию */
+        /** Publish a verified immutable version */
         post: operations["publishConfiguration_routes"];
         delete?: never;
         options?: never;
@@ -1163,10 +1163,10 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать административный ресурс в области установки */
+        /** Read an administrative resource within the installation scope */
         get: operations["admin_get_snapshots"];
         put?: never;
-        /** Выполнить административную команду с reason и аудитом */
+        /** Execute an administrative command with a reason and audit */
         post: operations["admin_post_snapshots"];
         delete?: never;
         options?: never;
@@ -1181,7 +1181,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать административный ресурс в области установки */
+        /** Read an administrative resource within the installation scope */
         get: operations["admin_get_wallets"];
         put?: never;
         post?: never;
@@ -1198,10 +1198,10 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать административный ресурс в области установки */
+        /** Read an administrative resource within the installation scope */
         get: operations["admin_get_webhook-destinations"];
         put?: never;
-        /** Выполнить административную команду с reason и аудитом */
+        /** Execute an administrative command with a reason and audit */
         post: operations["admin_post_webhook-destinations"];
         delete?: never;
         options?: never;
@@ -1222,7 +1222,7 @@ export type paths = {
         delete?: never;
         options?: never;
         head?: never;
-        /** Выполнить административную команду с reason и аудитом */
+        /** Execute an administrative command with a reason and audit */
         patch: operations["admin_patch_webhook-destinations_id"];
         trace?: never;
     };
@@ -1233,7 +1233,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать metadata доступного файла */
+        /** Read metadata for an accessible file */
         get: operations["getAsset"];
         put?: never;
         post?: never;
@@ -1252,7 +1252,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Проверить загруженный файл и завершить input asset */
+        /** Validate the uploaded file and complete the input asset */
         post: operations["completeUpload"];
         delete?: never;
         options?: never;
@@ -1267,7 +1267,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Загрузить временный файл */
+        /** Download a temporary file */
         get: operations["downloadAsset"];
         put?: never;
         post?: never;
@@ -1286,7 +1286,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Продлить срок хранения существующего входного файла */
+        /** Extend retention of an existing input file */
         post: operations["renewInputAsset"];
         delete?: never;
         options?: never;
@@ -1302,7 +1302,7 @@ export type paths = {
             cookie?: never;
         };
         get?: never;
-        /** Загрузить bytes через application/octet-stream */
+        /** Upload bytes through application/octet-stream */
         put: operations["uploadBytes"];
         post?: never;
         delete?: never;
@@ -1320,7 +1320,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Начать загрузку с SHA256 и точным размером */
+        /** Start an upload with SHA256 and an exact size */
         post: operations["createUpload"];
         delete?: never;
         options?: never;
@@ -1337,7 +1337,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Поставить tombstone и удалить временное содержимое */
+        /** Set a tombstone and delete temporary content */
         post: operations["deleteContent"];
         delete?: never;
         options?: never;
@@ -1352,7 +1352,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать прогресс физического удаления */
+        /** Read physical deletion progress */
         get: operations["getDeletion"];
         put?: never;
         post?: never;
@@ -1369,7 +1369,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Читать SSE с Last-Event-ID */
+        /** Read SSE with Last-Event-ID */
         get: operations["streamEvents"];
         put?: never;
         post?: never;
@@ -1388,7 +1388,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Предварительно оценить список вызовов без резерва */
+        /** Forecast a list of invocations without reserving funds */
         post: operations["forecastCalls"];
         delete?: never;
         options?: never;
@@ -1405,7 +1405,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Отменить отзыв */
+        /** Cancel revocation */
         post: operations["cancelGrantRevocation"];
         delete?: never;
         options?: never;
@@ -1422,7 +1422,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Подтвердить отзыв */
+        /** Confirm revocation */
         post: operations["commitGrantRevocation"];
         delete?: never;
         options?: never;
@@ -1439,7 +1439,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Атомарно принять одиночный запрос */
+        /** Atomically accept a single invocation */
         post: operations["invoke"];
         delete?: never;
         options?: never;
@@ -1456,7 +1456,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Принять запрос с готовой подпиской и читать поток попыток */
+        /** Accept a request with an already-established subscription and stream attempts */
         post: operations["streamInvocation"];
         delete?: never;
         options?: never;
@@ -1471,7 +1471,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать опубликованные модели */
+        /** Read published models */
         get: operations["listModels"];
         put?: never;
         post?: never;
@@ -1490,7 +1490,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Принять оценку и зарезервировать максимум */
+        /** Accept a quote and reserve its maximum */
         post: operations["acceptQuote"];
         delete?: never;
         options?: never;
@@ -1505,7 +1505,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать состояние операции и финансовый остаток */
+        /** Read operation state and remaining financial amounts */
         get: operations["getOperation"];
         put?: never;
         post?: never;
@@ -1524,7 +1524,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Принять новую оценку оставшейся работы */
+        /** Accept a new quote for remaining work */
         post: operations["amendOperation"];
         delete?: never;
         options?: never;
@@ -1541,7 +1541,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Отменить операцию */
+        /** Cancel an operation */
         post: operations["cancelOperation"];
         delete?: never;
         options?: never;
@@ -1558,7 +1558,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Закрыть приём новых запросов */
+        /** Close admission of new requests */
         post: operations["completeOperation"];
         delete?: never;
         options?: never;
@@ -1575,7 +1575,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Завершить с готовыми частями */
+        /** Finish with completed parts */
         post: operations["finishpartialOperation"];
         delete?: never;
         options?: never;
@@ -1592,7 +1592,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Создать разрешённый запрос компонента */
+        /** Create an authorized component request */
         post: operations["createRequest"];
         delete?: never;
         options?: never;
@@ -1607,7 +1607,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать опубликованные маршруты */
+        /** Read published routes */
         get: operations["listProfiles"];
         put?: never;
         post?: never;
@@ -1626,7 +1626,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Подписанный webhook провайдера: исходные байты, scope сохранённого запроса, без bearer token */
+        /** Signed provider webhook: original bytes, persisted request scope, no bearer token */
         post: operations["receiveProviderWebhook"];
         delete?: never;
         options?: never;
@@ -1643,7 +1643,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Оценить разрешённое действие без резерва */
+        /** Quote authorized work without reserving funds */
         post: operations["createQuote"];
         delete?: never;
         options?: never;
@@ -1658,7 +1658,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать зафиксированную оценку */
+        /** Read a persisted quote */
         get: operations["getQuote"];
         put?: never;
         post?: never;
@@ -1675,7 +1675,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать рецепты приложения */
+        /** Read application recipes */
         get: operations["listRecipes"];
         put?: never;
         post?: never;
@@ -1692,7 +1692,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать результат и settlement */
+        /** Read the result and settlement */
         get: operations["getRequest"];
         put?: never;
         post?: never;
@@ -1711,7 +1711,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Подтвердить долговечное сохранение всего manifest */
+        /** Acknowledge durable persistence of the entire manifest */
         post: operations["acknowledgeResult"];
         delete?: never;
         options?: never;
@@ -1728,7 +1728,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Запросить отмену */
+        /** Request cancellation */
         post: operations["cancelRequest"];
         delete?: never;
         options?: never;
@@ -1743,7 +1743,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать разрешённые usage, costs и историю attempts */
+        /** Read authorized usage, costs and attempt history */
         get: operations["getRequestDiagnostics"];
         put?: never;
         post?: never;
@@ -1760,7 +1760,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Продолжить поток без нового вызова провайдера */
+        /** Resume the stream without another provider call */
         get: operations["resumeInvocationStream"];
         put?: never;
         post?: never;
@@ -1777,7 +1777,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать остаток и ревизию */
+        /** Read balance and revision */
         get: operations["getWallet"];
         put?: never;
         post?: never;
@@ -1796,7 +1796,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Заблокировать доступные кредиты для отзыва */
+        /** Lock available credits for revocation */
         post: operations["prepareGrantRevocation"];
         delete?: never;
         options?: never;
@@ -1813,7 +1813,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Начислить отдельный кредитный пакет */
+        /** Grant a separate credit lot */
         post: operations["grantCredits"];
         delete?: never;
         options?: never;
@@ -1828,7 +1828,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать пакеты и сроки */
+        /** Read lots and expiration dates */
         get: operations["listCreditLots"];
         put?: never;
         post?: never;
@@ -1847,7 +1847,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Компенсировать подтверждённое списание */
+        /** Compensate a confirmed charge */
         post: operations["refundCapture"];
         delete?: never;
         options?: never;
@@ -1864,7 +1864,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** Установить доступный остаток через проводки, только UAI_ENV=test */
+        /** Set the available balance through postings, only with UAI_ENV=test */
         post: operations["setTestBalance"];
         delete?: never;
         options?: never;
@@ -1879,7 +1879,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** Прочитать журнал с устойчивой пагинацией */
+        /** Read the journal with stable pagination */
         get: operations["listJournal"];
         put?: never;
         post?: never;
@@ -3832,7 +3832,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -3841,7 +3841,7 @@ export interface operations {
                     "application/json": components["schemas"]["HealthResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -3856,9 +3856,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -3870,7 +3870,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -3879,7 +3879,7 @@ export interface operations {
                     "application/json": components["schemas"]["AccountResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -3894,9 +3894,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -3910,7 +3910,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -3919,7 +3919,7 @@ export interface operations {
                     "application/json": components["schemas"]["SpendingResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -3934,9 +3934,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -3950,7 +3950,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -3959,7 +3959,7 @@ export interface operations {
                     "application/json": components["schemas"]["SpendingResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -3974,7 +3974,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -3982,7 +3982,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -3991,7 +3991,7 @@ export interface operations {
                     "application/json": components["schemas"]["AdmissionPolicyResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4006,9 +4006,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -4020,7 +4020,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -4029,7 +4029,7 @@ export interface operations {
                     "application/json": components["schemas"]["AdmissionPolicyResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4044,9 +4044,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -4058,7 +4058,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -4067,7 +4067,7 @@ export interface operations {
                     "application/json": components["schemas"]["AllowanceReceipt"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4082,9 +4082,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -4096,7 +4096,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -4105,7 +4105,7 @@ export interface operations {
                     "application/json": components["schemas"]["AllowanceReceipt"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4120,7 +4120,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -4132,7 +4132,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -4141,7 +4141,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiOperationPreviewResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4156,7 +4156,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -4164,7 +4164,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -4173,7 +4173,7 @@ export interface operations {
                     "application/json": components["schemas"]["ObjectList"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4188,7 +4188,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -4196,7 +4196,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -4205,7 +4205,7 @@ export interface operations {
                     "application/json": components["schemas"]["ObjectList"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4220,7 +4220,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -4228,7 +4228,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -4237,7 +4237,7 @@ export interface operations {
                     "application/json": components["schemas"]["ObjectList"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4252,9 +4252,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -4266,7 +4266,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -4275,7 +4275,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4290,9 +4290,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -4306,7 +4306,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -4315,7 +4315,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4330,9 +4330,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -4346,7 +4346,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -4355,7 +4355,7 @@ export interface operations {
                     "application/json": components["schemas"]["AllowanceReceipt"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4370,9 +4370,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -4386,7 +4386,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -4395,7 +4395,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4410,9 +4410,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -4426,7 +4426,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -4435,7 +4435,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4450,9 +4450,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -4466,7 +4466,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -4475,7 +4475,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4490,11 +4490,11 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Текущая revision ресурса. */
+                /** @description Current resource revision. */
                 "If-Match": number;
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -4508,7 +4508,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -4517,7 +4517,7 @@ export interface operations {
                     "application/json": components["schemas"]["AllowanceReceipt"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4532,7 +4532,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -4542,7 +4542,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -4551,7 +4551,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4566,9 +4566,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -4582,7 +4582,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -4591,7 +4591,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4606,9 +4606,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -4622,7 +4622,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -4631,7 +4631,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4646,7 +4646,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -4654,7 +4654,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -4663,7 +4663,7 @@ export interface operations {
                     "application/json": components["schemas"]["ObjectList"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4678,9 +4678,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -4692,7 +4692,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -4701,7 +4701,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4721,7 +4721,7 @@ export interface operations {
                 period_start?: string;
             };
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -4729,7 +4729,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -4738,7 +4738,7 @@ export interface operations {
                     "application/json": components["schemas"]["CreditSummaryResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4753,7 +4753,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -4761,7 +4761,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -4770,7 +4770,7 @@ export interface operations {
                     "application/json": components["schemas"]["ObjectList"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4785,9 +4785,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -4801,7 +4801,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -4810,7 +4810,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4825,7 +4825,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -4833,7 +4833,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -4842,7 +4842,7 @@ export interface operations {
                     "application/json": components["schemas"]["DispatchPoliciesResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4857,11 +4857,11 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Текущая revision ресурса. */
+                /** @description Current resource revision. */
                 "If-Match": number;
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -4875,7 +4875,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -4884,7 +4884,7 @@ export interface operations {
                     "application/json": components["schemas"]["DispatchPolicyResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4899,7 +4899,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -4907,7 +4907,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -4916,7 +4916,7 @@ export interface operations {
                     "application/json": components["schemas"]["ObjectList"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4931,9 +4931,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -4945,7 +4945,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -4954,7 +4954,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -4969,7 +4969,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -4977,7 +4977,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -4986,7 +4986,7 @@ export interface operations {
                     "application/json": components["schemas"]["ObjectList"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5001,9 +5001,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -5015,7 +5015,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5024,7 +5024,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5039,7 +5039,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -5047,7 +5047,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5056,7 +5056,7 @@ export interface operations {
                     "application/json": components["schemas"]["ExecutionMetricsResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5071,7 +5071,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -5079,7 +5079,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5088,7 +5088,7 @@ export interface operations {
                     "application/json": components["schemas"]["ObjectList"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5103,9 +5103,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -5119,7 +5119,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5128,7 +5128,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5143,9 +5143,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -5159,7 +5159,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5168,7 +5168,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5183,7 +5183,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -5191,7 +5191,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5200,7 +5200,7 @@ export interface operations {
                     "application/json": components["schemas"]["ObjectList"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5215,9 +5215,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -5229,7 +5229,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5238,7 +5238,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5253,9 +5253,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Текущая revision ресурса. */
+                /** @description Current resource revision. */
                 "If-Match": number;
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -5269,7 +5269,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5278,7 +5278,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5293,9 +5293,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -5309,7 +5309,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5318,7 +5318,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5333,7 +5333,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -5345,7 +5345,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5354,7 +5354,7 @@ export interface operations {
                     "application/json": components["schemas"]["ModelCalculationPreviewResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5369,7 +5369,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -5377,7 +5377,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5386,7 +5386,7 @@ export interface operations {
                     "application/json": components["schemas"]["ObjectList"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5401,9 +5401,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -5415,7 +5415,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5424,7 +5424,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5439,9 +5439,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -5455,7 +5455,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5464,7 +5464,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5479,7 +5479,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -5487,7 +5487,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5496,7 +5496,7 @@ export interface operations {
                     "application/json": components["schemas"]["ObjectList"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5511,7 +5511,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -5521,7 +5521,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5530,7 +5530,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5552,7 +5552,7 @@ export interface operations {
                 provider?: string;
             };
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -5560,7 +5560,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5569,7 +5569,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5584,7 +5584,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -5592,7 +5592,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5601,7 +5601,7 @@ export interface operations {
                     "application/json": components["schemas"]["ObjectList"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5616,9 +5616,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -5630,7 +5630,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5639,7 +5639,7 @@ export interface operations {
                     "application/json": components["schemas"]["AllowanceReceipt"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5654,7 +5654,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -5662,7 +5662,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5671,7 +5671,7 @@ export interface operations {
                     "application/json": components["schemas"]["ObjectList"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5689,7 +5689,7 @@ export interface operations {
                 model: string;
             };
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -5697,7 +5697,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5706,7 +5706,7 @@ export interface operations {
                     "application/json": components["schemas"]["QuotaBindingsResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5721,9 +5721,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -5735,7 +5735,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5744,7 +5744,7 @@ export interface operations {
                     "application/json": components["schemas"]["QuotaBindingsResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5759,7 +5759,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -5767,7 +5767,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5776,7 +5776,7 @@ export interface operations {
                     "application/json": components["schemas"]["QuotaSettingsListResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5791,9 +5791,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -5805,7 +5805,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5814,7 +5814,7 @@ export interface operations {
                     "application/json": components["schemas"]["QuotaSettingsResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5829,9 +5829,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -5845,7 +5845,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5854,7 +5854,7 @@ export interface operations {
                     "application/json": components["schemas"]["QuotaSettingsResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5869,9 +5869,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -5885,7 +5885,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5894,7 +5894,7 @@ export interface operations {
                     "application/json": components["schemas"]["QuotaSettingsResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5909,9 +5909,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -5925,7 +5925,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5934,7 +5934,7 @@ export interface operations {
                     "application/json": components["schemas"]["QuotaSettingsResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5949,7 +5949,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -5959,7 +5959,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5968,7 +5968,7 @@ export interface operations {
                     "application/json": components["schemas"]["QuotaSnapshotResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -5983,7 +5983,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -5991,7 +5991,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6000,7 +6000,7 @@ export interface operations {
                     "application/json": components["schemas"]["ObjectList"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -6015,7 +6015,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -6023,7 +6023,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6032,7 +6032,7 @@ export interface operations {
                     "application/json": components["schemas"]["ObjectList"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -6047,9 +6047,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -6061,7 +6061,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6070,7 +6070,7 @@ export interface operations {
                     "application/json": components["schemas"]["AllowanceReceipt"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -6085,7 +6085,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -6095,7 +6095,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6104,7 +6104,7 @@ export interface operations {
                     "application/json": components["schemas"]["AllowanceState"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -6119,7 +6119,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -6127,7 +6127,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6136,7 +6136,7 @@ export interface operations {
                     "application/json": components["schemas"]["ObjectList"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -6151,7 +6151,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -6159,7 +6159,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6168,7 +6168,7 @@ export interface operations {
                     "application/json": components["schemas"]["ObjectList"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -6183,7 +6183,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -6191,7 +6191,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6200,7 +6200,7 @@ export interface operations {
                     "application/json": components["schemas"]["ObjectList"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -6215,9 +6215,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -6229,7 +6229,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6238,7 +6238,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -6253,9 +6253,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Текущая revision ресурса. */
+                /** @description Current resource revision. */
                 "If-Match": number;
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -6269,7 +6269,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6278,7 +6278,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -6293,11 +6293,11 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Текущая revision ресурса. */
+                /** @description Current resource revision. */
                 "If-Match": number;
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -6311,7 +6311,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6320,7 +6320,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -6335,9 +6335,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -6351,7 +6351,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6360,7 +6360,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -6375,7 +6375,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -6387,7 +6387,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6396,7 +6396,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -6411,7 +6411,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -6419,7 +6419,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6428,7 +6428,7 @@ export interface operations {
                     "application/json": components["schemas"]["ObjectList"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -6443,9 +6443,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -6457,7 +6457,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6466,7 +6466,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -6481,7 +6481,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -6489,7 +6489,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6498,7 +6498,7 @@ export interface operations {
                     "application/json": components["schemas"]["ObjectList"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -6513,9 +6513,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -6527,7 +6527,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6536,7 +6536,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -6551,7 +6551,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -6559,7 +6559,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6568,7 +6568,7 @@ export interface operations {
                     "application/json": components["schemas"]["ObjectList"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -6583,9 +6583,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -6599,7 +6599,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6608,7 +6608,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -6623,7 +6623,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -6631,7 +6631,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6640,7 +6640,7 @@ export interface operations {
                     "application/json": components["schemas"]["ObjectList"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -6655,9 +6655,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -6671,7 +6671,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6680,7 +6680,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -6695,7 +6695,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -6703,7 +6703,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6712,7 +6712,7 @@ export interface operations {
                     "application/json": components["schemas"]["ObjectList"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -6727,7 +6727,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -6735,7 +6735,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6744,7 +6744,7 @@ export interface operations {
                     "application/json": components["schemas"]["ObjectList"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -6759,9 +6759,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -6773,7 +6773,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6782,7 +6782,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -6797,9 +6797,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Текущая revision ресурса. */
+                /** @description Current resource revision. */
                 "If-Match": number;
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -6813,7 +6813,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6822,7 +6822,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -6837,9 +6837,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -6853,7 +6853,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6862,7 +6862,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -6877,7 +6877,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -6885,7 +6885,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6894,7 +6894,7 @@ export interface operations {
                     "application/json": components["schemas"]["ObjectList"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -6909,9 +6909,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -6923,7 +6923,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6932,7 +6932,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -6947,7 +6947,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -6955,7 +6955,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6964,7 +6964,7 @@ export interface operations {
                     "application/json": components["schemas"]["ObjectList"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -6979,7 +6979,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -6987,7 +6987,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6996,7 +6996,7 @@ export interface operations {
                     "application/json": components["schemas"]["ObjectList"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -7011,9 +7011,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -7025,7 +7025,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -7034,7 +7034,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -7049,9 +7049,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -7065,7 +7065,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -7074,7 +7074,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -7089,7 +7089,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -7099,7 +7099,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -7108,7 +7108,7 @@ export interface operations {
                     "application/json": components["schemas"]["AssetResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -7123,9 +7123,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -7135,7 +7135,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -7144,7 +7144,7 @@ export interface operations {
                     "application/json": components["schemas"]["AssetResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -7159,7 +7159,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -7169,7 +7169,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -7185,7 +7185,7 @@ export interface operations {
                     "text/plain": string;
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -7200,9 +7200,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -7212,7 +7212,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -7221,7 +7221,7 @@ export interface operations {
                     "application/json": components["schemas"]["AssetResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -7236,7 +7236,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -7244,14 +7244,14 @@ export interface operations {
             };
             cookie?: never;
         };
-        /** @description Размер и SHA256 должны совпадать с разрешением загрузки. Content-Type: application/octet-stream. */
+        /** @description Size and SHA256 must match the upload authorization. Content-Type: application/octet-stream. */
         requestBody: {
             content: {
                 "application/octet-stream": string;
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -7260,7 +7260,7 @@ export interface operations {
                     "application/json": components["schemas"]["UploadProgressResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -7275,9 +7275,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -7289,7 +7289,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -7298,7 +7298,7 @@ export interface operations {
                     "application/json": components["schemas"]["UploadResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -7313,9 +7313,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -7327,7 +7327,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             202: {
                 headers: {
                     [name: string]: unknown;
@@ -7336,7 +7336,7 @@ export interface operations {
                     "application/json": components["schemas"]["DeletionAcceptedResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -7351,7 +7351,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -7361,7 +7361,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -7370,7 +7370,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -7390,7 +7390,7 @@ export interface operations {
             };
             header?: {
                 "Last-Event-ID"?: components["schemas"]["Identifier"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -7398,7 +7398,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -7407,7 +7407,7 @@ export interface operations {
                     "text/event-stream": string;
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -7422,7 +7422,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -7434,7 +7434,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -7443,7 +7443,7 @@ export interface operations {
                     "application/json": components["schemas"]["ForecastResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -7458,9 +7458,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -7474,7 +7474,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -7483,7 +7483,7 @@ export interface operations {
                     "application/json": components["schemas"]["RevocationResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -7498,9 +7498,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -7514,7 +7514,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -7523,7 +7523,7 @@ export interface operations {
                     "application/json": components["schemas"]["RevocationResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -7538,9 +7538,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -7552,7 +7552,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             202: {
                 headers: {
                     [name: string]: unknown;
@@ -7561,7 +7561,7 @@ export interface operations {
                     "application/json": components["schemas"]["InvocationResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -7576,10 +7576,10 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
                 "Last-Event-ID"?: components["schemas"]["Identifier"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -7591,7 +7591,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -7600,7 +7600,7 @@ export interface operations {
                     "text/event-stream": string;
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -7615,7 +7615,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -7623,7 +7623,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -7632,7 +7632,7 @@ export interface operations {
                     "application/json": components["schemas"]["ObjectList"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -7647,9 +7647,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -7661,7 +7661,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             202: {
                 headers: {
                     [name: string]: unknown;
@@ -7670,7 +7670,7 @@ export interface operations {
                     "application/json": components["schemas"]["OperationResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -7685,7 +7685,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -7695,7 +7695,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -7704,7 +7704,7 @@ export interface operations {
                     "application/json": components["schemas"]["OperationResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -7719,9 +7719,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -7735,7 +7735,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -7744,7 +7744,7 @@ export interface operations {
                     "application/json": components["schemas"]["OperationResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -7759,9 +7759,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -7771,7 +7771,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -7780,7 +7780,7 @@ export interface operations {
                     "application/json": components["schemas"]["OperationResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -7795,9 +7795,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -7807,7 +7807,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -7816,7 +7816,7 @@ export interface operations {
                     "application/json": components["schemas"]["OperationResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -7831,9 +7831,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -7843,7 +7843,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -7852,7 +7852,7 @@ export interface operations {
                     "application/json": components["schemas"]["OperationResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -7867,9 +7867,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -7883,7 +7883,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             202: {
                 headers: {
                     [name: string]: unknown;
@@ -7892,7 +7892,7 @@ export interface operations {
                     "application/json": components["schemas"]["RequestAcceptedResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -7907,7 +7907,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -7915,7 +7915,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -7924,7 +7924,7 @@ export interface operations {
                     "application/json": components["schemas"]["ObjectList"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -7944,7 +7944,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        /** @description Исходные байты подписанного события, до 1 MiB. Нельзя пересобирать JSON перед проверкой подписи. Заголовки подписи определяет адаптер провайдера. */
+        /** @description Original bytes of the signed event, up to 1 MiB. Do not reconstruct JSON before signature verification. The provider adapter defines signature headers. */
         requestBody: {
             content: {
                 "application/json": {
@@ -7954,7 +7954,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -7963,7 +7963,7 @@ export interface operations {
                     "application/json": components["schemas"]["NativeWebhookResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -7978,9 +7978,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -7992,7 +7992,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -8001,7 +8001,7 @@ export interface operations {
                     "application/json": components["schemas"]["QuoteResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -8016,7 +8016,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -8026,7 +8026,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -8035,7 +8035,7 @@ export interface operations {
                     "application/json": components["schemas"]["QuoteResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -8052,7 +8052,7 @@ export interface operations {
                 account_id: string;
             };
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path?: never;
@@ -8060,7 +8060,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -8069,7 +8069,7 @@ export interface operations {
                     "application/json": components["schemas"]["ObjectList"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -8084,7 +8084,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -8094,7 +8094,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -8103,7 +8103,7 @@ export interface operations {
                     "application/json": components["schemas"]["RequestResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -8118,9 +8118,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -8134,7 +8134,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -8143,7 +8143,7 @@ export interface operations {
                     "application/json": components["schemas"]["AcknowledgeResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -8158,9 +8158,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -8170,7 +8170,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -8179,7 +8179,7 @@ export interface operations {
                     "application/json": components["schemas"]["CancelRequestResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -8194,7 +8194,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -8204,7 +8204,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -8213,7 +8213,7 @@ export interface operations {
                     "application/json": components["schemas"]["InputObject"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -8229,7 +8229,7 @@ export interface operations {
             query?: never;
             header?: {
                 "Last-Event-ID"?: components["schemas"]["Identifier"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -8239,7 +8239,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -8248,7 +8248,7 @@ export interface operations {
                     "text/event-stream": string;
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -8263,7 +8263,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -8273,7 +8273,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -8282,7 +8282,7 @@ export interface operations {
                     "application/json": components["schemas"]["Wallet"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -8297,9 +8297,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -8313,7 +8313,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -8322,7 +8322,7 @@ export interface operations {
                     "application/json": components["schemas"]["RevocationResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -8337,9 +8337,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -8353,7 +8353,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -8362,7 +8362,7 @@ export interface operations {
                     "application/json": components["schemas"]["GrantResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -8377,7 +8377,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -8387,7 +8387,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -8396,7 +8396,7 @@ export interface operations {
                     "application/json": components["schemas"]["LotsResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -8411,9 +8411,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -8427,7 +8427,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -8436,7 +8436,7 @@ export interface operations {
                     "application/json": components["schemas"]["RefundResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -8451,9 +8451,9 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Стабильная идентичность команды; повторное тело обязано совпадать. */
+                /** @description Stable command identity; the request body must match on replay. */
                 "Idempotency-Key": components["schemas"]["IdempotencyKey"];
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -8467,7 +8467,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -8476,7 +8476,7 @@ export interface operations {
                     "application/json": components["schemas"]["TestBalanceResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;
@@ -8494,7 +8494,7 @@ export interface operations {
                 limit?: number;
             };
             header?: {
-                /** @description Необязательный серверный контекст v1: encodeURIComponent(JSON.stringify(identity)). Требует identity:assert; user содержит user_id/account_id, staff содержит user_id/role. Не пересылать из браузера. Права сервиса не расширяются. */
+                /** @description Optional server-side v1 context: encodeURIComponent(JSON.stringify(identity)). Requires identity:assert; user contains user_id/account_id, staff contains user_id/role. Do not forward from the browser. Service permissions are not expanded. */
                 "x-uai-context"?: string;
             };
             path: {
@@ -8504,7 +8504,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Команда принята или snapshot прочитан. */
+            /** @description Command accepted or snapshot read. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -8513,7 +8513,7 @@ export interface operations {
                     "application/json": components["schemas"]["JournalResponse"];
                 };
             };
-            /** @description Ошибка в разрешённой области. Не содержит чужого контента или provider credentials. */
+            /** @description Error within the authorized scope. Contains no other account's content or provider credentials. */
             default: {
                 headers: {
                     [name: string]: unknown;

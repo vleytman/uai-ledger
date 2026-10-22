@@ -1,166 +1,166 @@
-# План подключения Jev System One
+# Jev System One integration plan
 
-Дата плана: 2026-09-25. Обновление: 2026-09-26. По поручению владельца реализован локальный путь, см. [контракт](JEV.md). По уточнению владельца от 2026-09-26 выбран максимум 32768 токенов для резерва и квот: это заменяет требование доказанного billable maximum в JEV-D06/I00/I03. Профиль в файле active, в действующую установку не публиковался. Точный предел поставщика остаётся неизвестным. Платная приёмка выполнена: 5 успешных вызовов, $0.000066948 из разрешённых $0.05. Ниже сохранены этапы и критерии исходного задания.
+Plan date: 2026-09-25. Updated: 2026-09-26. The local path was implemented at the owner's request; see the [contract](JEV.md). Following the owner's clarification of 2026-09-26, a maximum of 32768 tokens was selected for reservations and quotas: this replaces the proven billable maximum requirement in JEV-D06/I00/I03. The file profile is active and has not been published to a running installation. The exact provider limit remains unknown. Paid acceptance completed: 5 successful calls, $0.000066948 of the authorized $0.05. The original assignment's phases and criteria are retained below.
 
-[Оглавление](README.md) · [Решения](DECISIONS.md) · [Платные API](PAID_API_PLAN.md) · [Универсальные вызовы](UNIVERSAL_INVOCATION_PLAN.md) · [Файловые конфигурации](FILE_CONFIGURATION.md) · [Локальный запуск](LOCAL_RUN.md) · [Правила реальных проверок](REAL_PROVIDER_CHECKS.md)
+[Contents](README.md) · [Decisions](DECISIONS.md) · [Paid APIs](PAID_API_PLAN.md) · [Universal invocations](UNIVERSAL_INVOCATION_PLAN.md) · [File configurations](FILE_CONFIGURATION.md) · [Local run](LOCAL_RUN.md) · [Real-check rules](REAL_PROVIDER_CHECKS.md)
 
-## Объём
+## Scope
 
-Подключить прямой TypeSafe API для Jev через существующую capability `api.call`. Поддержать `state` и пакет именованных вопросов `choice`, `score`, `noul`, типизированный результат, расчёт по фактическому usage, очереди, отмену и безопасное восстановление UAI.
+Connect the direct TypeSafe API for Jev through the existing `api.call` capability. Support `state` and a batch of named `choice`, `score`, and `noul` questions, typed results, actual-usage accounting, queues, cancellation, and safe UAI recovery.
 
-Начальная модель: `jev-1.13.0`. Предлагаемые идентификаторы: provider `typesafe`, adapter `typesafe@1`, профиль `typesafe.jev-1.13.0`. Внешний model ID и внутренний ключ операции различаются; соответствие фиксируется в конфигурации и адаптере, клиент не может подменить модель внутри `input`.
+Initial model: `jev-1.13.0`. Proposed identifiers: provider `typesafe`, adapter `typesafe@1`, profile `typesafe.jev-1.13.0`. The external model ID and internal operation key differ; their mapping is pinned in configuration and the adapter, and the client cannot substitute the model inside `input`.
 
-Вне объёма: автоматический выбор других моделей через Jev, исполнение выбранных инструментов, продуктовые пороги confidence, перевод пользовательского содержимого, интеграция LogoPanel, изображения/аудио/видео, генерация текста, автоматическое обновление alias, развёртывание и изменение действующих подключений. Решения по результату Jev выполняет приложение.
+Out of scope: automatically selecting other models through Jev, executing selected tools, product confidence thresholds, translating user content, LogoPanel integration, images/audio/video, text generation, automatic alias updates, deployment, and changes to existing connections. The application acts on Jev's results.
 
-Низкая уверенность является успешным ответом. UAI не превращает её в технический дефект, отказ или основание повторной платной попытки.
+Low confidence is a successful response. UAI does not turn it into a technical defect, refusal, or reason for another paid attempt.
 
-## Проверенная основа
+## Verified baseline
 
-Срез текущей рабочей копии от 25.09.2026, включая параллельные незакоммиченные изменения. Перед реализацией повторно проверить исходники; этот план не даёт права перезаписывать чужую работу.
+Snapshot of the current working copy on 2026-09-25, including parallel uncommitted changes. Recheck sources before implementation; this plan does not authorize overwriting others' work.
 
-| Участок | Что уже есть | Что потребуется |
+| Area | Already available | Required work |
 |---|---|---|
-| `packages/providers` | Реестр, интерфейс адаптера, наблюдения usage и rate limits, HTTP-адаптеры API | TypeSafe transport и проверка соответствия ответов вопросам |
-| `packages/contracts/paid-api.ts`, `packages/api-services` | Входные/выходные схемы операции, измерения `provider_usage`, `actual_capped` | Ограниченные словари, объединения типов и проверка JSON-состояния |
-| `packages/quoting`, `packages/execution` | Резерв, расчёт фактического расхода, неизвестный исход, выдача JSON как содержимого | Проверить границы экспозиции, сохранение идентичности модели и удобный JSON-результат |
-| `packages/queue` | Квоты с разными окнами и общие ограничения аккаунта | Правила TypeSafe и оценка потребления токенов |
-| `packages/sdk` | `services.quote` и `services.run` | Типы вопросов/ответов и безопасное получение типизированного значения |
-| `packages/configuration`, `packages/catalog`, `packages/reconciliation` | Публикуемые версии, тарифы, connections и хранилище ключей | Регистрация provider, профиль, маршрут, схема операции и диагностические возможности |
+| `packages/providers` | Registry, adapter interface, usage and rate-limit observations, API HTTP adapters | TypeSafe transport and validation that answers match questions |
+| `packages/contracts/paid-api.ts`, `packages/api-services` | Operation input/output schemas, `provider_usage` measurements, `actual_capped` | Bounded dictionaries, type unions, and JSON-state validation |
+| `packages/quoting`, `packages/execution` | Reservations, actual-cost calculation, unknown outcomes, JSON delivery as content | Check exposure bounds, preservation of model identity, and convenient JSON results |
+| `packages/queue` | Quotas with different windows and shared account limits | TypeSafe rules and token-consumption estimates |
+| `packages/sdk` | `services.quote` and `services.run` | Question/answer types and safe retrieval of a typed value |
+| `packages/configuration`, `packages/catalog`, `packages/reconciliation` | Publishable versions, rates, connections, and key vault | Provider registration, profile, route, operation schema, and diagnostic capabilities |
 
-Текущий `validateOperationSchema` требует закрытых входных объектов, не принимает схемы `additionalProperties`, `anyOf/oneOf`, ограничивает массивы 100 элементами и требует неотрицательных входных чисел. Нативный формат Jev напрямую не проходит: вопросы и варианты являются словарями, а `state` может содержать вложенный JSON и отрицательные числа. Общий компилятор структурированных ответов уже существует в `packages/contracts/schema.ts`; сначала проверить возможность повторного использования его проверок и ограничений.
+Current `validateOperationSchema` requires closed input objects, rejects `additionalProperties` schemas and `anyOf/oneOf`, limits arrays to 100 items, and requires nonnegative input numbers. Jev's native format does not pass directly: questions and options are dictionaries, while `state` may contain nested JSON and negative numbers. The common structured-response compiler already exists in `packages/contracts/schema.ts`; first examine whether its checks and limits can be reused.
 
-## Предлагаемые технические решения
+## Proposed technical decisions
 
-| ID | Решение |
+| ID | Decision |
 |---|---|
-| JEV-D01 | Использовать `api.call` с отдельным типизированным контрактом Jev. Новую глобальную capability и новый механизм выполнения не вводить. |
-| JEV-D02 | Зафиксировать `jev-1.13.0`. Сохранять запрошенную и фактическую модель раздельно; не подставлять запрошенное значение вместо отсутствующего ответа провайдера. |
-| JEV-D03 | Выполнять прямой HTTP-запрос к фиксированному `https://api.typesafe.ai/v1/systemone`, ключ брать из существующего vault. Повторами управляет UAI, скрытых SDK retries нет. |
-| JEV-D04 | Передавать все вопросы одного запроса одним provider call. Не разбивать пакет и не обрезать вход автоматически. |
-| JEV-D05 | Использовать `actual_capped`, измерение фактических входных токенов и отдельный provider rate card. Начальная клиентская политика: `cost_plus`, наценка 0%, коэффициент 1; это предлагаемые значения, а не действующий тариф установки. |
-| JEV-D06 | При отсутствии точного предварительного токенизатора резервировать подтверждённый максимум профиля. Не называть этот максимум прогнозом фактической цены. Не распространять `estimated_actual` и право долга на Jev. |
-| JEV-D07 | Выходные токены сохранять для диагностики, действующую бесплатность выхода задавать явно в тарифной политике. Missing usage не равен нулю. |
-| JEV-D08 | Отсутствующие в публичном API lookup, cancel, provider idempotency, cost/balance reporting считать неподдержанными до появления доказательств. Локальная идемпотентность UAI сохраняется. |
-| JEV-D09 | Существующие SSE сообщают жизненный цикл запроса и готовый результат. Токенный стриминг Jev не обещать и не имитировать. |
+| JEV-D01 | Use `api.call` with a separate typed Jev contract. Do not introduce a new global capability or execution mechanism. |
+| JEV-D02 | Pin `jev-1.13.0`. Store requested and actual models separately; do not substitute the requested value when the provider response omits it. |
+| JEV-D03 | Make a direct HTTP request to fixed `https://api.typesafe.ai/v1/systemone`, obtaining the key from the existing vault. UAI controls retries; there are no hidden SDK retries. |
+| JEV-D04 | Send all questions in one request as one provider call. Do not split batches or truncate input automatically. |
+| JEV-D05 | Use `actual_capped`, actual input-token measurement, and a separate provider rate card. Initial customer policy: `cost_plus`, 0% markup, multiplier 1; these are proposed values, not a running installation's current rates. |
+| JEV-D06 | Without an exact preliminary tokenizer, reserve the confirmed profile maximum. Do not describe this maximum as a forecast of actual price. Do not extend `estimated_actual` or debt authorization to Jev. |
+| JEV-D07 | Retain output tokens for diagnostics and explicitly specify the current free output rate in pricing policy. Missing usage is not zero. |
+| JEV-D08 | Treat lookup, cancel, provider idempotency, and cost/balance reporting absent from the public API as unsupported until evidence appears. UAI's local idempotency remains intact. |
+| JEV-D09 | Existing SSE conveys request lifecycle and the completed result. Do not promise or simulate Jev token streaming. |
 
-## Этапы реализации
+## Implementation phases
 
-Статусы текущей реализации и оставшиеся ограничения перечислены в отчёте. Последовательность: JEV-I00 → I01 → I02 → I03 → I04 → I05 → I06. Живая приёмка JEV-I07 выполняется отдельно после разрешения владельца на конкретный бюджет.
+Current implementation statuses and remaining limitations appear in the report. Sequence: JEV-I00 → I01 → I02 → I03 → I04 → I05 → I06. Live acceptance JEV-I07 runs separately after the owner authorizes a specific budget.
 
-### JEV-I00. Проверить исходное состояние и зафиксировать пределы
+### JEV-I00. Check the baseline and establish limits
 
-- Сохранить перечень затрагиваемых файлов и существующих ошибок проверок, сверить параллельные изменения провайдеров и SDK.
-- Повторно проверить API/OpenAPI, модель, тариф, лимиты и расхождения между текстовой документацией и OpenAPI. Например, обязательность `instructions` и минимальное число уровней Score описаны неодинаково. Выбрать явно документированное подмножество, не выводить совместимость из одной схемы.
-- Зафиксировать ограничения размера JSON, глубины, количества вопросов, вариантов, длины ключей и ответов; отделить ограничения UAI от ограничений провайдера.
-- Уточнить числовую трактовку 64k/32k и связь контекстного предела с billable input tokens. Проверить наличие официального токенизатора или count endpoint. Без подтверждения не объявлять эвристику точной или гарантированно консервативной.
-- Определить доказанный верхний предел расходов на один допущенный запрос и правила отказа при невозможности его установить. Не публиковать исполнимый профиль только на основании желаемого денежного cap.
+- Record affected files and existing check failures, and review parallel provider and SDK changes.
+- Recheck API/OpenAPI, model, rates, limits, and discrepancies between prose documentation and OpenAPI. For example, they describe required `instructions` and the minimum number of Score levels differently. Select an explicitly documented subset; do not infer compatibility from a single schema.
+- Establish limits for JSON size, depth, question count, options, key length, and responses; separate UAI limits from provider limits.
+- Clarify the numeric interpretation of 64k/32k and the relationship between the context limit and billable input tokens. Check for an official tokenizer or count endpoint. Without confirmation, do not call a heuristic exact or guaranteed conservative.
+- Establish a proven upper cost bound per admitted request and refusal rules when it cannot be established. Do not publish an executable profile solely on the basis of a desired monetary cap.
 
-Готовность: карточка модели, контракт, границы ресурсов и обоснование максимума записаны; неизвестные сведения отмечены явно. Наличие ключа не требуется для локальной реализации.
+Ready when: the model card, contract, resource bounds, and maximum justification are recorded; unknowns are explicit. A key is not required for local implementation.
 
-### JEV-I01. Типы и ограниченная валидация
+### JEV-I01. Types and bounded validation
 
-Вход содержит `state` и `questions`. `state` принимает строку, JSON-объект или массив; вложенные значения проверяются как JSON с конечными числами и ограничениями ресурсов. `questions` является непустым словарём. Поддержать строковые и структурированные инструкции/критерии в пределах выбранного контракта. Для первого варианта требовать содержательные `instructions`; не полагаться на необязательность из OpenAPI.
+Input contains `state` and `questions`. `state` accepts a string, JSON object, or array; nested values are validated as JSON with finite numbers and resource bounds. `questions` is a nonempty dictionary. Support string and structured instructions/criteria within the selected contract. For the first version, require meaningful `instructions`; do not rely on OpenAPI making them optional.
 
-Choice содержит словарь вариантов, максимум провайдера сейчас 255. Score содержит упорядоченные уровни, поддерживаемое подмножество 2–10. Noul содержит необязательные критерии `true/false`. Число вопросов и общий объём ограничить отдельно; предел Choice не означает допустимость любого суммарного размера пакета.
+Choice contains an option dictionary; the current provider maximum is 255. Score contains ordered levels; the supported subset is 2–10. Noul contains optional `true/false` criteria. Limit question count and total size separately; the Choice limit does not imply that any total batch size is acceptable.
 
-Расширять общее подмножество схем только необходимыми конструкциями: ограниченные словари, объединения, константы/дискриминаторы и границы числа свойств. Для произвольного JSON-состояния предусмотреть явную ограниченную проверку; не разрешать неограниченные рекурсивные схемы или внешние ссылки. Сохранить строгую проверку прочих API-операций. Не передавать JSON через строки ради обхода валидатора.
+Extend the common schema subset only with necessary constructs: bounded dictionaries, unions, constants/discriminators, and property-count bounds. Provide explicit bounded validation for arbitrary JSON state; do not allow unbounded recursive schemas or external references. Preserve strict validation for other API operations. Do not pass JSON as strings to bypass the validator.
 
-Проверка результата должна сопоставлять фактические вопросы и ответы: одинаковые ключи и типы, Choice только из исходных вариантов, корректные ключи вероятностей и legend, конечные числа, диапазон 0–1, сумма распределения с документированным допуском округления. Score допускает дробное математическое ожидание и проверяется относительно исходной шкалы. Noul не получает выдуманное поле confidence. Ошибки содержат путь и причину без приватного содержимого.
+Result validation must match actual questions and answers: identical keys and types, Choice only from original options, valid probability and legend keys, finite numbers, the 0–1 range, and distribution sums within a documented rounding tolerance. Score allows a fractional expected value and is checked against the original scale. Noul receives no invented confidence field. Errors include a path and reason without private content.
 
-Готовность: контрактные и отрицательные тесты проходят; неподдержанные формы и превышения отвергаются до отправки, существующие API-схемы не ослаблены.
+Ready when: contract and negative tests pass; unsupported forms and exceeded bounds are rejected before sending, and existing API schemas are not weakened.
 
-### JEV-I02. Адаптер TypeSafe
+### JEV-I02. TypeSafe adapter
 
-Добавить адаптер и зарегистрировать provider во всех фактических списках разрешений. Сериализовать ровно выбранные model, state, questions; запретить произвольные endpoint/headers. Ограничить размер ответа, общий deadline и время транспорта, учитывать сигнал отмены.
+Add the adapter and register the provider in every actual allowlist. Serialize exactly the selected model, state, and questions; prohibit arbitrary endpoints/headers. Bound response size, the overall deadline, and transport time, and honor the cancellation signal.
 
-Сохранить usage до признания содержимого успешным: дефектный ответ с известным расходом остаётся затратой провайдера. Сохранять фактическую модель в результате и доступных данных попытки. Provider request ID записывать только при наличии в ответе, локальный attempt ID не выдавать за него. Ошибка записи аудита не должна превращаться в разрешение новой платной отправки.
+Save usage before accepting content as successful: a defective response with known consumption still incurs provider cost. Save the actual model in the result and available attempt data. Record a provider request ID only when present in the response; do not present a local attempt ID as one. An audit-write failure must not authorize another paid dispatch.
 
-401/403 классифицировать как проблему доступа, 422 как недопустимый запрос. 429 и документированный 529 обрабатывать с backoff и `Retry-After` в пределах общего числа попыток и deadline. Остальные 5xx, разрыв соединения и потерю ответа после отправки считать неизвестным исходом, если нет доказательства безопасного повтора. Отмена локального ожидания не доказывает отмену вычисления у TypeSafe.
+Classify 401/403 as access problems and 422 as invalid requests. Handle 429 and documented 529 with backoff and `Retry-After` within the overall attempt limit and deadline. Treat other 5xx, connection loss, and a lost response after sending as unknown outcomes unless safe retry is proven. Canceling the local wait does not prove that TypeSafe computation was canceled.
 
-Готовность: тесты транспорта подтверждают один HTTP-запрос на попытку, корректный JSON, usage, ошибки и отсутствие скрытых повторов.
+Ready when: transport tests confirm one HTTP request per attempt, correct JSON, usage, errors, and no hidden retries.
 
-### JEV-I03. Оценка и финансовый расчёт
+### JEV-I03. Estimation and financial calculation
 
-Создать версионируемый тариф с источником, датой проверки и точными десятичными строками. Наблюдаемая цена на дату исследования: $0.042 за 1 000 000 входных токенов, выход бесплатный. Перед публикацией перепроверить.
+Create a versioned rate card with source, verification date, and exact decimal strings. Observed research-date price: $0.042 per 1,000,000 input tokens; output is free. Recheck before publication.
 
-Расчёт себестоимости: `usage.input_tokens × 0.042 / 1000000` USD. Использовать существующую точную арифметику и денежные единицы UAI, все денежные целые в API передавать строками. Сохранять точный промежуточный расход и применять действующее округление half-up один раз для итога попытки, вверх для максимального резерва. Проверить малые суммы и нулевой округлённый итог: они не означают отсутствие usage. Новую скрытую минимальную плату не вводить.
+Provider-cost calculation: `usage.input_tokens × 0.042 / 1000000` USD. Use existing exact arithmetic and UAI monetary units; transmit all monetary integers as strings in the API. Retain exact intermediate cost and apply current half-up rounding once to the attempt total, and upward rounding to the maximum reservation. Check small amounts and zero rounded totals: they do not mean usage was absent. Do not introduce a hidden minimum charge.
 
-Начальный quote использует подтверждённый максимум из I00; текущий механизм API подставляет `measurement.maximum` до получения usage и резервирует `pricing.max_units` для `actual_capped`. Согласовать maximum измерения, предел маршрута, резерв клиента и бюджет риска. После выполнения списать фактическую клиентскую цену в пределах принятого cap и освободить остаток. Подтверждённую себестоимость выше ожидания записать полностью; превышение cap не списывать с клиента автоматически.
+The initial quote uses the confirmed maximum from I00; the current API mechanism substitutes `measurement.maximum` before usage arrives and reserves `pricing.max_units` for `actual_capped`. Align the measurement maximum, route limit, customer reservation, and risk budget. After execution, charge the actual customer price within the accepted cap and release the remainder. Record confirmed provider cost above expectations in full; do not automatically charge the customer above the cap.
 
-Проверить success, defect, missing/invalid usage, отмену до/после отправки, неизвестный исход, истечение спорного резерва, поздний usage, ACK и возврат исходного списания. Фиксированный резерв может мешать пользователям с небольшим балансом; указать это в контракте. Более точный прогноз выделить в последующее улучшение, если для него нет подтверждённого метода.
+Check success, defect, missing/invalid usage, cancellation before/after dispatch, unknown outcome, disputed-reservation expiry, late usage, ACK, and reversal of the original charge. A fixed reservation may obstruct users with small balances; state this in the contract. Treat a more accurate forecast as a later improvement if there is no verified method.
 
-Готовность: интеграционные проверки подтверждают разделение себестоимости и клиентского списания, cap, освобождение резерва и отсутствие двойных проводок.
+Ready when: integration checks confirm separation of provider cost and customer charge, the cap, reservation release, and no duplicate postings.
 
-### JEV-I04. Конфигурация и квоты
+### JEV-I04. Configuration and quotas
 
-Добавить файловый пакет операции, каталога, тарифа, маршрута и профиля по действующей структуре репозитория; проверить preview и публикацию на тестовой установке. Не создавать второй редактор тех же значений в админке. Начальные статусы: `live_validation=not_run`, отсутствие доказательств живого выполнения отражается явно.
+Add the operation, catalog, rate, route, and profile file package following the repository's current structure; check preview and publication on a test installation. Do not create a second editor for these values in the admin interface. Initial statuses: `live_validation=not_run`; explicitly reflect the absence of live-execution evidence.
 
-Подключение использует существующее хранение ключа и группировку provider account. `allowance_mode=unmetered` означает отсутствие учитываемого UAI пакета поставщика, а не бесплатность или отсутствие rate limits. Придуманный остаток счёта не показывать.
+The connection uses existing key storage and provider-account grouping. `allowance_mode=unmetered` means there is no provider allowance package tracked by UAI, not that service is free or has no rate limits. Do not display an invented account balance.
 
-Настроить независимые окна requests/minute и tokens/second в общем механизме квот. Опубликованные на дату исследования 1 200 RPM и 250 000 токенов/секунду являются ориентиром, провайдер предупреждает об изменении лимитов. Применимые значения хранить как настройки аккаунта. Оценку токенов для допуска согласовать с I00, фактическое потребление корректировать по ответу. Несколько ключей одного аккаунта не создают независимую квоту.
+Configure independent requests/minute and tokens/second windows in the common quota mechanism. The 1,200 RPM and 250,000 tokens/second published on the research date are a reference; the provider warns that limits may change. Store applicable values as account settings. Align admission token estimates with I00 and reconcile actual consumption from the response. Multiple keys on the same account do not create independent quotas.
 
-Готовность: конфигурация проходит проверки и локальную публикацию, неподдержанные настройки отклоняются, конкурентные workers соблюдают общую квоту.
+Ready when: configuration passes checks and local publication, unsupported settings are rejected, and concurrent workers obey the shared quota.
 
-### JEV-I05. SDK и представление результата
+### JEV-I05. SDK and result presentation
 
-Сохранить общий путь `services.quote/run`; добавить экспортируемые типы и небольшой helper для Jev с выводом ключей вопросов и вариантов Choice в TypeScript. Helper использует обычные авторизацию, идемпотентность, события и получение результата UAI.
+Keep the common `services.quote/run` path; add exported types and a small Jev helper that infers question and Choice-option keys in TypeScript. The helper uses normal UAI authorization, idempotency, events, and result retrieval.
 
-Обеспечить получение проверенного JSON-значения вместе с фактической моделью без ручного разбора строки в каждом приложении. Проверить текущий manifest: API-операция может выдаваться как `type:text` с `application/json`. Выбрать единое представление JSON-сервисов, согласовать manifest/API/SDK и существующих потребителей, не добавлять отдельный несовместимый ответ только для Jev. До первого запуска legacy-адаптеры ради совместимости не нужны.
+Provide a validated JSON value together with the actual model without requiring each application to parse a string manually. Check the current manifest: an API operation may be delivered as `type:text` with `application/json`. Choose a common representation for JSON services, align manifest/API/SDK and existing consumers, and do not add a separate incompatible response only for Jev. Before the first launch, legacy adapters solely for compatibility are unnecessary.
 
-В существующем demo добавить минимальный пример смешанного пакета и отображение результатов/usage. В админке достаточно существующих страниц профиля, подключения и попытки с корректными названиями и статусами; отдельный визуальный редактор вопросов не входит в объём. Неподдержанные chat/tools/streaming-настройки не показывать как возможности Jev. Интерфейс проверить через Aside на точной локальной среде.
+Add a minimal mixed-batch example and result/usage display to the existing demo. Existing profile, connection, and attempt pages with correct names and statuses suffice in the admin; a separate visual question editor is out of scope. Do not present unsupported chat/tools/streaming settings as Jev capabilities. Check the interface through Aside in the exact local environment.
 
-Готовность: пример проходит полный локальный путь quote → run → JSON result → ACK; типы сохраняют ключи и варианты, низкая уверенность отображается как результат.
+Ready when: the example completes the full local quote → run → JSON result → ACK path; types retain keys and options, and low confidence displays as a result.
 
-### JEV-I06. Общая локальная приёмка и документация
+### JEV-I06. Overall local acceptance and documentation
 
-Выполнить целевые тесты адаптера, схем, SDK и конфигураций; финансовые и конкурентные сценарии проверить на изолированной локальной инфраструктуре. Затем проверки типов, API, конфигурационных схем, документации и сборки согласно актуальным scripts в `package.json` и LOCAL_RUN. Не запускать платные проверки как часть обычного test suite.
+Run targeted adapter, schema, SDK, and configuration tests; verify financial and concurrency scenarios on isolated local infrastructure. Then run type, API, configuration-schema, documentation, and build checks according to current scripts in `package.json` and LOCAL_RUN. Do not run paid checks as part of the normal test suite.
 
-Согласовать API, SDK, описание возможностей, расчёт, примеры и матрицу приёмки. Результаты записать в отдельный отчёт с JEV-Axx и статусами «пройдено / не пройдено / не запускалось». Пропуски и существующие ошибки исходного состояния перечислить отдельно. Подготовить точный сценарий живой проверки.
+Align API, SDK, capability descriptions, calculations, examples, and acceptance matrix. Record results in a separate report with JEV-Axx and “passed / failed / not run” statuses. List omissions and preexisting baseline errors separately. Prepare an exact live-check scenario.
 
-Готовность: локальная реализация воспроизводимо проверена, документация описывает фактическое поведение, реальные вызовы остаются `not_run`.
+Ready when: local implementation is reproducibly verified, documentation describes actual behavior, and real calls remain `not_run`.
 
-### JEV-I07. Отдельная живая приёмка
+### JEV-I07. Separate live acceptance
 
-После отдельного разрешения на бюджет выполнить пять небольших обезличенных сценариев: Noul, Choice, Score, смешанный пакет и неоднозначный вход. Сначала подготовить точные входы, модель, число попыток, применимый максимум стоимости и условия остановки; предложить общий бюджет с учётом возможных повторов. Текущий запрос на план не разрешает эти вызовы.
+After separate budget authorization, run five small anonymized scenarios: Noul, Choice, Score, a mixed batch, and ambiguous input. First prepare exact inputs, model, attempt count, applicable maximum cost, and stop conditions; propose an overall budget accounting for possible retries. The current planning request does not authorize these calls.
 
-В проверке установить одну попытку на сценарий, сохранять финансовые результаты без секретов и приватного содержимого. При неизвестном исходе, непредусмотренной цене или несовпадении модели остановиться, не повторять запрос автоматически. Отдельно проверить аутентифицированный список моделей; отсутствие snapshot ID в списке aliases само по себе не доказывает недоступность версии.
+Use one attempt per scenario and retain financial results without secrets or private content. Stop on unknown outcome, unexpected price, or model mismatch; do not automatically retry. Separately check the authenticated model list; a missing snapshot ID in an alias list alone does not prove that version is unavailable.
 
-Проверить фактическую модель, все типы ответов, usage, стоимость UAI и освобождение резерва. Измерить полную задержку UAI и время HTTP отдельно; пять запросов не являются доказательством p95, SLA или качества модели. Ошибки и граничные случаи преимущественно воспроизводить локальными fixtures, не создавать искусственную нагрузку провайдеру.
+Check the actual model, all response types, usage, UAI cost, and reservation release. Measure total UAI latency and HTTP time separately; five requests are not evidence of p95, SLA, or model quality. Reproduce errors and edge cases primarily with local fixtures; do not create artificial provider load.
 
-## Критерии приёмки
+## Acceptance criteria
 
-| ID | Проверяемое поведение |
+| ID | Behavior checked |
 |---|---|
-| JEV-A01 | Один смешанный пакет вызывает один provider request; ключи вопросов и фактическая модель сохраняются. |
-| JEV-A02 | Строковый и структурированный state, инструкции и критерии проходят без скрытой обрезки или изменения значений. |
-| JEV-A03 | Пустые вопросы, неверные типы, неподдержанные параметры и превышения локальных/provider пределов отклоняются до dispatch. |
-| JEV-A04 | Проверяются типы/ключи ответов, варианты Choice, шкала Score, вероятности и допуск округления; ошибка имеет путь и причину. |
-| JEV-A05 | Noul не получает выдуманный confidence; низкая уверенность не вызывает retry, fallback или отказ в оплате валидного результата. |
-| JEV-A06 | Расход рассчитывается по фактическим входным токенам, бесплатный выход задан явно; отсутствие usage не превращается в zero. |
-| JEV-A07 | Quote использует обоснованный максимум; резерв и окончательное списание соблюдают cap, остаток освобождается. |
-| JEV-A08 | Неожиданное превышение расхода сохраняется в себестоимости без автоматического превышения клиентского cap. |
-| JEV-A09 | Дефект ответа с известным usage сохраняет расходы поставщика; клиентский расчёт следует действующей политике дефектов. |
-| JEV-A10 | Повтор клиентской команды, доставка очереди и восстановление worker не создают вторую отправку или двойное списание. |
-| JEV-A11 | Timeout/потеря ответа после отправки сохраняет outcome_unknown; позднее наблюдение не нарушает срок закрытия спорного резерва. |
-| JEV-A12 | 429/529 соблюдают backoff, Retry-After, общий deadline и лимит попыток; SDK не выполняет скрытых повторов. |
-| JEV-A13 | Отмена до/после dispatch различается; остановка HTTP не объявляется подтверждением отмены у поставщика. |
-| JEV-A14 | Окна RPM/TPS и общая квота аккаунта работают при конкурентных workers, ключи одного аккаунта не удваивают лимит. |
-| JEV-A15 | JSON-значение, фактическая модель, события, ACK и очистка доступны через согласованный API/SDK; старые JSON-сервисы проходят регрессию. |
-| JEV-A16 | Файловые определения, schemas, SDK и UI согласованы; отсутствующие отчёты/баланс/lookup не показаны как доступные. |
-| JEV-A17 | Регрессия схем Firecrawl/Serper и структурированных ответов других моделей проходит; новые формы не обходят пределы ресурсов. |
-| JEV-A18 | Реальная приёмка имеет отдельное разрешение, бюджет и отчёт; локальные fixtures не выставляют live_validation=passed. |
+| JEV-A01 | One mixed batch produces one provider request; question keys and the actual model are preserved. |
+| JEV-A02 | String and structured state, instructions, and criteria pass without hidden truncation or value changes. |
+| JEV-A03 | Empty questions, invalid types, unsupported parameters, and exceeded local/provider limits are rejected before dispatch. |
+| JEV-A04 | Response types/keys, Choice options, Score scale, probabilities, and rounding tolerance are checked; errors include a path and reason. |
+| JEV-A05 | Noul receives no invented confidence; low confidence does not trigger retry, fallback, or refusal to pay for a valid result. |
+| JEV-A06 | Cost is calculated from actual input tokens, with explicit free output; missing usage does not become zero. |
+| JEV-A07 | The quote uses a justified maximum; reservation and final charge respect the cap, and the remainder is released. |
+| JEV-A08 | Unexpected excess cost is recorded as provider cost without automatically exceeding the customer cap. |
+| JEV-A09 | A response defect with known usage retains provider cost; customer settlement follows the current defect policy. |
+| JEV-A10 | Repeated client commands, queue delivery, and worker recovery do not create a second dispatch or duplicate charge. |
+| JEV-A11 | Timeout/lost response after sending preserves outcome_unknown; late observations do not violate the disputed-reservation closure deadline. |
+| JEV-A12 | 429/529 respect backoff, Retry-After, overall deadline, and attempt limit; the SDK performs no hidden retries. |
+| JEV-A13 | Cancellation before/after dispatch is distinguished; stopping HTTP is not declared confirmation of provider cancellation. |
+| JEV-A14 | RPM/TPS windows and the shared account quota work with concurrent workers; keys on one account do not double the limit. |
+| JEV-A15 | JSON value, actual model, events, ACK, and cleanup are available through aligned API/SDK; existing JSON services pass regression checks. |
+| JEV-A16 | File definitions, schemas, SDK, and UI align; absent reporting/balance/lookup features are not shown as available. |
+| JEV-A17 | Firecrawl/Serper schemas and other models' structured responses pass regression checks; new forms cannot bypass resource bounds. |
+| JEV-A18 | Real acceptance has separate authorization, budget, and report; local fixtures do not set live_validation=passed. |
 
-## Оценка объёма и условия пересмотра
+## Effort estimate and revision conditions
 
-Предварительно 2–4 рабочих дня на I00–I06 при повторном использовании существующих проверок схем и выдачи JSON. Это оценка, не срок обязательства; повторить после I00. Отдельное ожидание доступа/разрешения на живую приёмку в неё не входит.
+Preliminary estimate: 2–4 working days for I00–I06 if existing schema validation and JSON delivery can be reused. This is an estimate, not a committed deadline; repeat after I00. Separate waiting time for access/live-acceptance authorization is excluded.
 
-Причины пересмотра: отсутствие подтверждённого предела оплачиваемых токенов, необходимость общего изменения формата JSON-результатов, несовместимость текущего schema compiler с ограниченными словарями, изменения API TypeSafe или пересечения с параллельной работой. Миграции БД добавлять только если модель/результат невозможно корректно сохранить существующими средствами.
+Reasons to revise: no confirmed billable-token limit, need for a shared JSON-result format change, incompatibility between the current schema compiler and bounded dictionaries, TypeSafe API changes, or overlap with parallel work. Add database migrations only if existing facilities cannot correctly store the model/result.
 
-## Источники
+## Sources
 
-Проверены при оценке 25.09.2026. Перед реализацией и живой приёмкой повторно сверить изменяемые сведения.
+Checked during assessment on 2026-09-25. Recheck changeable information before implementation and live acceptance.
 
-- [TypeSafe API](https://docs.typesafe.ai/api) и [OpenAPI](https://api.typesafe.ai/openapi.json): transport, вопросы, ответы, usage и ошибки.
-- [Модели](https://docs.typesafe.ai/models): `jev-1.13.0`, тариф, контекст, aliases и изменяемые квоты.
-- [Примитивы](https://docs.typesafe.ai/primitives) и [confidence](https://docs.typesafe.ai/confidence): смысл результатов.
-- [Ограничения Jev 1.13](https://docs.typesafe.ai/model-jaggedness/jev-1.13): границы качества; оценка качества прикладных решений остаётся отдельной задачей.
+- [TypeSafe API](https://docs.typesafe.ai/api) and [OpenAPI](https://api.typesafe.ai/openapi.json): transport, questions, responses, usage, and errors.
+- [Models](https://docs.typesafe.ai/models): `jev-1.13.0`, rates, context, aliases, and changeable quotas.
+- [Primitives](https://docs.typesafe.ai/primitives) and [confidence](https://docs.typesafe.ai/confidence): result semantics.
+- [Jev 1.13 limitations](https://docs.typesafe.ai/model-jaggedness/jev-1.13): quality boundaries; assessing application-decision quality remains a separate task.

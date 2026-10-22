@@ -1,142 +1,146 @@
-# Решения обсуждения
+# Discussion decisions
 
-[Оглавление](README.md)
+[Contents](README.md)
 
-Версия 0.3 сохраняет ответы на вопросы Q1–Q17 и добавляет решения Q18–Q21 об интерфейсах и ближайшем объёме разработки. Это продуктовый контракт. Проверенное состояние локальной реализации описано в [матрице приёмки](ACCEPTANCE_RESULTS.md).
+Version 0.3 preserves answers to Q1–Q17 and adds Q18–Q21 decisions on interfaces and the immediate development scope. This is the product contract. Verified local implementation status is described in the [acceptance matrix](ACCEPTANCE_RESULTS.md).
 
-## Совместимость до первого запуска, 2026-09-25
+## Compatibility before first launch, 2026-09-25
 
-Владелец уточнил: UAI и LogoPanel разрабатываются параллельно и будут введены в эксплуатацию одновременно. До первого совместного запуска не требуется обратная совместимость с прежними API, SDK, форматами конфигурации или поведением локальной реализации. Затронутые части обновляются согласованно. Не следует создавать legacy-ветки, адаптеры, дополнительные версии форматов или переходные режимы только ради такой совместимости. Это уточнение имеет приоритет над прежними рекомендациями сохранять старые интерфейсы в ходе разработки.
+The owner clarified that UAI and LogoPanel are developed in parallel and will enter service simultaneously. Before the first joint launch, backward compatibility with earlier APIs, SDKs, configuration formats, or local implementation behavior is not required. Affected parts are updated together. Legacy branches, adapters, extra format versions, or transition modes should not be created solely for such compatibility. This clarification overrides earlier recommendations to preserve old interfaces during development.
 
-В частности, переход к передаче исходных изображений по умолчанию не требует отдельного совместимого режима для прежней автоматической подготовки. Преобразования должны включаться явно; LogoPanel самостоятельно подготавливает нужные размеры. Сохранение прежнего формата запроса не является самостоятельным условием этой доработки.
+In particular, switching to original-image delivery by default does not require a separate compatible mode for earlier automatic preparation. Transformations must be explicitly enabled; LogoPanel prepares the required dimensions itself. Preserving the earlier request format is not an independent condition of this change.
 
-Отсутствие требования обратной совместимости не отменяет финансовую идемпотентность, разделение стоимости поставщика и списания клиента, а также запрет автоматически повторять неизвестный исход. Эта запись фиксирует решение о разработке, а не утверждает, что изменение подготовки изображений уже реализовано.
+The absence of a backward-compatibility requirement does not remove financial idempotency, separation of provider cost and customer charges, or the prohibition on automatically retrying unknown outcomes. This entry records a development decision; it does not claim that image-preparation changes are already implemented.
 
-## Согласовано с владельцем
+## Agreed with the owner
 
-| Вопрос | Решение | Следствие |
+| Question | Decision | Consequence |
 |---|---|---|
-| Q1 | Только собственные проекты; отдельная установка для каждого | Общая кодовая база, независимые runtime и данные; публичный SaaS не требуется |
-| Q2 | Выбрать простой способ подключения | Одиночный вызов через API/SDK с внутренним стандартным рецептом; пользовательский рецепт не обязателен |
-| Q3, Q5 | Технические дефекты модели оплачиваем мы | Невалидный SVG, повреждённый файл, нарушение заданной структуры не списывают кредиты; субъективное недовольство валидным результатом не даёт автоматического возврата |
-| Q4 | Расчёт по опубликованным ставкам | Поздняя скидка поставщика не пересчитывает кошельки; ошибочное завышение нашего калькулятора исправляется компенсацией |
-| Q6 | Допустим простой расчёт за успешные части | В v1 выбран successful_parts; оплата только целого действия отложена |
-| Q7 | Общий предел по UI-D02: четыре попытки по умолчанию, максимум восемь | Смена маршрута не сбрасывает счётчик; ранний успех завершает запрос |
-| Q8 | Отдельные ключи установок | Ключи не объявляются независимыми лимитами или балансами поставщика |
-| Q9 | UI-D03: длинное восстановление выключено по умолчанию | Явные конечные задержки используют общий предел попыток |
-| Q10 | Не повторять неизвестный исход автоматически | Сначала lookup или продолжение наблюдения за исходной задачей; новый вызов требует явного разрешения риска |
-| Q11 | Отмена после отправки оплачивается | Подтверждённый расход активной попытки списывается в пределах максимума; прежние дефектные попытки остаются на платформе |
-| Q12 | Длинное восстановление только для временной недоступности | Дефектное содержимое не вызывает три дополнительных цикла; неверный ключ и отсутствие денег требуют вмешательства |
-| Q13 | Задача ждёт в фоне с отменой | Клиент видит причину, следующую попытку и deadline; приложение может выбрать меньший срок |
-| Q14 | Окончательная блокировка снимается вручную | Неплатная проверка не включает автоматически новые генерации; независимые маршруты продолжают работать |
-| Q15 | Закрывать спорный резерв через час | Включает неизвестный usage и невозможность выдать результат; закрытую сумму позднее автоматически не списываем |
-| Q16 | Пакеты должны иметь сроки, включая месячные без rollover | Платёжный сервис передаёт конец периода; остаток истекает, финансовая история сохраняется |
-| Q17 | AI-сервис хранит содержимое только кратко для передачи | Приложение сохраняет результат постоянно и подтверждает передачу; после этого временные копии удаляются |
-| Q18 | Админка оформляется на shadcn/ui, для обоих интерфейсов выбран TanStack Start | Общие компоненты и тема в packages/ui; API, workers и финансовое ядро остаются самостоятельными |
-| Q19 | Визуальная проработка входит в приёмку | До массовой сборки страниц подготовить каркас, обзор, операцию и кошелёк; проверить адаптивность, доступность и состояния данных |
-| Q20 | До Logo Panel реализовать отдельный тестовый клиент | Ближайший объём: этапы 1–5 и 6а; чат, изображения, составное действие, стоимость и остатки через SDK |
-| Q21 | В тестовом клиенте можно начислять себе кредиты | Форма вызывает настоящий grant через защищённый backend; функция включена только в тестовом окружении, ключ не попадает в браузер |
+| Q1 | Owner-operated projects only; a separate installation for each | Shared codebase, independent runtime and data; public SaaS is unnecessary |
+| Q2 | Choose a simple integration method | Single call through API/SDK with an internal standard recipe; a custom recipe is optional |
+| Q3, Q5 | We pay for technical model defects | Invalid SVG, corrupt files, and violations of specified structure do not consume credits; subjective dissatisfaction with a valid result does not trigger automatic refunds |
+| Q4 | Calculate from published rates | Late provider discounts do not recalculate wallets; calculator overcharging is corrected through compensation |
+| Q6 | Simple charging for successful parts is acceptable | v1 selects successful_parts; whole-action-only charging is deferred |
+| Q7 | Overall UI-D02 limit: four attempts by default, maximum eight | Route changes do not reset the counter; early success completes the request |
+| Q8 | Separate installation keys | Keys are not presented as independent provider limits or balances |
+| Q9 | UI-D03: long recovery disabled by default | Explicit finite delays use the shared attempt limit |
+| Q10 | Do not automatically retry unknown outcomes | First lookup or continued original-job observation; a new call requires explicit risk authorization |
+| Q11 | Cancellation after submission is charged | Confirmed active-attempt spending is charged within the maximum; earlier defective attempts remain platform expenses |
+| Q12 | Long recovery only for temporary unavailability | Defective content does not trigger three additional cycles; invalid keys and missing funds require intervention |
+| Q13 | Job waits in the background with cancellation | Client sees the reason, next attempt, and deadline; the application may choose a shorter duration |
+| Q14 | Final lock is removed manually | A free check does not automatically enable new generation; independent routes continue |
+| Q15 | Close disputed reservations after one hour | Includes unknown usage and inability to deliver results; closed amounts are not automatically charged later |
+| Q16 | Lots must have expiry, including monthly lots without rollover | Payment service supplies period end; remainder expires while financial history is retained |
+| Q17 | AI service retains content briefly for delivery only | Application saves the result permanently and acknowledges delivery; temporary copies are then deleted |
+| Q18 | Admin uses shadcn/ui; both interfaces use TanStack Start | Shared components and theme in packages/ui; API, workers, and financial core remain independent |
+| Q19 | Visual design is part of acceptance | Before mass page construction, prepare shell, overview, operation, and wallet; check responsiveness, accessibility, and data states |
+| Q20 | Build a separate test client before Logo Panel | Immediate scope: phases 1–5 and 6a; chat, images, compound action, costs, and balances through SDK |
+| Q21 | Test client permits self-granted credits | Form calls a real grant through a protected backend; enabled only in test environments, with no browser key exposure |
 
-## Дополнение 2026-09-19
+## Addendum 2026-09-19
 
-По прямому указанию владельца вся админка apps/admin переводится на английский язык. Русская версия и переключатель языка не нужны. Требование включает навигацию, формы, статусы, ошибки, состояния загрузки, aria-labels, заголовок страницы, даты и форматирование сумм. Пользовательские данные, имена подключений и уже сохранённый аудит не переводятся. Demo и документация сохраняют русский язык.
+At the owner's direct instruction, the entire apps/admin interface is translated into English. No Russian version or language switcher is needed. This includes navigation, forms, statuses, errors, loading states, aria-labels, page title, dates, and amount formatting. User data, connection names, and previously saved audit records are not translated. Demo and documentation remain in Russian.
 
-По запросу владельца demo также позволяет установить точный доступный остаток для проверки нехватки кредитов. Корректировка доступна только в тестовом окружении: увеличение выполняется начислением, уменьшение отзывом доступных кредитов, финансовая история сохраняется. При открытых резервах корректировка отклоняется.
+At the owner's request, demo also allows setting an exact available balance to test insufficient credits. Adjustment is available only in the test environment: increases use grants, decreases revoke available credits, and financial history is preserved. Adjustment is rejected when reservations are open.
 
-По запросу владельца тарифы имеют отдельное отображаемое название `display_name`. Его можно менять после публикации без изменения ставок, технического ключа, номера версии и ссылок рецептов. Название относится к конкретной версии и копируется в форму новой версии; без названия интерфейс показывает технический ключ.
+At the owner's request, rate cards have a separate `display_name`. It may change after publication without changing rates, technical key, version number, or recipe references. The name belongs to a specific version and is copied into a new-version form; without a name, the interface displays the technical key.
 
-По запросу владельца добавлен общий оценщик количеств для токенов, изображений, секунд, символов и запросов. Прогноз отделён от максимального резерва. Правила и ставки привязаны к опубликованным версиям; новая логика включается для новых версий рецептов. Численные предположения о длине ответа и запасе относятся к настройкам, а не к гарантированному расходу. См. [правила оценки](QUOTING.md).
+At the owner's request, a general quantity estimator was added for tokens, images, seconds, characters, and requests. Forecast and maximum reservation are separate. Rules and rates are bound to published versions; new logic is enabled for new recipe versions. Numeric assumptions about answer length and headroom are settings, not guaranteed spending. See [estimation rules](QUOTING.md).
 
-## Выбранные настройки и технические уточнения
+## Selected settings and technical clarifications
 
-Эти детали предложены для реализации согласованных правил. Они не выдаются за дословно утверждённые пользователем численные значения.
+These details are proposed to implement agreed rules. They are not presented as numerical values literally approved by the user.
 
-- Прежние 16 attempts заменены общей политикой UI-D02/UI-D03: четыре по умолчанию, максимум восемь, включая первую. Общий срок по умолчанию 300 секунд от принятия.
-- Во время аварии один recovery lease управляет проверкой затронутой области. Очередь не запускает отдельные платные проверки для каждого задания.
-- Подтверждение передачи относится к долговечному сохранению результата приложением, а не просто к HTTP 200. Оно разрешает удаление контента и не является условием списания за уже доступный валидный результат.
-- Предлагаемый TTL готового результата без подтверждения: 3 600 секунд с ready_at, настраиваемый до приёма операции. Он независим от согласованного часового срока финансового разбирательства. Многодневное хранение по умолчанию исключено.
-- Компенсация уже списанного расхода после истечения исходного пакета создаёт refund lot на 30 дней. Это стартовая политика компенсаций из предложения Q16; её длительность отдельно не обсуждалась. Она не переносит неиспользованные подписочные кредиты. Политика фиксируется в условиях до начисления и не изменяется задним числом.
-- expires_at обязателен в команде grant: timestamp задаёт срок, явный null обозначает бессрочность. Месячная подписка передаёт конец конкретного периода, а не универсальные «30 дней».
-- Выделенные ключи могут использовать общий аккаунт провайдера. Без центрального координатора каждой установке назначается консервативная доля общей квоты и расходов. Изменения общей квоты требуют обновления конфигураций.
+- The earlier 16 attempts are replaced by the shared UI-D02/UI-D03 policy: four by default, maximum eight, including the first. Default overall duration is 300 seconds from acceptance.
+- During an outage, one recovery lease controls checks of the affected scope. The queue does not launch separate paid checks for each job.
+- Delivery acknowledgement means durable result storage by the application, rather than merely HTTP 200. It authorizes content deletion and is not a condition for charging an already available valid result.
+- Proposed ready-result TTL without acknowledgement: 3 600 seconds from ready_at, configurable before operation acceptance. It is independent of the agreed one-hour financial investigation period. Multi-day retention by default is excluded.
+- Compensation for captured spending after original-lot expiry creates a 30-day refund lot. This is the initial compensation policy proposed under Q16; its duration was not discussed separately. It does not roll over unused subscription credits. Policy is fixed in terms before grant and does not change retroactively.
+- expires_at is required in grant: a timestamp sets expiry; explicit null means no expiry. Monthly subscriptions supply the specific period end rather than a universal “30 days.”
+- Dedicated keys may use a shared provider account. Without a central coordinator, each installation receives a conservative share of total quota and spending. Shared-quota changes require configuration updates.
 
-## Границы первой версии
+## First-version boundaries
 
-Постоянная единица кредита, неизменные условия пакета и отдельный платёжный сервис остаются основой модели. В первой версии нет публичной регистрации клиентов платформы, межустановочных кошельков, произвольного workflow-языка и гарантии получения эстетически подходящего результата.
+A constant credit unit, immutable lot terms, and a separate payment service remain the model's foundation. The first version has no public platform-client registration, cross-installation wallets, arbitrary workflow language, or guarantee of an aesthetically suitable result.
 
-По запросу владельца от 2026-09-19 добавлена фиксированная оплата успешного результата для выбранных компонентов. Отмена без выданного результата не оплачивается. Ценовые параметры выделены отдельно от остальных настроек модели. Наценка остаётся в тарифном слое, примеры создаются без дополнительного процентного множителя. All_or_nothing не включён. Семантическая доработка валидного результата является новой оплачиваемой работой; техническое исправление дефекта входит в ограниченный цикл восстановления за счёт платформы.
+At the owner's 2026-09-19 request, fixed charging for successful results was added for selected components. Cancellation without a delivered result is not charged. Price parameters are separated from other model settings. Markup remains in the billing layer; examples are created without an additional percentage multiplier. All_or_nothing is not enabled. Semantic refinement of a valid result is new paid work; technical defect repair belongs to bounded recovery at platform expense.
 
-Выбор хостинга, конкретных моделей, численных бюджетов потерь, каналов внешних уведомлений и сроков финансового архива остаётся настройкой развёртывания. До production эти параметры обязательны. Они не требуют пересмотра правил кредитов и выполнения.
+Hosting, specific models, numerical loss budgets, external notification channels, and financial archive retention remain deployment settings. They are mandatory before production. They do not require revising credit and execution rules.
 
-## Планируемое развитие расчёта цены
+## Planned pricing development
 
-Владелец выбрал окончательную цену конкретного запроса, рассчитываемую до запуска из оценки затрат, отдельного запаса на погрешность и наценки тарифа. Модель хранится централизованно, а методика выбирается из готовых типов; формула является расширенным типом. Подготовлено [задание на реализацию](MODEL_PRICING_SPEC.md). Локальная реализация для явно подключённых новых single-call профилей прошла приёмку. Legacy actual_usage, фиксированные таблицы и принятые quotes не пересчитываются. Конкретные проценты и политика прогноза длины текстового ответа остаются явными настройками.
+The owner selected a final price for a specific request, calculated before launch from estimated costs, a separate error buffer, and rate-card markup. The model is stored centrally; the method is selected from predefined types, with formula as an advanced type. An [implementation specification](MODEL_PRICING_SPEC.md) was prepared. The local implementation for explicitly connected new single-call profiles passed acceptance. Legacy actual_usage, fixed tables, and accepted quotes are not recalculated. Exact percentages and text-answer-length forecast policy remain explicit settings.
 
-Уточнение владельца для центрального расчёта: запас на погрешность и процент наценки задаются отдельно для каждой модели и фиксируются опубликованной версией каталога. Они хранятся в блоке pricing отдельно от методики и ставок поставщика. Рецепт выбирает режим оплаты и опубликованную модель.
+Owner clarification for central pricing: the error buffer and markup percentage are configured separately for each model and pinned by the published catalog version. They are stored in pricing separately from methods and provider rates. A recipe selects the charging mode and published model.
 
-Для обновлённого локального demo владелец выбрал запас 10% и наценку 100% для каждой из семи моделей. Итоговая цена равна оценке затрат × 1.1 × 2 с округлением в единицах учёта. Для изображений разрешены десять пропорций в трёх уровнях разрешения и все явные качества. Точные размеры ограничены возможностями API. Эти значения относятся к новым версиям demo, а не меняют старые quotes или базовые настройки всех установок.
+For the updated local demo, the owner selected a 10% buffer and 100% markup for each of seven models. Final price equals estimated costs × 1.1 × 2, rounded in accounting units. Images allow ten aspect ratios across three resolution levels and all explicit qualities. Exact dimensions are bounded by API capabilities. These values apply to new demo versions, not old quotes or baseline settings of all installations.
 
-## Текст: оценка отдельно от ограничения генерации
+## Text: estimation separate from generation limits
 
-По указанию владельца текстовые модели demo переведены на `estimated_actual`: `expected_output_tokens` по умолчанию 4096 используется только для прогноза. UAI не отправляет этот параметр или `max_output_tokens` в OpenAI. Действуют собственные ограничения провайдера и deadline операции. Режим пока предназначен для одиночных текстовых запросов OpenAI.
+At the owner's instruction, demo text models use `estimated_actual`: default `expected_output_tokens` of 4096 is used only for forecasting. UAI sends neither this parameter nor `max_output_tokens` to OpenAI. Provider limits and the operation deadline apply. The mode is currently intended for single OpenAI text requests.
 
-Прогноз рассчитывается центральной методикой с запасом 10% и наценкой 100%. При запуске резервируется прогнозная сумма. Окончательное списание определяется фактическим нормализованным usage по принятым ставкам с наценкой модели и округлением; запас на погрешность к факту не применяется. Прогноз не является потолком списания. Явный фиксированный бюджет с этим режимом несовместим и отклоняется.
+The forecast uses the central method with a 10% buffer and 100% markup. The forecast amount is reserved at launch. Final charge uses actual normalized usage at accepted rates with model markup and rounding; the error buffer is not applied to actual spending. The forecast is not a charge ceiling. An explicit fixed budget is incompatible and rejected.
 
-Владелец явно разрешил отрицательный баланс, если фактический расход превышает резерв и доступные кредиты. При расчёте используются резерв, затем свободные кредиты, затем фиксируется долг отдельными проводками. Предоплаченные лоты не становятся отрицательными. Пополнения и освобождённые кредиты сначала погашают долг; новые операции с непогашенным долгом не принимаются. Возврат сначала отменяет непогашенную часть соответствующего списания, затем возвращает уже оплаченные кредиты. Повторное событие не списывает деньги повторно.
+The owner explicitly authorized a negative balance when actual spending exceeds reservation and available credits. Settlement uses reservation, then free credits, then records debt through separate postings. Prepaid lots do not become negative. Top-ups and released credits first repay debt; new operations with unpaid debt are rejected. A refund first cancels the unpaid portion of its charge, then returns paid credits. A duplicate event does not charge again.
 
-Это исключение из прежнего правила максимума относится только к новым профилям `estimated_actual`. Изображения с окончательной ценой, legacy actual_usage и уже принятые quotes сохраняют свои условия.
+This exception to the earlier maximum rule applies only to new `estimated_actual` profiles. Final-price images, legacy actual_usage, and accepted quotes retain their terms.
 
-## Единая админка продукта и UAI
+## Unified product and UAI admin
 
-Владелец выбрал переиспользуемую структуру: UAI можно подключать к другому собственному приложению и собирать одну админку с настройками продукта и финансовыми разделами. Продуктовые модули подключаются при сборке; UAI не получает зависимости от сущностей LogoPanel. Текущий административный вход остаётся доступом владельца установки. Интеграция конкретного продукта, пользовательских ролей и приёма внешних платежей не считается выполненной переносом модулей. См. [контракт подключения](MODULAR_ADMIN.md).
+The owner selected a reusable structure: UAI can be connected to another owner-operated application and built into one admin with product settings and financial sections. Product modules connect at build time; UAI does not depend on LogoPanel entities. Current administrative entry remains installation-owner access. Moving modules does not constitute integration of a specific product, user roles, or external payment acceptance. See the [integration contract](MODULAR_ADMIN.md).
 
-Уточнение владельца: frontend LogoPanel для обычных пользователей полностью отделён от административной сборки. Общая админка включает только UAI и админку продукта с настройками и платежами. Общие изменения UAI должны распространяться из одного исходного репозитория; копии кода в продуктах не являются механизмом интеграции. Подготовлено подключение исходного UAI через фиксированный Git submodule с проверяемыми обновлениями.
+Owner clarification: LogoPanel's regular-user frontend is completely separate from the administrative build. Shared admin includes only UAI and product administration with settings and payments. Shared UAI changes must propagate from one source repository; product code copies are not an integration mechanism. Source integration through a pinned Git submodule with verifiable updates has been prepared.
 
-## Backpressure перед финансовым резервом
+## Backpressure before financial reservation
 
-Владелец согласовал начальные пределы: 20 ожидающих заданий на пользователя, 200 на приложение. Если старейшее ожидающее задание приложения ждёт 15 минут или дольше, новые операции временно отклоняются. Проверка выполняется до создания или увеличения резерва и учитывает ещё не созданные запросы в уже принятых многошаговых операциях. Повтор принятой идемпотентной команды возвращает прежний результат. Эти пределы не отменяют принятую работу и не заменяют concurrency или квоты провайдера.
+The owner approved initial limits: 20 waiting jobs per user, 200 per application. If the application's oldest waiting job has waited 15 minutes or longer, new operations are temporarily rejected. The check runs before creating or increasing reservation and counts not-yet-created requests in accepted multistep operations. Repeating an accepted idempotent command returns its earlier result. These limits neither cancel accepted work nor replace provider concurrency or quotas.
 
 
-## Внешняя авторизация и команды
+## External authorization and teams
 
-Владелец согласовал универсальный серверный адаптер без зависимости от системы входа продукта. Для LogoPanel предполагается Better Auth, но его подключение, регистрация, сессии, приглашения и memberships реализуются отдельно в родителе. Один человек с постоянным user ID может состоять в нескольких командах. Email не является ключом. Каждая команда соответствует отдельному account и общему кошельку UAI; личных кошельков в этой интеграции нет.
+The owner approved a general server adapter independent of the product's login system. Better Auth is planned for LogoPanel, but its integration, registration, sessions, invitations, and memberships are implemented separately in the parent. One person with a permanent user ID may belong to several teams. Email is not the key. Each team maps to a separate UAI account and shared wallet; there are no personal wallets in this integration.
 
-Родитель проверяет сессию, актуальное членство и продуктовые права. Уровни команды последовательные: просмотр; просмотр и чат; просмотр, чат и генерация. Роль проекта может расширять общую роль. Участники видят доступный общий баланс и расходуют его только через разрешённые продуктовые действия. Администратор команды управляет участниками и их правами, но не получает служебную админку. Сотрудники приложения имеют отдельно назначенные роли `admin` или `viewer`.
+The parent checks the session, current membership, and product permissions. Team levels are cumulative: view; view and chat; view, chat, and generation. A project role may expand the general role. Members see the available shared balance and spend it only through permitted product actions. A team administrator manages members and permissions but receives no service admin access. Application staff have separately assigned `admin` or `viewer` roles.
 
-Чат с AI, артефакты, исследователь, выбор подтверждающего, разрешения на запрос/раунд/проект и уведомления относятся к LogoPanel. UAI не содержит этих сущностей. Проверенная server-to-server identity ограничивает область service token и позволяет сохранять персональный аудит. Принятые задачи после удаления участника продолжаются за счёт исходной команды; переключение команды, фоновые повторы и поздние результаты не меняют плательщика. Возврат относится к исходному списанию. Старую историю нельзя приписывать новому человеку.
+AI chat, artifacts, researcher, approver selection, request/round/project permissions, and notifications belong to LogoPanel. UAI does not contain these entities. Verified server-to-server identity restricts service-token scope and enables personal audit. Accepted tasks continue at the original team's expense after a member is removed; team switching, background retries, and late results do not change the payer. Refunds belong to the original charge. Old history cannot be assigned to a new person.
 
-Локальная реализация описана в [контракте подключения](EXTERNAL_AUTH.md) и [матрице приёмки](ACCEPTANCE_RESULTS.md). Она не является интеграцией реального LogoPanel, Better Auth или production-развёртыванием.
+The local implementation is described in the [integration contract](EXTERNAL_AUTH.md) and [acceptance matrix](ACCEPTANCE_RESULTS.md). It is not actual LogoPanel or Better Auth integration or a production deployment.
 
-## План расширения на платные API, 2026-09-22
+## Paid API extension plan, 2026-09-22
 
-Владелец выбрал общий механизм выполнения и расчёта для AI и обычных платных API. Согласованные решения PA-D01–PA-D23, предлагаемые этапы и критерии приёмки записаны в [плане платных API и allowance](PAID_API_PLAN.md). Владелец разрешил продолжать PA-I01–PA-I08 после [PA-I00](FILE_CONFIGURATION.md). Локальная реализация и её границы описаны в [плане](PAID_API_PLAN.md); 2026-09-23 владелец отдельно разрешил реальные Firecrawl-вызовы до 50 credits и интерактивное demo. Реальная приёмка завершена с расходом 26 credits. Принятые условия существующей работы сохраняются.
+The owner selected shared execution and accounting for AI and ordinary paid APIs. Agreed PA-D01–PA-D23 decisions, proposed phases, and acceptance criteria are recorded in the [paid API and allowance plan](PAID_API_PLAN.md). The owner authorized continuing PA-I01–PA-I08 after [PA-I00](FILE_CONFIGURATION.md). The local implementation and boundaries are described in the [plan](PAID_API_PLAN.md); on 2026-09-23, the owner separately authorized real Firecrawl calls up to 50 credits and an interactive demo. Real acceptance completed with 26 credits spent. Accepted terms of existing work are preserved.
 
-Первая версия учитывает пакеты поставщиков, объединяет connections одного аккаунта, поддерживает несколько счётчиков, месячные периоды и настраиваемый перенос. Лимиты пользовательских подписок остаются за границей. Перенос allowance поставщика не означает перенос пользовательских кредитных лотов. Новые API поддерживают фиксированную цену или оплату по факту в пределах принятого максимума; существующее исключение estimated_actual для OpenAI text сохраняется отдельно.
+The first version accounts for provider packages, groups connections sharing an account, supports multiple counters, monthly periods, and configurable rollover. User subscription limits remain outside scope. Provider allowance rollover does not imply rollover of user credit lots. New APIs support fixed pricing or actual charging within the accepted maximum; the existing estimated_actual exception for OpenAI text remains separate.
 
-Уточнение владельца заменяет прежний выбор настройки интеграций через админку: определения сервисов и сложные конфигурации хранятся в Git, админка сохраняет полноценную визуализацию без их редактирования. Оперативные настройки редактируются в БД. Предлагаемое разделение: JSON со схемами для данных, формул и шаблонов; TypeScript для адаптеров, протокола провайдера и обработки файлов. Общий процесс проверки, preview и публикации создаёт неизменяемую версию в БД с происхождением. Один параметр не имеет независимых редакторов в Git и UI. Подготовительный этап разрешён отдельно. После его локальной приёмки работа останавливается; API-интеграции и перенос оставшихся конфигураций остаются следующими этапами плана.
+Owner clarification replaces the earlier choice of configuring integrations through admin: service definitions and complex configurations live in Git; admin retains full visualization without editing them. Operational settings are editable in the database. Proposed split: JSON with schemas for data, formulas, and templates; TypeScript for adapters, provider protocol, and file processing. A shared validation, preview, and publication process creates an immutable database version with provenance. One parameter does not have independent Git and UI editors. The preparatory phase is authorized separately. Work stops after its local acceptance; API integrations and migration of remaining configurations remain later plan phases.
 
-UAI получает job_id асинхронного поставщика, сам выполняет polling/обработку webhook и сообщает приложению через SSE. В LogoPanel остаются отправка запроса, показ состояния, переподключение, чтение актуального статуса и получение результата. Способ подключения адаптера не переносит provider-specific логику в LogoPanel.
+UAI receives an async provider's job_id, performs polling/webhook handling itself, and informs the application through SSE. LogoPanel retains request submission, status display, reconnection, current-status reads, and result retrieval. The adapter integration method does not move provider-specific logic into LogoPanel.
 
-Firecrawl включает scrape, search, поиск патентов USPTO через Alexandria и чтение патентного документа. Цепочкой исследования управляет приложение. Уведомления доставляются в админку и через webhook. При исчерпанном allowance без разрешённого overage новый запрос отклоняется до денежного резерва; короткие рейт-лимиты по-прежнему обслуживаются очередью.
+Firecrawl includes scrape, search, USPTO patent search through Alexandria, and patent-document reading. The application controls the research chain. Notifications are delivered to admin and through webhook. When allowance is exhausted without authorized overage, a new request is rejected before monetary reservation; short rate limits are still handled by the queue.
 
-## Универсальные вызовы, 2026-09-25
+## Universal invocations, 2026-09-25
 
-Реализуется [план универсальных вызовов](UNIVERSAL_INVOCATION_PLAN.md). UI-D02/UI-D03 заменяют прежние Q7/Q9: общий срок по умолчанию 300 секунд от принятия, четыре попытки вместе с первой, абсолютный предел установки восемь. Длинное восстановление выключено по умолчанию и при включении использует тот же счётчик. Наблюдение исходного задания и финансовая сверка неизвестного расхода сохраняются независимо от повторов.
+The [universal invocation plan](UNIVERSAL_INVOCATION_PLAN.md) is being implemented. UI-D02/UI-D03 replace earlier Q7/Q9: default overall duration 300 seconds from acceptance, four attempts including the first, absolute installation limit eight. Long recovery is disabled by default and uses the same counter when enabled. Original-job observation and financial reconciliation of unknown spending remain independent of retries.
 
-Владелец отдельно подтвердил дефолт оплаты отказа модели `refused=platform`. Разрешённая политика профиля может задавать `actual_usage`; отказ остаётся конечным исходом и не разрешает обход через другую модель.
+The owner separately confirmed the default model-refusal charge policy `refused=platform`. An authorized profile policy may specify `actual_usage`; refusal remains terminal and does not permit bypass through another model.
 
-## Доработки LogoPanel от 25.09.2026
+## LogoPanel follow-ups dated 25.09.2026
 
-Согласованные LF-D01–LF-D13 реализованы в [контракте follow-up](LOGOPANEL_FOLLOWUP_INTEGRATION.md). Новые SVG-профили Quiver используют `actual_capped`: токенная тарификация не разрешает overdraft. Прогноз списка — чтение без финансового резерва, его диапазон не является cap. Ревизия embedding aliases остаётся неизвестной. Начальный запас interactive — 1 слот с сохранением хотя бы одного возможного фонового слота; настройки не означают обещание latency.
+Agreed LF-D01–LF-D13 are implemented in the [follow-up contract](LOGOPANEL_FOLLOWUP_INTEGRATION.md). New Quiver SVG profiles use `actual_capped`: token billing does not allow overdraft. List forecasting is a read without financial reservation; its range is not a cap. The embedding aliases revision remains unknown. Initial interactive headroom is 1 slot while retaining at least one possible background slot; settings do not imply a latency promise.
 
 
 ## Jev, 2026-09-26
 
-Владелец поручил реализовать [план Jev](JEV_IMPLEMENTATION_PLAN.md). Локальная интеграция использует api.call, прямой TypeSafe transport, типизированные вопросы и actual_capped с cost_plus, коэффициентом 1 и наценкой 0. Все JSON API-сервисы выдают structured manifest с value и text. Низкая уверенность является успешным результатом. По уточнению владельца «поставь 32к» от 2026-09-26 максимум для резерва и квот установлен в 32768 входных токенов, cap 1376256 units. Это выбранное ограничение UAI, а не подтверждённый billable maximum поставщика. Превышение фактической себестоимости сохраняется полностью и не списывается с клиента сверх cap. Файловый профиль active, live_validation=not_run; исходная блокировка до доказательства максимума отменена этим решением. Отдельного разрешения на платную приёмку и изменения действующих подключений не было. См. [контракт](JEV.md).
+The owner instructed implementation of the [Jev plan](JEV_IMPLEMENTATION_PLAN.md). Local integration uses api.call, direct TypeSafe transport, typed questions, and actual_capped with cost_plus, factor 1, and markup 0. All JSON API services return a structured manifest with value and text. Low confidence is a successful result. Following the owner's “set it to 32k” clarification on 2026-09-26, the reservation and quota maximum is 32768 input tokens, cap 1376256 units. This is a selected UAI constraint, not a confirmed provider billable maximum. Actual cost exceeding it is retained in full and is not charged to the customer above the cap. The file profile is active, live_validation=not_run; this decision removes the original block pending maximum proof. There was no separate authorization for paid acceptance or changes to active connections. See the [contract](JEV.md).
 
-## Запросы LogoPanel от 20.10.2026
+## LogoPanel requests dated 20.10.2026
 
-Владелец поручил закрыть два запроса LogoPanel. Это меняет прежнее исключение общего резерва из плана follow-up.
+The owner instructed completion of two LogoPanel requests. This changes the earlier exclusion of shared reservation from the follow-up plan.
 
-**Резерв на составную работу.** Приложение открывает резервный пул: quote `kind=pool` с single-call профилями, лимитом вызовов на каждый профиль и общим лимитом. Бюджет quote удерживается при принятии операции. Вызовы создаются по ходу работы через `POST /v1/invocations` с `operation_id` пула. Каждый вызов оценивается как обычный вызов своего профиля и забирает свою заявку из резерва пула. Версии профилей фиксируются при открытии пула. Резерв гарантирует средства, но не ограничивает списание. Если заявка вызова не помещается в остаток пула, недостающее берётся из свободных кредитов, как у вызова без пула. Без свободных кредитов вызов отклоняется, состояние пула не меняется. Перерасход `estimated_actual` сверх заявки сначала покрывается свободной частью резерва пула, и только потом свободными кредитами или долгом. Закрытие пула освобождает остаток после расчёта всех вызовов. Пул нельзя amend, и `POST /operations/{id}/requests` в нём не работает. См. [оценку](QUOTING.md#резерв-на-составную-работу).
+**Reservation for compound work.** The application opens a reservation pool: a `kind=pool` quote with single-call profiles, each profile's call limit, and an overall limit. The quote budget is held on operation acceptance. Calls are created as work proceeds through `POST /v1/invocations` with the pool's `operation_id`. Each is estimated as an ordinary call of its profile and takes its claim from the pool reservation. Profile versions are pinned when the pool opens. Reservation guarantees funds but does not cap charges. If a call claim does not fit the remaining pool, the shortfall comes from free credits, as for a call without a pool. Without free credits, the call is rejected and pool state is unchanged. `estimated_actual` spending beyond the claim is covered first by the pool reservation's free portion, then free credits or debt. Closing the pool releases the remainder after all calls settle. A pool cannot be amended, and `POST /operations/{id}/requests` does not work in it. See [quoting](QUOTING.md#reservation-for-compound-work).
 
-**Расход Quiver без разбивки кэша.** Если в ответе Quiver нет ни `cached_tokens`, ни `cache_write_tokens`, весь вход тарифицируется по ставке cache write, самой высокой ставке входа в карточках Quiver. Расход становится известным, attempt рассчитывается, в `breakdown` записывается `input_cache_split=absent_priced_as_cache_write`. Это консервативная граница, а не точная цена Quiver. Ответ только с одним из двух счётчиков или с противоречивыми счётчиками остаётся unknown.
+**Quiver spending without cache breakdown.** If a Quiver response has neither `cached_tokens` nor `cache_write_tokens`, all input is rated as cache write, the highest input rate in Quiver rate cards. Spending becomes known, the attempt is priced, and `breakdown` records `input_cache_split=absent_priced_as_cache_write`. This is a conservative bound, not Quiver's exact price. A response containing only one counter or contradictory counters remains unknown.
+
+## Documentation language, 2026-10-22
+
+The owner requested that all documentation in the UAI Ledger repository, including README.md, AGENTS.md and generated API descriptions, be maintained in English. This supersedes earlier documentation-language instructions. Historical decisions and acceptance statuses remain as recorded; the language of product interfaces, API field names and runtime behavior is not changed by this translation.

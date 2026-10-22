@@ -1,181 +1,181 @@
-# План поддержки платных API и allowance поставщиков
+# Plan for Paid API and Provider Allowance Support
 
-[Оглавление](README.md) · [Решения](DECISIONS.md) · [Учёт](ACCOUNTING.md) · [Выполнение](EXECUTION.md)
+[Contents](README.md) · [Decisions](DECISIONS.md) · [Accounting](ACCOUNTING.md) · [Execution](EXECUTION.md)
 
-Дата: 2026-09-22. Статус: PA-I00–PA-I08 реализованы и проверены в локальной установке; PA-A22 подтверждён реальными Firecrawl-вызовами 2026-09-23. [Устройство и приёмка PA-I00](FILE_CONFIGURATION.md). Продуктовые решения ниже выбраны владельцем. Техническое устройство и порядок этапов являются предложением для реализации. Этот документ не подтверждает готовность интеграций или production.
+Date: 2026-09-22. Status: PA-I00–PA-I08 implemented and verified in a local installation; PA-A22 confirmed by real Firecrawl calls on 2026-09-23. [PA-I00 design and acceptance](FILE_CONFIGURATION.md). Product decisions below were chosen by the owner. Technical design and phase order are implementation proposals. This document does not establish integration or production readiness.
 
-## 1. Цель
+## 1. Goal
 
-Проводить обычные платные API через те же операции, кошельки, quotes, резервы, очередь и финансовую историю, что и AI. Поддержать цену за вызов, формулы и оплату вложений; учитывать рейт-лимиты и месячные пакеты поставщиков; показывать состояние тарифов и отправлять предупреждения существующим механизмом notifications.
+Route ordinary paid APIs through the same operations, wallets, quotes, reservations, queue, and financial history as AI. Support per-call prices, formulas, and attachment charges; account for provider rate limits and monthly packages; display tariff status and send warnings through the existing notifications mechanism.
 
-Себестоимость поставщика, цена пользователю, расход allowance и ограничения частоты вызовов являются разными величинами. Один вызов может расходовать один request, несколько credits поставщика и несколько документов, имея самостоятельную цену для пользователя.
+Provider cost, customer price, allowance usage, and call-frequency restrictions are different quantities. One call may consume one request, several provider credits, and several documents while having an independent customer price.
 
-## 2. Согласованные продуктовые решения
+## 2. Agreed Product Decisions
 
-| ID | Решение |
+| ID | Decision |
 |---|---|
-| PA-D01 | В первой версии учитывается allowance поставщиков AI/API. Лимиты пользовательских подписок в объём не входят. |
-| PA-D02 | Поведение при исчерпании пакета выбирается для каждого тарифа: остановка либо разрешённое платное превышение с денежным пределом. По умолчанию превышение выключено. |
-| PA-D03 | Условия тарифа задаются вручную; локальный расход дополняется сверкой с поставщиком, если у него есть соответствующий API. |
-| PA-D04 | Пакет относится к аккаунту поставщика и может объединять несколько connections, ключей и операций. |
-| PA-D05 | Тариф может содержать несколько независимых счётчиков, каждый со своим пределом. Один вызов может расходовать несколько счётчиков. |
-| PA-D06 | Поддерживаются календарный месяц и месяц от даты подписки, с часовым поясом и датой обновления тарифа. |
-| PA-D07 | Перенос неиспользованного остатка включается по условиям поставщика; по умолчанию выключен. Для переноса задаются предел и срок действия. |
-| PA-D08 | Уточнение владельца: определения сервисов и сложные конфигурации хранятся в Git. Админка визуализирует их без редактирования. Это заменяет прежнее решение о настройке интеграций через UI. |
-| PA-D09 | Себестоимость внутри оплаченного пакета может учитывать только дополнительные расходы либо распределённую стоимость пакета. Метод выбирается для тарифа; абонентская плата не учитывается дважды. |
-| PA-D10 | Пользовательская цена может рассчитываться из себестоимости с наценкой либо задаваться независимо фиксированной суммой или формулой. Выбор относится к операции. |
-| PA-D11 | Операция использует окончательную цену до запуска либо списание по фактическому объёму в пределах заранее согласованного максимума. |
-| PA-D12 | Допустимые типы файлов задаются для операции. Базовые измерения: количество и размер; страницы, длительность и другие характеристики добавляются обработчиками. |
-| PA-D13 | Предупреждения отображаются в админке UAI и доставляются через webhook. Получателей email, Telegram и пользовательских notifications определяет приложение. |
-| PA-D14 | Между установками UAI назначаются отдельные доли лимита. Общий координатор установок в первую версию не входит. |
-| PA-D15 | Новые обычные API в первой версии получают и обрабатывают данные. Отправка SMS, создание заказов и изменение внешних записей не входят в объём. |
-| PA-D16 | Синхронные и отложенные вызовы подключаются адаптерами UAI. Получение job_id, polling, обработка webhook и нормализация состояния принадлежат UAI. Приложение отправляет запрос, получает SSE, восстанавливает актуальное состояние и забирает результат без provider-specific логики. |
-| PA-D17 | Уведомления включают настраиваемые пороги остатка в процентах и единицах, исчерпание и обновление периода. Прогноз даты исчерпания отложен. |
-| PA-D18 | При недоступной статистике продолжаются вызовы в пределах локального остатка. Данные помечаются устаревшими, отправляется предупреждение; сбой не увеличивает остаток и не сбрасывает расход. |
-| PA-D19 | Приёмка включает Serper, тестовый API с файлами и ошибками, совместимость AI и новую интеграцию Firecrawl. |
-| PA-D20 | Firecrawl включает обычные scrape и search, поиск патентов USPTO через Alexandria и получение патентного документа. |
-| PA-D21 | Цепочкой исследования управляет приложение. UAI не выбирает патенты и не запускает самостоятельное многошаговое исследование. |
-| PA-D22 | При исчерпанном allowance и запрещённом превышении новый запрос отклоняется до финансового резерва. Ответ сообщает причину и дату обновления, если она известна. Ожидание короткого рейт-лимита остаётся в очереди. |
-| PA-D23 | Админка сохраняет полноценные карточки сервисов, таблицы ставок, разбивку формул, калькулятор, компоненты рецептов и маршруты. Для файловых определений показываются активная опубликованная версия и происхождение. Сырой JSON не заменяет эти представления. Оперативные настройки остаются редактируемыми в админке. |
+| PA-D01 | The first version accounts for AI/API provider allowance. User subscription limits are outside scope. |
+| PA-D02 | Package-exhaustion behavior is selected per tariff: stop, or permit paid overage with a monetary limit. Overage is disabled by default. |
+| PA-D03 | Tariff terms are entered manually; local usage is supplemented by provider reconciliation when a suitable API exists. |
+| PA-D04 | A package belongs to a provider account and may span multiple connections, keys, and operations. |
+| PA-D05 | A tariff may contain multiple independent counters, each with its own limit. One call may consume several counters. |
+| PA-D06 | Calendar months and months from subscription date are supported, with time zone and tariff renewal date. |
+| PA-D07 | Unused balance rollover is enabled according to provider terms; disabled by default. Rollover has a cap and expiry. |
+| PA-D08 | Owner clarification: service definitions and complex configurations live in Git. The admin visualizes them without editing. This replaces the previous decision to configure integrations through UI. |
+| PA-D09 | Provider cost inside a paid package may count only incremental costs or an allocated package cost. Select the method per tariff; do not count the subscription fee twice. |
+| PA-D10 | Customer price may derive from provider cost with markup or be set independently as a fixed amount or formula. The choice belongs to the operation. |
+| PA-D11 | An operation uses a final price before launch or charges actual volume within a maximum agreed in advance. |
+| PA-D12 | Allowed file types are defined per operation. Basic measurements are count and size; processors add pages, duration, and other characteristics. |
+| PA-D13 | Warnings appear in the UAI admin and are delivered by webhook. The application determines email, Telegram, and user-notification recipients. |
+| PA-D14 | Separate limit shares are allocated to UAI installations. A shared installation coordinator is outside the first version. |
+| PA-D15 | New ordinary APIs in the first version retrieve and process data. Sending SMS, creating orders, and changing external records are outside scope. |
+| PA-D16 | UAI adapters connect synchronous and deferred calls. Obtaining job_id, polling, webhook handling, and state normalization belong to UAI. The application submits a request, receives SSE, restores current state, and retrieves the result without provider-specific logic. |
+| PA-D17 | Notifications include configurable balance thresholds in percentages and units, exhaustion, and period renewal. Exhaustion-date forecasting is deferred. |
+| PA-D18 | When statistics are unavailable, calls continue within the local balance. Data is marked stale and a warning is sent; failure neither increases balance nor resets usage. |
+| PA-D19 | Acceptance includes Serper, a test API with files and errors, AI compatibility, and a new Firecrawl integration. |
+| PA-D20 | Firecrawl includes ordinary scrape and search, USPTO patent search through Alexandria, and patent-document retrieval. |
+| PA-D21 | The application controls the research chain. UAI neither selects patents nor starts independent multi-step research. |
+| PA-D22 | With exhausted allowance and forbidden overage, a new request is rejected before financial reservation. The response gives the reason and renewal date when known. Waiting for a short rate limit remains queued. |
+| PA-D23 | The admin retains full service cards, rate tables, formula breakdowns, calculator, recipe components, and routes. File definitions show the active published version and provenance. Raw JSON does not replace these views. Operational settings remain editable in the admin. |
 
-Существующие правила AI, включая явно разрешённый `estimated_actual` для OpenAI text, остаются в силе. PA-D11 не отменяет старые режимы и не разрешает долг для новых API. Перенос allowance поставщика из PA-D07 не меняет правила истечения пользовательских кредитных лотов из [ACCOUNTING](ACCOUNTING.md).
+Existing AI rules, including explicitly permitted `estimated_actual` for OpenAI text, remain in force. PA-D11 neither cancels old modes nor permits debt for new APIs. Provider allowance rollover in PA-D07 does not change user credit-lot expiration rules in [ACCOUNTING](ACCOUNTING.md).
 
-## 3. Проверенная исходная реализация
+## 3. Verified Original Implementation
 
-| Область | Что переиспользуется | Что требуется расширить |
+| Area | Reused | Extension required |
 |---|---|---|
-| [Provider contracts](../packages/providers/src/contracts.ts) | Адаптер, usage, attempts, классификация исходов | Закрытый список AI capabilities, текстовый вход, фиксированные метрики `LimitUsage` |
-| [Providers](../packages/providers/src/index.ts) | Serper как существующий платный инструмент | Реестр адаптеров API-операций и Firecrawl |
-| [Pricing](../packages/pricing/src/index.ts) | Десятичная арифметика, произвольные dimension/unit в billable items, версии ставок | Отдельное представление тарифного пакета, абонентской платы и расчётного распределения её стоимости |
-| [Model pricing](../packages/model-pricing/src/index.ts) | `per_unit`, `lookup`, `formula`, запас, наценка, округление | Единицы документов/страниц/байтов/credits, фактические измерения, независимая пользовательская формула |
-| [Подготовка assets](../packages/quoting/src/prepare-model-assets.ts) | Проверка ownership и content hash, подготовка изображений | Общий путь файлов без обязательного преобразования через sharp |
-| [Provider quotas](../packages/queue/src/quota-create.ts) | Общие группы, правила допуска и concurrency | Произвольные зарегистрированные метрики; месячный allowance отдельным механизмом, текущие окна ограничены сутками |
-| [Reconciliation](../packages/reconciliation/src/index.ts) | Снимки остатков, происхождение и свежесть данных | Сверка неденежных счётчиков с привязкой к тарифному периоду |
-| [Notifications](../packages/notifications/src/index.ts) | Rules, incidents, cooldown, outbox, подписанные webhooks, повторная доставка | Сигналы allowance, фильтры по ресурсу/метрике, содержимое события |
-| [Monitors](../packages/runtime-operations/src/index.ts) | Периодическое наблюдение и восстановление инцидентов | Остатки в credits/запросах/страницах; существующий расчёт низкого остатка snapshot ограничен USD |
-| [Catalog publication](../packages/catalog/src/index.ts) | Публикация версий, проверка зависимостей и ценовых примеров | Общий инструмент публикации из файлов, provenance, preview и запрет второго источника редактирования |
+| [Provider contracts](../packages/providers/src/contracts.ts) | Adapter, usage, attempts, outcome classification | Closed AI-capability list, text input, fixed `LimitUsage` metrics |
+| [Providers](../packages/providers/src/index.ts) | Serper as an existing paid tool | API-operation adapter registry and Firecrawl |
+| [Pricing](../packages/pricing/src/index.ts) | Decimal arithmetic, arbitrary dimension/unit in billable items, rate versions | Separate representation of tariff package, subscription fee, and calculated cost allocation |
+| [Model pricing](../packages/model-pricing/src/index.ts) | `per_unit`, `lookup`, `formula`, safety, markup, rounding | Document/page/byte/credit units, actual measurements, independent customer formula |
+| [Asset preparation](../packages/quoting/src/prepare-model-assets.ts) | Ownership and content-hash checks, image preparation | Shared file path without mandatory sharp transformation |
+| [Provider quotas](../packages/queue/src/quota-create.ts) | Shared groups, admission rules, concurrency | Arbitrary registered metrics; monthly allowance as a separate mechanism, since current windows are limited to one day |
+| [Reconciliation](../packages/reconciliation/src/index.ts) | Balance snapshots, provenance, data freshness | Nonmonetary-counter reconciliation tied to tariff period |
+| [Notifications](../packages/notifications/src/index.ts) | Rules, incidents, cooldown, outbox, signed webhooks, retry delivery | Allowance signals, resource/metric filters, event content |
+| [Monitors](../packages/runtime-operations/src/index.ts) | Periodic observation and incident recovery | Balances in credits/requests/pages; existing snapshot low-balance calculation is limited to USD |
+| [Catalog publication](../packages/catalog/src/index.ts) | Version publication, dependency and pricing-example validation | Shared file publication tool, provenance, preview, and prohibition of a second editing source |
 
-Для анализа запускались существующие тесты pricing, model-pricing, notifications и monitors: 51 пройден, 9 PostgreSQL-проверок пропущены. Это исходная проверка, не приёмка новой функциональности и не проверка настроенной доставки уведомлений.
+Existing pricing, model-pricing, notifications, and monitor tests were run for analysis: 51 passed, 9 PostgreSQL checks skipped. This is a baseline check, not acceptance of new functionality or verification of configured notification delivery.
 
-## 4. Предлагаемое устройство
+## 4. Proposed Design
 
-### 4.1. Каталог сервисов и операций
+### 4.1. Service and Operation Catalog
 
-Добавить версионируемое описание операции сервиса с видом AI или API, входной/выходной схемой, допустимыми файлами, правилами измерения, цены и execution. AI-модели подключаются к общей модели постепенно; массовое переименование существующих ключей не требуется.
+Add a versioned service-operation description with AI or API kind, input/output schemas, allowed files, measurement, pricing, and execution rules. AI models connect to the shared model gradually; mass renaming of existing keys is unnecessary.
 
-Разделить идентичности: аккаунт поставщика владеет пакетом; connection предоставляет доступ; операция определяет вызов и измерения; тариф задаёт условия периода. Аккаунт поставщика не является клиентским `account_id` или кошельком UAI.
+Separate identities: a provider account owns the package; a connection provides access; an operation defines a call and measurements; a tariff defines period terms. A provider account is not a client `account_id` or UAI wallet.
 
-Предлагаемое разделение файлов: JSON со схемами для определений моделей/сервисов, допустимых параметров, расчётных компонентов и формул существующего движка, ставок, запаса, наценки, проверочных примеров, рецептов и шаблонов маршрутов. Шаблоны тарифов и правила allowance также описываются JSON. Не создавать отдельный сложный язык программирования для протокола провайдера.
+Proposed file split: JSON with schemas for model/service definitions, allowed parameters, calculation components and formulas of the existing engine, rates, safety, markup, verification examples, recipes, and route templates. Tariff templates and allowance rules also use JSON. Do not create a separate complex programming language for provider protocols.
 
-TypeScript-модули реализуют запрос/ответ, особенности авторизации, нормализацию usage, ошибки, безопасные повторы, submit/job_id/polling/webhook и специальные обработчики файлов. Общие HTTP-помощники могут обслуживать query, JSON, form и multipart, но наличие нового API не требует универсального конструктора всех протоколов. JSON ссылается на зарегистрированный адаптер; произвольный код из JSON не исполняется.
+TypeScript modules implement request/response, authentication details, usage normalization, errors, safe retries, submit/job_id/polling/webhook, and specialized file processors. Shared HTTP helpers may support query, JSON, form, and multipart, but a new API does not require a universal builder for all protocols. JSON references a registered adapter; arbitrary JSON code is not executed.
 
-Endpoint определяется адаптером и проверяемыми файловыми настройками; credential reference выбирается через connection. Клиент передаёт только параметры опубликованной операции. Проверять адрес назначения и redirects, ограничивать размеры и время ответа, не передавать секреты в журналы и quote. Успех определяется контрактом операции: HTTP 200 с телом ошибки не становится оплачиваемым успешным результатом.
+The adapter and validated file settings determine the endpoint; the connection selects the credential reference. Clients send only published-operation parameters. Check destination addresses and redirects, bound response size and time, and exclude secrets from logs and quotes. The operation contract defines success: HTTP 200 with an error body is not a billable successful result.
 
-Предлагаемый процесс: файлы → проверка схем, ссылок и примеров → предварительный просмотр diff → публикация неизменяемой версии в БД. Исполнение читает опубликованный snapshot, а не изменяемый файл на диске. Публикация и активация разделены: создание новой версии само по себе не переключает активный профиль и не меняет принятые операции.
+Proposed process: files → schema, reference, and example validation → diff preview → immutable database-version publication. Execution reads the published snapshot, rather than a mutable disk file. Publication and activation are separate: creating a new version alone neither switches the active profile nor changes accepted operations.
 
-Общий инструмент публикации использует текущие проверки CatalogService и рецептов вместо отдельных demo setup-скриптов. Он разрешает логические ссылки в версии зависимостей и привязки установки, проверяет всё до переключения активного набора, возвращает тот же результат для повторной публикации того же содержимого. Удаление файла не удаляет опубликованную историю. Изменение конфигурации в одном шаге не должно оставить активный профиль со смесью старых и новых зависимостей.
+The shared publication tool uses current CatalogService and recipe checks instead of separate demo setup scripts. It resolves logical references into dependency versions and installation bindings, validates everything before switching the active bundle, and returns the same result when the same content is republished. Deleting a file does not delete published history. A single configuration change must not leave an active profile mixing old and new dependencies.
 
-Происхождение версии включает путь, Git revision, hash содержимого, версию схемы, автора публикации и связанные версии. Для TypeScript-адаптеров фиксировать совместимую версию реализации: snapshot цены не фиксирует исполняемый код автоматически. Обновление worker должно сохранять поддержку уже принятых операций либо ждать их завершения.
+Version provenance includes path, Git revision, content hash, schema version, publication author, and linked versions. Pin a compatible implementation version for TypeScript adapters: a price snapshot does not automatically pin executable code. Worker updates must preserve support for accepted operations or wait for their completion.
 
-До реализации закрепить владение полями. Файлам принадлежат определения и шаблоны. В БД через UI редактируются connections и ссылки на секреты, выбор/привязка опубликованных конфигураций, включение/отключение, бюджеты, доля квот установки, concurrency, параметры конкретной подписки, пороги/получатели notifications и текущие операционные данные. Привязка выбирает разрешённую версию или connection, но не создаёт скрытую копию формулы или ставки. Импорт не перезаписывает оперативные настройки. Один и тот же параметр не редактируется независимо в Git и UI; для migrated profiles запрет действует и на backend API, а не только на кнопки.
+Define field ownership before implementation. Files own definitions and templates. Database/UI-editable data includes connections and secret references, selection/binding of published configurations, enable/disable, budgets, installation quota share, concurrency, specific subscription parameters, notification thresholds/recipients, and current operational data. A binding selects an allowed version or connection without creating a hidden formula or rate copy. Import does not overwrite operational settings. One parameter is not independently editable in Git and UI; for migrated profiles this prohibition applies to backend APIs too, rather than buttons alone.
 
-### 4.2. Измерения, файлы и цена
+### 4.2. Measurements, Files, and Price
 
-Использовать общий реестр измерений с единицей, источником, допустимым диапазоном, округлением и моментом получения: до отправки либо после ответа. Число calls, credits поставщика и вложений не приравнивать друг к другу. Правило операции явно задаёт, какие измерения расходуют allowance и какие участвуют в цене.
+Use a shared measurement registry with unit, source, allowed range, rounding, and acquisition time: before dispatch or after response. Do not equate calls, provider credits, and attachments. An operation rule explicitly defines which measurements consume allowance and which contribute to price.
 
-Сервер определяет количество и размер фактически принятых файлов. Сохранять в quote идентификаторы, hashes и необходимые для расчёта метаданные; не сохранять содержимое в финансовых записях. Измерения страниц и длительности принимаются от доверенного обработчика, а не из произвольного клиентского поля. Неизвестное измерение не заменяется нулём. Приёмка первой версии обязательно покрывает количество и размер файлов; конкретные дополнительные обработчики включаются вместе с требующим их сервисом.
+The server determines the count and size of actually accepted files. Store identifiers, hashes, and calculation-required metadata in the quote; do not store content in financial records. Page and duration measurements come from a trusted processor, rather than arbitrary client fields. An unknown measurement is not replaced with zero. First-version acceptance must cover file count and size; specific additional processors ship with the service requiring them.
 
-Примеры допустимых правил, не цены реальных поставщиков:
+Examples of allowed rules, not real provider prices:
 
 ```text
-цена = цена_вызова
-цена = цена_вызова + число_вложений × цена_вложения
-цена = число_обработанных_страниц × цена_страницы
-цена = ceil(число_записей / размер_блока) × цена_блока
+price = call_price
+price = call_price + attachment_count × attachment_price
+price = processed_page_count × page_price
+price = ceil(record_count / block_size) × block_price
 ```
 
-Версия цены, измерения, лимиты и правила округления фиксируются в принятом quote. Новая публикация не пересчитывает принятую работу. Денежные значения API передаются строками; расчёт использует существующую точную арифметику.
+Price version, measurements, limits, and rounding rules are fixed in the accepted quote. New publication does not recalculate accepted work. API monetary values are strings; calculation uses existing exact arithmetic.
 
-При распределении стоимости пакета фиксировать метод и знаменатель на период, показывать расчётные затраты отдельно от фактической платы поставщику. Для тарифов с несколькими независимыми счётчиками задавать явную базу распределения: нельзя распределить одну абонентскую плату полностью по каждому счётчику и затем сложить суммы. Пользовательская цена может быть ненулевой при нулевой дополнительной себестоимости.
+When allocating package cost, fix the method and denominator for the period and display calculated costs separately from actual provider payment. For tariffs with several independent counters, define an explicit allocation basis: one subscription fee cannot be fully allocated to each counter and then summed. Customer price may be nonzero when incremental provider cost is zero.
 
-### 4.3. Тариф, периоды и журнал allowance
+### 4.3. Tariff, Periods, and Allowance Ledger
 
-Предлагаемые сущности: версия тарифа поставщика, подписка аккаунта поставщика, период, измеряемый лимит, начисление/перенос allowance, резерв, подтверждённый расход, корректировка сверки и provider snapshot. Журнал хранится в PostgreSQL; Redis остаётся восстановимым механизмом коротких рейт-лимитов.
+Proposed entities: provider tariff version, provider-account subscription, period, measured limit, allowance allocation/rollover, reservation, confirmed usage, reconciliation adjustment, and provider snapshot. The ledger lives in PostgreSQL; Redis remains a recoverable short-rate-limit mechanism.
 
-Для каждого счётчика:
+For each counter:
 
 ```text
-доступно = allowance текущего периода
-         + действующий перенесённый остаток
-         + подтверждённые корректировки
-         − подтверждённый расход
-         − открытые резервы
+available = current-period allowance
+          + valid rolled-over balance
+          + confirmed adjustments
+          − confirmed usage
+          − open reservations
 ```
 
-Одна SQL-транзакция проверяет и резервирует все необходимые счётчики вместе с пользовательским финансовым резервом. Неудача любого условия откатывает весь приём. Предварительный quote не гарантирует сохранение текущего остатка до принятия.
+One SQL transaction checks and reserves all required counters together with the user's financial reservation. Failure of any condition rolls back admission entirely. A preliminary quote does not guarantee the current balance remains available until acceptance.
 
-Период задаётся точными границами; дата начала подписки не превращается в фиксированные 30 дней. Предлагаемое правило для 29–31 числа: использовать последний доступный день короткого месяца, сохраняя исходный календарный якорь для следующего. При принятии фиксируется конкретный период; перед отправкой worker перепроверяет его актуальность. Если ожидание пересекло границу периода, неиспользованный allowance переносится между резервами атомарно, без изменения пользовательской цены. Если новый период не допускает работу, запрос закрывается без отправки с освобождением неиспользованного финансового резерва.
+A period has exact boundaries; a subscription start date does not become a fixed 30 days. Proposed rule for days 29–31: use the last available day of a short month while retaining the original calendar anchor for the next. Acceptance fixes a specific period; the worker rechecks its validity before dispatch. If waiting crosses a period boundary, unused allowance moves atomically between reservations without changing customer price. If the new period cannot admit the work, the request closes without dispatch and releases unused financial reservation.
 
-Перенесённые начисления сохраняют происхождение и срок. Предлагаемый порядок расходования: сначала остаток с ближайшим истечением. Закрытый период не обнуляется UPDATE-ом; новый период создаётся идемпотентно. Изменение тарифа или доли установки не стирает старый расход и открытые резервы.
+Rolled-over allocations retain provenance and expiry. Proposed consumption order: earliest-expiring balance first. A closed period is not zeroed with UPDATE; the new period is created idempotently. Changing a tariff or installation share does not erase old usage or open reservations.
 
-Для разрешённого overage хранить отдельные ставки и денежный предел на период аккаунта поставщика в данной установке. Ставки и предел должны быть известны до допуска; пустой предел не означает бесконечность. При запрете превышения исчерпание любого обязательного счётчика блокирует новый запрос до резерва денег.
+For permitted overage, store separate rates and a monetary limit per provider-account period in this installation. Rates and limit must be known before admission; an empty limit does not mean infinity. When overage is prohibited, exhaustion of any required counter blocks a new request before money is reserved.
 
-Для расхода, неизвестного до выполнения, требуется консервативный максимум либо ограничение работы, обеспечиваемое поставщиком. Прогноз не является гарантией жёсткого потолка. Если такого ограничения нет, конфигурация не должна обещать отсутствие превышения; публикация режима с жёстким потолком отклоняется. Существующие исключения AI сохраняются и явно отображаются как оценочные. Неожиданный подтверждённый расход сверх резерва записывается полностью, уменьшает доступность, открывает инцидент и не разрешает новое списание с пользователя сверх принятого максимума.
+Usage unknown before execution requires a conservative maximum or a provider-enforced work limit. A forecast does not guarantee a hard ceiling. Without such a bound, configuration must not promise no overruns; publication of a hard-cap mode is rejected. Existing AI exceptions remain and are explicitly shown as estimates. Unexpected confirmed usage above the reservation is recorded in full, reduces availability, opens an incident, and does not authorize charging the customer above the accepted maximum.
 
-### 4.4. Выполнение, повторы и сверка
+### 4.4. Execution, Retries, and Reconciliation
 
-Использовать существующие operation/request/attempt, leases, fencing, durable queue, результат и ACK. Допуск объединяет allowance периода, денежный предел overage, рейт-лимиты и concurrency. Между PostgreSQL и Redis нет общей транзакции: расширить существующие admission intents и восстановление, а не предполагать атомарность двух хранилищ.
+Use existing operation/request/attempt, leases, fencing, durable queue, result, and ACK. Admission combines period allowance, monetary overage limit, rate limits, and concurrency. PostgreSQL and Redis have no shared transaction: extend existing admission intents and recovery rather than assuming two-store atomicity.
 
-Для асинхронного поставщика UAI сохраняет remote job_id, сам выполняет наблюдение и публикует нормализованные события через SSE. Переподключение приложения читает актуальный статус и продолжает получать события; оно не запускает новую provider job. Потеря SSE не останавливает наблюдение, а получение результата не требует от LogoPanel знать polling endpoint, provider token или формат webhook. Это наблюдение одной задачи, а не самостоятельный многошаговый исследователь из PA-D21.
+For an asynchronous provider, UAI stores the remote job_id, performs observation itself, and publishes normalized SSE events. Application reconnection reads current status and resumes events; it does not start a new provider job. Losing SSE does not stop observation, and result retrieval does not require LogoPanel to know the polling endpoint, provider token, or webhook format. This observes one job, rather than the independent multi-step researcher excluded by PA-D21.
 
-Повтор клиентской команды возвращает исходный результат. Реальная новая попытка может снова расходовать allowance поставщика, даже если клиенту она не оплачивается. Для каждого адаптера определить расход при ошибке, отмене и повторе. Внутренние upstream-запросы поставщика не считать отдельными вызовами UAI, если именно так не устроен его тариф.
+Replaying a client command returns the original result. A real new attempt may consume provider allowance again even when it is not charged to the customer. Define error, cancellation, and retry usage for each adapter. Do not count internal upstream provider requests as separate UAI calls unless its tariff works that way.
 
-При неопределённом исходе запрещён новый платный вызов без доказательства безопасного повтора. Часовой срок закрытия пользовательского денежного спора сохраняется; освобождение пользовательского резерва не доказывает нулевой расход поставщика. Неопределённый расход allowance учитывается консервативно до сверки или аудируемого решения, отдельно от денежного резерва клиента.
+For an uncertain outcome, a new paid call is forbidden without evidence of safe retry. The one-hour deadline for closing the customer's monetary dispute remains; releasing the customer's reservation does not establish zero provider usage. Uncertain allowance usage is conservatively retained until reconciliation or an audited decision, separately from the customer's monetary reservation.
 
-Snapshot сверяется по аккаунту поставщика, метрике, периоду и времени покрытия. Нельзя присвоить `remaining` напрямую поверх локальных отправок после snapshot. Сохранять расхождения и корректировки, не переписывать историю. Устаревшие или пришедшие не по порядку данные не увеличивают доступность. Если API не сообщает время покрытия или имеет неясную задержку, остаток показывается как оценочный; автоматическое увеличение требует достаточного подтверждения.
+Snapshots are reconciled by provider account, metric, period, and coverage time. Do not assign `remaining` directly over local dispatches after the snapshot. Preserve discrepancies and adjustments without rewriting history. Stale or out-of-order data does not increase availability. If the API reports no coverage time or has unclear lag, show the balance as estimated; automatic increases require sufficient confirmation.
 
-Различать полный остаток аккаунта поставщика и долю текущей установки. Общая статистика не должна вычитать локальный расход дважды. При неизвестном внешнем расходе предупреждать об ограниченной достоверности; абсолютная гарантия общего лимита нескольких установок без координатора не заявляется.
+Distinguish the provider account's full balance from the current installation's share. Overall statistics must not subtract local usage twice. Warn about limited reliability when external usage is unknown; no absolute multi-installation total-limit guarantee is claimed without a coordinator.
 
-### 4.5. Notifications и показатели тарифа
+### 4.5. Notifications and Tariff Metrics
 
-Расширить текущий механизм, не создавать второй dispatcher. Предлагаемые новые сигналы:
+Extend the current mechanism without creating a second dispatcher. Proposed new signals:
 
-- `allowance.low`: остаток ниже порога в единицах или процентах;
-- `allowance.exhausted`: исчерпание доступного пакета;
-- `allowance.renewed`: начало нового периода;
-- `usage.snapshot_stale`: истёк срок достоверности статистики;
-- `allowance.discrepancy`: существенное расхождение сверки;
-- `overage.budget_low` и `overage.budget_exhausted`: состояние разрешённого денежного превышения.
+- `allowance.low`: balance below a threshold in units or percent;
+- `allowance.exhausted`: available package exhausted;
+- `allowance.renewed`: a new period begins;
+- `usage.snapshot_stale`: statistics freshness expired;
+- `allowance.discrepancy`: material reconciliation discrepancy;
+- `overage.budget_low` and `overage.budget_exhausted`: state of permitted monetary overage.
 
-Точные имена являются предложением. Пороговые предупреждения и обновление периода согласованы; сигналы расхождения и overage дополняют технический контроль уже выбранных правил. Настройки рейт-лимитов и ожидание должны быть видны в показателях тарифа; прогноз расхода в этот этап не входит.
+Exact names are proposals. Threshold warnings and period renewal are agreed; discrepancy and overage signals supplement technical control of already selected rules. Rate-limit settings and waiting must be visible in tariff metrics; usage forecasting is outside this phase.
 
-Rule задаёт ресурс, метрику, оператор сравнения, единицу, порог, получателей и cooldown. Для процентов явно определить базу, включая перенос. В событие включать лимит, used, reserved, remaining, единицу, период, дату обновления, источник и свежесть. Расчёт доступного остатка учитывает резервы; интерфейс отдельно показывает фактически потраченное.
+A rule defines resource, metric, comparison operator, unit, threshold, recipients, and cooldown. For percentages, explicitly define the basis, including rollover. Events include limit, used, reserved, remaining, unit, period, renewal date, source, and freshness. Available-balance calculation includes reservations; the interface separately shows actual usage.
 
-Дедупликация учитывает правило, аккаунт поставщика, счётчик, период и порог. Пересечение порога порождает событие, восстановление закрывает инцидент, новый период допускает новое предупреждение. `allowance.renewed` является событием, а не бессрочным аварийным инцидентом.
+Deduplication includes rule, provider account, counter, period, and threshold. Crossing a threshold creates an event, recovery closes the incident, and a new period permits a new warning. `allowance.renewed` is an event rather than a perpetual alarm incident.
 
-Административные показатели и webhook не открываются обычным account-scoped токенам. UAI сообщает состояние поставщика; приложение определяет, кому показать пользовательское notification. Отдельный snapshot API возвращает актуальные показатели без зависимости от успешности доставки webhook. SSE может обновлять разрешённый административный экран.
+Administrative metrics and webhooks are not exposed to ordinary account-scoped tokens. UAI reports provider state; the application determines who receives a user notification. A separate snapshot API returns current metrics independently of webhook delivery success. SSE may update an authorized administrative screen.
 
-### 4.6. Админка и SDK
+### 4.6. Admin and SDK
 
-Сохранить визуальные экраны AI и добавить представления API-операций с параметрами, примерами входа/выхода, измерениями, таблицами ставок, разбивкой формул и калькулятором. Для файловых конфигураций это просмотр опубликованного snapshot с происхождением и сравнением версий; редактирование производится в Git. Калькулятор допускает изменение тестовых входов без изменения определения цены. Рецепты и маршруты показываются как понятные составные структуры, а не только JSON. Кнопка проверки на fixtures не обращается к поставщику; реальная проверка должна быть явно отличима.
+Preserve visual AI screens and add API-operation views with parameters, input/output examples, measurements, rate tables, formula breakdowns, and calculator. For file configurations this is a published-snapshot view with provenance and version comparison; editing happens in Git. The calculator allows changing test inputs without changing the price definition. Recipes and routes are displayed as understandable composite structures, rather than JSON alone. A fixture-check button does not call the provider; a real check must be visibly distinct.
 
-Экран тарифа показывает аккаунт поставщика, connections, период, долю установки, каждый счётчик и резерв, перенос со сроком, overage, свежесть сверки, рейт-лимиты и связанные предупреждения. UI различает файловый шаблон и редактируемые параметры конкретной подписки. Оперативные настройки сохраняются в БД с revision и аудитом, включая кошельки, очередь, сверку и инциденты. Админка остаётся на английском согласно [DECISIONS](DECISIONS.md), документация на русском.
+The tariff screen shows provider account, connections, period, installation share, every counter and reservation, rollover with expiry, overage, reconciliation freshness, rate limits, and related warnings. The UI distinguishes file templates from editable specific-subscription parameters. Operational settings remain in the database with revision and audit, including wallets, queue, reconciliation, and incidents. The admin remains in English according to [DECISIONS](DECISIONS.md); documentation is maintained in English under the [2026-10-22 decision](DECISIONS.md#documentation-language-2026-10-22).
 
-Предложение для SDK: добавить нейтральные методы вызова сервиса поверх существующих invocations/quotes/requests, сохранив `ai.*` как совместимый интерфейс. Не переносить provider credentials в клиент. Ошибка allowance содержит стабильный код, блокирующую метрику и `resets_at`, если дата известна; не предлагать клиенту создавать бесконечные новые операции. Принятые идемпотентные повторы продолжают возвращать прежнее состояние даже после исчерпания пакета.
+SDK proposal: add neutral service-call methods over existing invocations/quotes/requests while preserving `ai.*` as a compatible interface. Do not move provider credentials to the client. Allowance errors contain a stable code, blocking metric, and `resets_at` when known; do not suggest endlessly creating new operations. Accepted idempotent replays continue returning their prior state even after package exhaustion.
 
-## 5. Firecrawl: проверенные точки интеграции
+## 5. Firecrawl: Verified Integration Points
 
-Проверено 2026-09-22 по официальной документации и интерфейсу Alexandria. Выполнение платных запросов не производилось. Эти сведения подлежат повторной проверке перед реализацией адаптера; тарифы не являются постоянными значениями ядра UAI.
+Checked on 2026-09-22 against official documentation and the Alexandria UI. No paid requests were executed. Recheck this information before adapter implementation; tariffs are not permanent UAI core constants.
 
-| Операция | HTTP | Особенности |
+| Operation | HTTP | Details |
 |---|---|---|
-| Scrape страницы | `POST https://api.firecrawl.dev/v2/scrape` | Обычный URL и выбранные параметры извлечения |
-| Веб-поиск | `POST https://api.firecrawl.dev/v2/search` | Запрос, предел результатов, отдельный расход дополнительных scrape-опций |
-| Поиск патентов | `POST https://api.firecrawl.dev/v2/scrape` | `alexandria.provider=uspto-gov`, `capability=intellectual-property/patent_search` |
-| Патентный документ | `POST https://api.firecrawl.dev/v2/scrape` | `alexandria.provider=uspto-gov`, `capability=intellectual-property/patent_document` |
-| Остаток и период | `GET https://api.firecrawl.dev/v2/team/credit-usage` | `remainingCredits`, `planCredits`, `billingPeriodStart`, `billingPeriodEnd` |
+| Page scrape | `POST https://api.firecrawl.dev/v2/scrape` | Ordinary URL and selected extraction parameters |
+| Web search | `POST https://api.firecrawl.dev/v2/search` | Query, result limit, separate cost of additional scrape options |
+| Patent search | `POST https://api.firecrawl.dev/v2/scrape` | `alexandria.provider=uspto-gov`, `capability=intellectual-property/patent_search` |
+| Patent document | `POST https://api.firecrawl.dev/v2/scrape` | `alexandria.provider=uspto-gov`, `capability=intellectual-property/patent_document` |
+| Balance and period | `GET https://api.firecrawl.dev/v2/team/credit-usage` | `remainingCredits`, `planCredits`, `billingPeriodStart`, `billingPeriodEnd` |
 
-Пример тела поиска, без вызова сервиса:
+Example search body, without calling the service:
 
 ```json
 {
@@ -191,15 +191,15 @@ Rule задаёт ресурс, метрику, оператор сравнен�
 }
 ```
 
-Patent search использует BRS query, возвращает страницу результатов и `next_start`. Интерфейс описывает ограничение анонимного поиска в 1000 документов. Получение патента принимает номер или guid и может включать полный текст. На момент осмотра обе патентные операции отображали 5 Firecrawl credits за вызов; это наблюдение UI, не подтверждение фактического списания или неизменной цены. Версию workflow и условия тарификации фиксировать в адаптере/профиле там, где API это позволяет; не считать автоматически, что UI-версию можно передать произвольным полем API.
+Patent search uses a BRS query and returns a result page and `next_start`. The UI describes a limit of 1000 documents for anonymous search. Patent retrieval accepts a number or guid and may include full text. At inspection time, both patent operations displayed 5 Firecrawl credits per call; this is a UI observation, not confirmation of actual charges or an immutable price. Pin workflow version and billing terms in the adapter/profile where the API permits; do not assume a UI version can be passed through an arbitrary API field.
 
-Для UAI это отдельные операции с разными входными схемами, даже если HTTP endpoint одинаков. Пагинацией, выбором документов и последовательностью вызовов управляет приложение. Поиск доступных инструментов Alexandria через `sources=["alexandria"]` не заменяет выполнение patent search; автоматическое discovery всех инструментов не является условием первой приёмки. Механизм должен позволять зарегистрировать другие разрешённые Alexandria capabilities без изменения финансового ядра.
+For UAI these are separate operations with different input schemas, even when the HTTP endpoint is identical. The application controls pagination, document selection, and call order. Discovering available Alexandria tools with `sources=["alexandria"]` does not replace executing patent search; automatic discovery of every tool is not required for first acceptance. The mechanism must allow registering other permitted Alexandria capabilities without changing the financial core.
 
-Документация подтверждает общие рейт-лимиты команды для её API-ключей. Остаток Firecrawl хранится в credits поставщика, отдельно от кредитов UAI. Разность двух общих snapshots не является доказательством цены конкретного вызова при параллельном или внешнем расходе. Для каждой операции проверить поле подтверждённого usage, успешный и ошибочный ответы, опции с доплатой, а также отсутствие usage.
+Documentation confirms shared team rate limits across its API keys. Firecrawl balance is stored in provider credits, separately from UAI credits. The difference between two overall snapshots does not establish a specific call's price when concurrent or external usage exists. For each operation, check the confirmed-usage field, success and error responses, surcharge options, and absent usage.
 
-Официальная реализация Alexandria описывает `x-request-id`, воспроизведение завершённого ответа и неопределённый исход `request_unresolved`. При реализации проверить применимость к hosted API и каждой операции; не переносить гарантию Alexandria на обычные scrape/search без отдельного подтверждения. В UAI ID связывается с сохранённой попыткой и hash тела.
+The official Alexandria implementation describes `x-request-id`, completed-response replay, and the uncertain `request_unresolved` outcome. During implementation, check applicability to the hosted API and each operation; do not extend an Alexandria guarantee to ordinary scrape/search without separate confirmation. In UAI the ID links to the stored attempt and body hash.
 
-Источники:
+Sources:
 
 - [Alexandria](https://docs.firecrawl.dev/features/alexandria).
 - [Scrape](https://docs.firecrawl.dev/api-reference/endpoint/scrape).
@@ -207,73 +207,73 @@ Patent search использует BRS query, возвращает страни�
 - [Credit usage](https://docs.firecrawl.dev/api-reference/endpoint/credit-usage).
 - [Rate limits](https://docs.firecrawl.dev/rate-limits).
 - [Billing](https://docs.firecrawl.dev/billing).
-- [Реализация Alexandria](https://github.com/firecrawl/firecrawl/blob/main/apps/api/src/controllers/v2/scrape-alexandria.ts) и [описание request identity](https://github.com/firecrawl/firecrawl/blob/main/apps/api/src/services/alexandria/README.md).
+- [Alexandria implementation](https://github.com/firecrawl/firecrawl/blob/main/apps/api/src/controllers/v2/scrape-alexandria.ts) and [request identity description](https://github.com/firecrawl/firecrawl/blob/main/apps/api/src/services/alexandria/README.md).
 
-## 6. Порядок реализации
+## 6. Implementation Order
 
-Предлагаемый порядок после уточнения о Git: небольшой общий подготовительный этап, затем новые API и allowance, затем завершение миграции оставшихся конфигураций. После завершения PA-I00 владелец разрешил продолжать весь оставшийся план без остановок между этапами; выбор файловых определений и визуальной админки уже сделан. Полная миграция всех AI-профилей не является предварительным условием Firecrawl.
+Proposed order after the Git clarification: a small shared preparatory phase, then new APIs and allowance, then complete migration of remaining configurations. After PA-I00 completion, the owner authorized continuing the entire remaining plan without stopping between phases; file definitions and a visual admin have already been chosen. Full migration of every AI profile is not a prerequisite for Firecrawl.
 
-На подготовительном этапе зафиксировать границы JSON/TypeScript/оперативной БД, формат ссылок и provenance, общий validate/preview/publish и режим просмотра file-managed профиля. Доказать путь на одном существующем AI-профиле с его ставками, рецептом и маршрутом. Формат заранее допускает API-операции и будущие шаблоны тарифов, но сам учёт allowance, все адаптеры и перенос всего каталога в этот этап не входят.
+In the preparatory phase, define JSON/TypeScript/operational-database boundaries, reference and provenance formats, shared validate/preview/publish, and file-managed profile viewing. Demonstrate the path on one existing AI profile with its rates, recipe, and route. The format anticipates API operations and future tariff templates, but allowance accounting, all adapters, and migration of the entire catalog are outside this phase.
 
-Делать API до этого этапа рискованно: потребуется переделать способ настройки, публикации и UI. Полностью мигрировать конфигурации до первого API также рискованно: нет проверки общего формата на новых операциях и месячных тарифах. Небольшой рабочий путь публикации даёт эту основу без блокировки всей работы на миграции.
+Building APIs before this phase is risky: configuration, publication, and UI would need reworking. Fully migrating configurations before the first API is also risky: the shared format would not be tested on new operations and monthly tariffs. A small working publication path provides this foundation without blocking all work on migration.
 
-| Этап | Работы | Условие завершения |
+| Phase | Work | Completion condition |
 |---|---|---|
-| PA-I00. Файловая публикация | Границы владения, JSON schemas, реестр TS-адаптеров, validate/preview/publish, происхождение версии и read-only визуализация. Один существующий AI-профиль проходит весь путь с зависимостями. | Повторная публикация идемпотентна, UI не может изменить файловые определения, оперативные настройки сохраняются, старая принятая работа исполняется на своих условиях. |
-| PA-I01. Контракты | Согласовать схему операции, измерений, тарифа, периода, резерва, сверки и событий. Обновить ARCHITECTURE, ACCOUNTING, QUOTING, EXECUTION, API/OpenAPI, OPERATIONS и матрицу приёмки. | Однозначный путь от входа и файлов до цены, allowance и результата; сохранены действующие финансовые инварианты. |
-| PA-I02. Учёт allowance | Новые additive migrations, журнал периода, резерв/settlement/release, перенос, overage, ручная корректировка и snapshots. | Транзакционные тесты конкуренции, повторов, границ месяца, недоступности статистики и восстановления. |
-| PA-I03. Универсальная операция | Каталог API, новые измерения, файлы, независимые цены, консервативные максимумы, расширение quotes. | Тестовый сервис рассчитывается тем же финансовым ядром; старые AI quotes и цены не меняются. |
-| PA-I04. Выполнение | TypeScript-адаптеры и общие HTTP-помощники, привязка аккаунта поставщика, allowance admission, короткие квоты, intents и recovery; асинхронное наблюдение и SSE остаются в UAI. | Ни одной внешней отправки без полного допуска; после сбоя нет повторного списания и небезопасного повтора; приложение не реализует протокол поставщика. |
-| PA-I05. Firecrawl и Serper | Четыре операции Firecrawl, сверка остатка, нормализация usage/ошибок; адаптация существующего Serper к общей модели. | Контрактные fixtures покрывают endpoints, pagination, credits, timeout, отсутствие usage и платные опции. |
-| PA-I06. Notifications, API и SDK | Новые наблюдения и правила, payload, snapshot API, webhook, совместимые SDK-методы и scopes. | Уведомления изолированы по ресурсу/периоду, повторная доставка не создаёт повторного эффекта. |
-| PA-I07. Админка | Визуальные карточки файловых AI/API-конфигураций, ставки, формулы, калькулятор, рецепты и маршруты; редактирование оперативных настроек тарифов/счётчиков/сверки, рейт-лимитов и notifications. | Aside подтверждает визуализацию и происхождение файловых версий, работу калькулятора, сохранение оперативных настроек и конфликт ревизий. |
-| PA-I08. Приёмка и миграция | Перенести оставшиеся активные определения в общий файловый процесс с сохранением истории, убрать дублирующие пути редактирования/setup. Полный набор ниже, generated API, сборки, документация, отдельный отчёт о реальных интеграциях. | Локальные и реальные доказательства разделены, пропуски перечислены; файловые определения имеют одного владельца, ни один обязательный пропуск не обозначен как успех. |
+| PA-I00. File publication | Ownership boundaries, JSON schemas, TS adapter registry, validate/preview/publish, version provenance, and read-only visualization. One existing AI profile completes the whole dependency path. | Republication is idempotent; UI cannot change file definitions; operational settings survive; old accepted work executes on its own terms. |
+| PA-I01. Contracts | Align schemas for operations, measurements, tariffs, periods, reservations, reconciliation, and events. Update ARCHITECTURE, ACCOUNTING, QUOTING, EXECUTION, API/OpenAPI, OPERATIONS, and acceptance matrix. | An unambiguous path from input and files to price, allowance, and result; existing financial invariants preserved. |
+| PA-I02. Allowance accounting | New additive migrations, period ledger, reserve/settlement/release, rollover, overage, manual adjustment, and snapshots. | Transactional tests for concurrency, retries, month boundaries, unavailable statistics, and recovery. |
+| PA-I03. Universal operation | API catalog, new measurements, files, independent prices, conservative maxima, quote expansion. | A test service settles through the same financial core; old AI quotes and prices remain unchanged. |
+| PA-I04. Execution | TypeScript adapters and shared HTTP helpers, provider-account binding, allowance admission, short quotas, intents and recovery; asynchronous observation and SSE remain in UAI. | No external dispatch without full admission; no duplicate charge or unsafe retry after failure; the application does not implement provider protocols. |
+| PA-I05. Firecrawl and Serper | Four Firecrawl operations, balance reconciliation, usage/error normalization; adapt existing Serper to the shared model. | Contract fixtures cover endpoints, pagination, credits, timeout, missing usage, and paid options. |
+| PA-I06. Notifications, API, and SDK | New observations and rules, payload, snapshot API, webhook, compatible SDK methods and scopes. | Notifications are isolated by resource/period; redelivery does not repeat effects. |
+| PA-I07. Admin | Visual cards for file AI/API configurations, rates, formulas, calculator, recipes, and routes; editing operational tariff/counter/reconciliation, rate-limit, and notification settings. | Aside confirms file-version visualization and provenance, calculator operation, preserved operational settings, and revision conflicts. |
+| PA-I08. Acceptance and migration | Move remaining active definitions into the shared file process preserving history; remove duplicate editing/setup paths. Full set below, generated API, builds, documentation, separate real-integration report. | Local and real evidence are separated; omissions listed; file definitions have one owner; no mandatory omission is marked successful. |
 
-Этапы описывают полный объём расширения. Разрешено исполнение PA-I01–PA-I08. Реальные платные вызовы требуют отдельного согласования входов и бюджета. До начала исполнения сверить точные названия таблиц и миграций с текущим HEAD; не переписывать уже применённые миграции.
+Phases describe the full extension scope. PA-I01–PA-I08 execution is authorized. Real paid calls require separate agreement on inputs and budget. Before execution, check exact table and migration names against current HEAD; do not rewrite applied migrations.
 
-## 7. Критерии приёмки
+## 7. Acceptance Criteria
 
-| ID | Проверка |
+| ID | Check |
 |---|---|
-| PA-A01 | Фиксированная цена вызова, формула по параметрам, несколько вложений, байты и округление дают ожидаемое списание. Клиент не может подменить измерение. |
-| PA-A02 | Независимая пользовательская цена и себестоимость с наценкой работают отдельно; абонентская плата и её распределение не удваивают итог. |
-| PA-A03 | Оплата по факту ограничена принятым максимумом; отсутствие usage не становится нулём. Превышение расхода поставщика не создаёт несогласованное списание пользователя. |
-| PA-A04 | Одновременные запросы расходуют последний остаток без двойного допуска. Неудача одного из нескольких счётчиков откатывает все новые резервы. |
-| PA-A05 | Несколько connections одного аккаунта расходуют общий allowance; новый ключ не создаёт новый пакет. Другой аккаунт и организация изолированы. |
-| PA-A06 | Смена месяца, 29–31 число, часовой пояс, повтор scheduler, задержка обновления и поздний ответ не теряют расход и не удваивают начисление. |
-| PA-A07 | Перенос выключен по умолчанию; при включении соблюдаются предел, срок и происхождение остатка. Старый период остаётся в истории. |
-| PA-A08 | Остановка и разрешённый overage работают по тарифу; денежный предел превышения учитывает параллельные резервы. |
-| PA-A09 | Новый запрос при исчерпании отклоняется до денег и отправки. Повтор ранее принятой команды возвращает исходный результат. |
-| PA-A10 | Короткий rate limit вызывает ожидание с конечным deadline. Пересечение периода во время ожидания не использует истёкший allowance. |
-| PA-A11 | Сбой между SQL, Redis и HTTP восстанавливается через intents. Неиспользованный допуск освобождается, возможно использованный не объявляется свободным. |
-| PA-A12 | Ошибки, отмена, технические повторы и outcome_unknown учитывают расход поставщика отдельно от оплаты пользователя; повтор callback/usage идемпотентен. |
-| PA-A13 | Недоступная или устаревшая статистика сохраняет локальный контроль; snapshot учитывает период, внешнее использование и локальные вызовы после покрытия. |
-| PA-A14 | Порог процента/единиц, исчерпание, восстановление и обновление периода дают корректные события, cooldown и повторную доставку без повторного эффекта. |
-| PA-A15 | Административные показатели и детали провайдера не доступны чужой организации или обычному клиентскому account-scoped токену. |
-| PA-A16 | Зарегистрированный TS-адаптер выполняет опубликованную файловую конфигурацию с файлами; опасный адрес/redirect, неподдержанный параметр и тело ошибки не обходят ограничения. JSON не исполняет произвольный код. |
-| PA-A17 | Firecrawl scrape, search, patent_search и patent_document имеют отдельные параметры, usage и ценовые профили. Пагинация не скрывает дополнительные вызовы. |
-| PA-A18 | Сверка Firecrawl принимает поля credit-usage, различает credits поставщика и UAI, не выводит цену запроса из общего изменения остатка. |
-| PA-A19 | Serper и существующие AI-адаптеры сохраняют поведение, старые версии каталогов/quotes не пересчитываются; AI получает новые показатели allowance при явном подключении тарифа. |
-| PA-A20 | Aside подтверждает визуальные карточки, таблицы ставок, формулы, калькулятор, рецепты/маршруты и provenance без редактирования файловых определений; оперативные настройки редактируются, несколько счётчиков и инциденты отображаются. |
-| PA-A21 | Чистая БД и обновление существующей БД проходят новые миграции; typecheck, релевантные PostgreSQL/Redis tests, OpenAPI, сборки и docs:check успешны. |
-| PA-A22 | Отдельный реальный прогон Firecrawl проверяет доступность четырёх операций и наблюдаемый расход на согласованном наборе входов. Требуемые доступы и бюджет определяются перед запуском; fixtures не заменяют этот результат. |
-| PA-A23 | Общий publisher проверяет schemas, ссылки и ценовые примеры, показывает diff, не создаёт вторую версию при повторе того же содержимого и не оставляет частично активированного набора. UI/API не могут изменять file-managed поля или перезаписывать их независимым значением. |
-| PA-A24 | Асинхронный тестовый адаптер возвращает job_id; UAI завершает наблюдение после перезапуска worker и разрыва SSE. Приложение получает актуальное состояние и результат без нового submit и provider-specific запросов. |
-| PA-A25 | Новая публикация, смена привязки и обновление TS-адаптера не меняют условия принятой операции. Provenance и старые snapshots доступны; импорт не сбрасывает оперативные параметры установки. |
+| PA-A01 | Fixed per-call price, parameter formula, multiple attachments, bytes, and rounding produce the expected charge. The client cannot substitute measurements. |
+| PA-A02 | Independent customer price and provider cost with markup work separately; subscription fee and allocation do not double the total. |
+| PA-A03 | Actual charging is bounded by the accepted maximum; missing usage does not become zero. Excess provider usage does not create an unauthorized customer charge. |
+| PA-A04 | Concurrent requests consume the last balance without double admission. Failure of one of multiple counters rolls back every new reservation. |
+| PA-A05 | Multiple connections of one account share allowance; a new key does not create a new package. Other accounts and organizations remain isolated. |
+| PA-A06 | Month changes, days 29–31, time zones, scheduler replay, delayed renewal, and late responses neither lose usage nor duplicate allocation. |
+| PA-A07 | Rollover is disabled by default; when enabled, its cap, expiry, and balance provenance are honored. The old period remains in history. |
+| PA-A08 | Stop and permitted overage follow the tariff; the monetary overage limit includes concurrent reservations. |
+| PA-A09 | A new exhausted request is rejected before money or dispatch. Replaying a previously accepted command returns the original result. |
+| PA-A10 | A short rate limit causes waiting with a finite deadline. Crossing a period while waiting does not use expired allowance. |
+| PA-A11 | Failure between SQL, Redis, and HTTP recovers through intents. Unused admission is released; possibly used admission is not declared free. |
+| PA-A12 | Errors, cancellation, technical retries, and outcome_unknown account for provider usage separately from customer payment; callback/usage replay is idempotent. |
+| PA-A13 | Unavailable or stale statistics preserve local control; snapshots account for period, external usage, and local calls after coverage. |
+| PA-A14 | Percent/unit thresholds, exhaustion, recovery, and period renewal produce correct events, cooldown, and retry delivery without repeated effects. |
+| PA-A15 | Administrative metrics and provider details are inaccessible to another organization or an ordinary customer account-scoped token. |
+| PA-A16 | A registered TS adapter executes a published file configuration with files; unsafe destinations/redirects, unsupported parameters, and error bodies do not bypass constraints. JSON executes no arbitrary code. |
+| PA-A17 | Firecrawl scrape, search, patent_search, and patent_document have separate parameters, usage, and pricing profiles. Pagination does not hide additional calls. |
+| PA-A18 | Firecrawl reconciliation accepts credit-usage fields, distinguishes provider and UAI credits, and does not derive request price from overall balance changes. |
+| PA-A19 | Serper and existing AI adapters preserve behavior; old catalog/quote versions are not recalculated; AI receives new allowance metrics when a tariff is explicitly connected. |
+| PA-A20 | Aside confirms visual cards, rate tables, formulas, calculator, recipes/routes, and provenance without file-definition editing; operational settings remain editable, and multiple counters and incidents are displayed. |
+| PA-A21 | Clean databases and existing-database upgrades pass new migrations; typecheck, relevant PostgreSQL/Redis tests, OpenAPI, builds, and docs:check succeed. |
+| PA-A22 | A separate real Firecrawl run verifies all four operations' availability and observed usage on an agreed input set. Required access and budget are determined before launch; fixtures do not replace this result. |
+| PA-A23 | The shared publisher validates schemas, references, and pricing examples, shows a diff, creates no second version for identical content, and leaves no partially activated bundle. UI/API cannot change file-managed fields or overwrite them independently. |
+| PA-A24 | An asynchronous test adapter returns job_id; UAI completes observation after worker restart and SSE disconnection. The application receives current state and result without new submit or provider-specific requests. |
+| PA-A25 | New publication, binding changes, and TS adapter updates do not change accepted-operation terms. Provenance and old snapshots remain available; import does not reset installation operational parameters. |
 
-Пропущенные интеграционные проверки не считаются выполненными. Не использовать приватные ответы поставщика и файлы пользователя как Git fixtures. Для локальных испытаний нужны synthetic данные; в отчёт реального прогона включать только безопасные идентификаторы, статусы, количества и финансовые итоги.
+Skipped integration checks do not count as completed. Do not use private provider responses or user files as Git fixtures. Local tests require synthetic data; real-run reports include only safe identifiers, statuses, quantities, and financial totals.
 
-## 8. Переход и ограничения
+## 8. Transition and Limitations
 
-Новые тарифы подключаются явно. Для существующего connection отсутствие нового тарифа означает сохранение прежней конфигурации, а не выдуманный unlimited allowance. В админке такой connection помечается как не подключённый к учёту пакета. Опубликованная новая API-операция обязана явно задать режим allowance: ограниченный пакет либо отсутствие такого ограничения у поставщика.
+New tariffs connect explicitly. For an existing connection, absence of a new tariff preserves previous configuration rather than inventing unlimited allowance. The admin marks such a connection as not connected to package accounting. A published new API operation must explicitly define allowance mode: a limited package or no such provider restriction.
 
-Миграция не пересоздаёт кошельки, не меняет стоимость кредита UAI, не переписывает usage и проводки. Выключение новых профилей останавливает новые приёмы, но оставляет settlement, получение результатов и сверку уже принятых attempts. Наличие открытых резервов запрещает разрушительную смену привязки тарифа без предусмотренного переноса или завершения работы.
+Migration does not recreate wallets, change UAI credit value, or rewrite usage and postings. Disabling new profiles stops new acceptance but retains settlement, result retrieval, and reconciliation for accepted attempts. Open reservations prohibit destructive tariff-binding changes without a defined transfer or work completion.
 
-На переходе допускаются явно помеченные legacy DB-managed профили и file-managed профили, но один профиль не имеет двух независимых владельцев. Перенос выполняется профилями: экспорт/сверка содержимого, публикация версии с provenance, проверка цен и зависимостей, переключение привязки, отключение старого редактирования. Действующие метаданные, включая отображаемые имена, получают явного владельца; прежний endpoint переименования не может обходить режим file-managed. Секреты и значения конкретной установки в Git не экспортируются. Общий publisher постепенно заменяет разовые demo-скрипты, сохраняя воспроизводимость fixtures.
+During transition, explicitly marked legacy DB-managed and file-managed profiles are allowed, but one profile cannot have two independent owners. Migration proceeds by profile: export/reconcile content, publish a version with provenance, check prices and dependencies, switch binding, disable old editing. Active metadata, including display names, receive an explicit owner; the old rename endpoint cannot bypass file-managed mode. Secrets and installation-specific values are not exported to Git. The shared publisher gradually replaces one-off demo scripts while preserving fixture reproducibility.
 
-В объём не входят пользовательские подписки, общий координатор установок, прогноз исчерпания, самостоятельный исследователь, внешний CRUD/SMS, визуальный конструктор асинхронных workflows и весь каталог Firecrawl. Crawl сайтов не требуется для согласованного сценария патентов. Развёртывание и платные вызовы не разрешаются самим фактом подготовки плана.
+Scope excludes user subscriptions, a shared installation coordinator, exhaustion forecasting, an independent researcher, external CRUD/SMS, a visual asynchronous workflow builder, and the entire Firecrawl catalog. Website crawl is unnecessary for the agreed patent scenario. Preparing the plan alone authorizes neither deployment nor paid calls.
 
 
-## 9. Состояние реализации на 2026-09-23
+## 9. Implementation Status as of 2026-09-23
 
-PA-I00 завершён. PA-I01–PA-I07 реализованы и проверены локально. Для PA-I08 подготовлены экспорт всех 20 локальных профилей, атомарный adoption, миграции, UI и регрессионная приёмка. 20 профилей основной локальной demo перенесены и активированы с резервной копией и проверкой неизменности connections/wallets. PA-A22 завершён после отдельного разрешения до 50 credits: 8 успешных Firecrawl-вызовов потратили 26 credits, включая 4 вызова через demo. Сводка реальных проверок приведена в [проверках провайдеров](REAL_PROVIDER_CHECKS.md).
+PA-I00 is complete. PA-I01–PA-I07 are implemented and verified locally. PA-I08 includes prepared export of all 20 local profiles, atomic adoption, migrations, UI, and regression acceptance. The primary local demo's 20 profiles were migrated and activated with a backup and checks that connections/wallets remained unchanged. PA-A22 completed after separate approval of up to 50 credits: 8 successful Firecrawl calls spent 26 credits, including 4 calls through the demo. Real checks are summarized in [provider checks](REAL_PROVIDER_CHECKS.md).

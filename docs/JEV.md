@@ -1,44 +1,44 @@
 # Jev System One
 
-[Оглавление](README.md) · [План](JEV_IMPLEMENTATION_PLAN.md)
+[Contents](README.md) · [Plan](JEV_IMPLEMENTATION_PLAN.md)
 
-## Статус
+## Status
 
-Локальная реализация использует `api.call`, provider `typesafe`, adapter `typesafe@1`, ключ операции `typesafe.systemone`, профиль `typesafe.jev-1.13.0`. В HTTP всегда отправляется `jev-1.13.0`. Фактический `model` обязателен; несовпадение считается техническим дефектом. Usage и полученная модель сохраняются до проверки ответов.
+The local implementation uses `api.call`, provider `typesafe`, adapter `typesafe@1`, operation key `typesafe.systemone`, and profile `typesafe.jev-1.13.0`. HTTP requests always send `jev-1.13.0`. The actual `model` is required; a mismatch is a technical defect. Usage and the returned model are saved before response validation.
 
-Файловый пакет `configurations/api/typesafe/jev.json` имеет status=active, live_validation=passed. Пять платных проверок завершены в бюджете $0.05; расчётный расход $0.000066948. В действующую установку профиль не публиковался. Локальная приёмка использует изолированную БД и подменённый HTTP transport.
+The file package `configurations/api/typesafe/jev.json` has status=active, live_validation=passed. Five paid checks completed within the $0.05 budget; calculated spending was $0.000066948. The profile has not been published to a running installation. Local acceptance uses an isolated database and a substituted HTTP transport.
 
-## Что подтверждено и что неизвестно
+## What is confirmed and what remains unknown
 
-26 сентября 2026 по местной дате проверены [API](https://docs.typesafe.ai/api), [OpenAPI](https://api.typesafe.ai/openapi.json) и [карточка модели](https://docs.typesafe.ai/models). В публичном контракте только evaluate и список моделей. Tokenizer, count endpoint, lookup, cancel и provider idempotency не описаны. Balance/cost reporting отключены.
+On September 26, 2026, local date, the [API](https://docs.typesafe.ai/api), [OpenAPI](https://api.typesafe.ai/openapi.json), and [model card](https://docs.typesafe.ai/models) were checked. The public contract includes only evaluate and model listing. It does not describe a tokenizer, count endpoint, lookup, cancel, or provider idempotency. Balance/cost reporting is disabled.
 
-Тариф входа $0.042 за миллион токенов; выход бесплатный. Карточка указывает 64k на весь запрос и 32k на state вместе с длиннейшим вопросом, но не определяет точное целое значение k и связь лимита с `usage.input_tokens`. По решению владельца от 2026-09-26 максимум профиля для резерва и quota admission установлен в 32768 входных токенов. Это выбранный предел финансового допуска, а не доказанный предел поставщика или прогноз цены. `estimateUsage` возвращает `unavailable`.
+The input rate is $0.042 per million tokens; output is free. The model card specifies 64k for the entire request and 32k for state together with the longest question, but does not define the exact integer value of k or the relationship between the limit and `usage.input_tokens`. By the owner's decision of 2026-09-26, the profile maximum for reservation and quota admission is 32768 input tokens. This is a chosen financial admission limit, not a proven provider limit or price forecast. `estimateUsage` returns `unavailable`.
 
-TypeSafe не получает параметр ограничения токенов: 32768 используется внутри UAI. Фактический расход может превысить выбранный максимум; полный расход сохраняется, превышение клиентского cap принимает установка. Решение владельца заменяет исходное требование блокировать профиль до доказательства billable maximum. Живая приёмка требует отдельного разрешения бюджета; пять вызовов сами по себе не доказывают верхний предел.
+TypeSafe receives no token-limiting parameter: 32768 is used internally by UAI. Actual consumption may exceed the selected maximum; the full cost is recorded, and the installation absorbs any amount above the customer cap. The owner's decision replaces the original requirement to block the profile until a billable maximum is proven. Live acceptance requires separate budget authorization; five calls alone do not prove an upper bound.
 
-## Контракт и ограничения
+## Contract and limits
 
-`state` принимает строку, JSON-объект или массив. Внутри разрешены null, boolean, строки, конечные числа, включая отрицательные, массивы и объекты. Instructions обязательны и содержательны. В Choice критерии могут быть null, в Noul необязательны ключи true/false. Score содержит 2–10 уровней. Choice содержит 1–255 вариантов.
+`state` accepts a string, JSON object, or array. Nested values may include null, booleans, strings, finite numbers including negative numbers, arrays, and objects. Instructions are required and must be meaningful. Choice criteria may be null; the true/false keys in Noul are optional. Score contains 2–10 levels. Choice contains 1–255 options.
 
-Локальные пределы UAI: 32 вопроса; 128 символов в ключе; 32768 символов в строке; 131072 байта входного JSON; глубина 12; 8192 узла. Ответ ограничен 1048576 байтами. Циклы, нестандартные JS-объекты, опасные ключи и не-JSON значения запрещены. Это ограничения UAI, не заявленные ограничения TypeSafe.
+UAI's local limits are: 32 questions; 128 characters per key; 32768 characters per string; 131072 bytes of input JSON; depth 12; 8192 nodes. Responses are limited to 1048576 bytes. Cycles, nonstandard JS objects, dangerous keys, and non-JSON values are forbidden. These are UAI limits, not claimed TypeSafe limits.
 
-Общее подмножество API-схем расширено ограниченными словарями, anyOf, const, minProperties/maxProperties и явным `x-uai-bounded-json`. Последний включает проверку JSON с указанными пределами, а не разрешает произвольные схемы. Внешние ссылки и рекурсивные схемы остаются запрещены. Прежние закрытые входные объекты сохраняют запрет неизвестных полей.
+The common API-schema subset has been extended with bounded dictionaries, anyOf, const, minProperties/maxProperties, and explicit `x-uai-bounded-json`. The latter enables JSON validation with the specified bounds rather than allowing arbitrary schemas. External references and recursive schemas remain forbidden. Existing closed input objects continue to reject unknown fields.
 
-Ответ сопоставляется с исходным пакетом: ключи и типы совпадают, Choice выбирается из переданных вариантов и имеет максимальную вероятность; Score использует индексы от нуля. Вероятности конечны и лежат в 0–1. Допуск суммы равен 0.001, допуск математического ожидания Score равен 0.001 × число уровней. Для текстовых уровней legend совпадает с исходной шкалой. Для структурированных уровней формат строкового описания поставщика не определён, поэтому проверяются ключи и ограниченные строки legend. Noul содержит только type и noul, без confidence. Низкая уверенность не вызывает повтор.
+The response is matched against the original batch: keys and types must match, Choice must select one of the supplied options with the highest probability, and Score uses zero-based indices. Probabilities must be finite and within 0–1. The sum tolerance is 0.001; the Score expected-value tolerance is 0.001 × the number of levels. For text levels, legend matches the original scale. For structured levels, the provider's string-description format is undefined, so keys and bounded legend strings are checked. Noul contains only type and noul, without confidence. Low confidence does not trigger a retry.
 
-## Выполнение и деньги
+## Execution and money
 
-Один пакет отправляется одним HTTP POST без скрытых retries. Transport ограничен 60 секундами и сигналом общего deadline. 401/403 означают проблему доступа, 422 неверный вход, 429/529 разрешают обычный backoff UAI с Retry-After. Остальные ошибки сервера, разрыв соединения и потеря ответа имеют неизвестный исход. Отмена ожидания не означает отмену вычисления. До dispatch списания нет. После dispatch подтверждённый расход активной попытки оплачивается в пределах cap по общей политике actual_usage; при неизвестном расходе резерв закрывается по общим правилам через час.
+One batch is sent in one HTTP POST without hidden retries. Transport is limited to 60 seconds and the overall deadline signal. 401/403 indicate an access problem, 422 invalid input, and 429/529 permit normal UAI backoff with Retry-After. Other server errors, connection loss, and a lost response have an unknown outcome. Canceling the wait does not mean canceling computation. No charge occurs before dispatch. After dispatch, confirmed consumption by the active attempt is charged within the cap under the common actual_usage policy; when consumption is unknown, the reservation is closed under the common rules after one hour.
 
-Точные затраты рассчитываются существующей десятичной арифметикой: input_tokens × 0.042 / 1000000 USD. В UAI 1 USD = 1000000000 units. Выход хранится в диагностике, нулевая ставка задана явно. Missing/invalid usage сохраняется как unknown. Дефектный ответ с известным usage сохраняет себестоимость. Денежные целые передаются строками.
+Exact costs use the existing decimal arithmetic: input_tokens × 0.042 / 1000000 USD. In UAI, 1 USD = 1000000000 units. Output is retained in diagnostics, with an explicitly configured zero rate. Missing/invalid usage is recorded as unknown. A defective response with known usage retains its provider cost. Monetary integers travel as strings.
 
-Клиентская политика cost_plus: коэффициент 1, наценка 0, actual_capped. Резерв 1376256 units соответствует выбранному максимуму 32768. После успешного результата списывается факт в пределах cap, остаток освобождается. Полная себестоимость выше cap сохраняется; задолженность клиента не создаётся. Малый баланс может не покрыть полный резерв, даже если короткий запрос стоил бы меньше.
+The customer policy is cost_plus: multiplier 1, markup 0, actual_capped. A reservation of 1376256 units corresponds to the selected maximum of 32768. After a successful result, actual cost is charged within the cap and the remainder is released. Full provider cost above the cap is recorded; no customer debt is created. A small balance may not cover the full reservation even if a short request would cost less.
 
-Шаблон квот содержит отдельные RPM 1200 за 60000 мс и TPS 250000 за 1000 мс. Это публичные изменяемые значения, перед подключением нужна доля конкретного аккаунта. Все ключи аккаунта привязываются к одной группе квот. `unmetered` означает отсутствие пакета allowance, не бесплатность.
+The quota template has separate RPM 1200 per 60000 ms and TPS 250000 per 1000 ms. These are public, changeable values; the specific account's allocation is required before connection. All keys for an account bind to one quota group. `unmetered` means there is no allowance package, not that service is free.
 
-## SDK и JSON
+## SDK and JSON
 
-Все результаты `application/json` выдаются manifest с `type=structured`, `value` и исходным `text`. Это общий формат JSON-сервисов, включая Firecrawl и Serper. Остальные текстовые результаты сохраняют `type=text`. SDK экспортирует `serviceJson`, типы Jev и `jev`.
+All `application/json` results are returned in a manifest with `type=structured`, `value`, and the original `text`. This is the common JSON-service format, including Firecrawl and Serper. Other text results retain `type=text`. The SDK exports `serviceJson`, Jev types, and `jev`.
 
 ```typescript
 const evaluator = jev(client, { account_id: accountId });
@@ -53,7 +53,7 @@ const input = {
   }
 } as const;
 const quote = await evaluator.quote(input, 'jev-quote-1');
-// После подтверждения максимума приложением:
+// After the application confirms the maximum:
 const result = await evaluator.run(input, {
   key: 'jev-run-1', budget: { max_units: quote.max_units }
 });
@@ -63,8 +63,8 @@ if (result.value) {
 }
 ```
 
-Если manifest недоступен, helper возвращает обычные status/reason запроса и value=undefined. При переданном persist проверка JSON выполняется до сохранения и автоматического ACK. Helper сохраняет литеральные ключи вопросов и Choice, использует стандартный services.run, SSE жизненного цикла и ACK. Отдельного токенного streaming у Jev нет. Пример требует явно опубликованного профиля и настроенного подключения.
+If the manifest is unavailable, the helper returns the request's normal status/reason and value=undefined. When persist is supplied, JSON validation occurs before saving and automatic ACK. The helper preserves literal question and Choice keys and uses standard services.run, lifecycle SSE, and ACK. Jev has no separate token streaming. The example requires an explicitly published profile and configured connection.
 
-## Локальное demo
+## Local demo
 
-Раздел «Платные API» содержит смешанный пакет Jev. В обычной установке кнопка отключена, пока не задан отдельный профиль demo. `scripts/run-jev-fixture.ts` создаёт изолированный пример на портах 4345–4347 с подменой transport, тестовым кошельком и публичным fixture-паролем. Скрипт принимает только локальную БД с префиксом `uai_jev_`; миграции применяются заранее. Действующие подключения не меняются. Ответ, модель и usage показываются в интерфейсе, полученное содержимое сохраняется до ACK.
+The “Paid APIs” section contains a mixed Jev batch. In a normal installation, the button is disabled until a separate demo profile is configured. `scripts/run-jev-fixture.ts` creates an isolated example on ports 4345–4347 with a substituted transport, test wallet, and public fixture password. The script accepts only a local database with the `uai_jev_` prefix; migrations are applied beforehand. Existing connections are unchanged. The response, model, and usage appear in the interface, and returned content is saved before ACK.

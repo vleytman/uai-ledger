@@ -1,112 +1,112 @@
-# План доработок UAI по запросам LogoPanel
+# UAI Follow-up Plan for LogoPanel Requests
 
-Дата: 2026-09-25. Статус: LF-I00–LF-I08 реализованы и проверены локально. Матрица LF-A01–LF-A18. Платная живая приёмка подготовлена отдельно, но не запускалась.
+Date: 2026-09-25. Status: LF-I00–LF-I08 implemented and verified locally. Matrix LF-A01–LF-A18. Paid live acceptance was prepared separately but has not been run.
 
-[Оглавление](README.md) · [Решения](DECISIONS.md) · [Универсальные вызовы](UNIVERSAL_INVOCATION_PLAN.md) · [Интеграция](UNIVERSAL_INVOCATION_INTEGRATION.md) · [Локальный запуск](LOCAL_RUN.md)
+[Contents](README.md) · [Decisions](DECISIONS.md) · [Universal Invocations](UNIVERSAL_INVOCATION_PLAN.md) · [Integration](UNIVERSAL_INVOCATION_INTEGRATION.md) · [Local Run](LOCAL_RUN.md)
 
-## Основание и границы
+## Basis and Boundaries
 
-Источник: документ LogoPanel `docs/UAI-REQUESTS.md` от 25.09.2026, составленный по UAI `ebf3396`, и последующее обсуждение с владельцем. Этот план сохраняет согласованный объём независимо от внешнего документа.
+Source: LogoPanel document `docs/UAI-REQUESTS.md` dated 2026-09-25, based on UAI `ebf3396`, and subsequent discussion with the owner. This plan preserves the agreed scope independently of the external document.
 
-Изменения относятся к UAI: API, SDK, адаптерам, каталогу, оценке, очередям, учёту, тестам и документации. Продуктовая логика LogoPanel остаётся в приложении. До первого совместного запуска обратная совместимость не требуется. Идемпотентность, отдельный учёт себестоимости и списаний клиента, запрет автоматического повтора неизвестного исхода сохраняются.
+Changes concern UAI: API, SDK, adapters, catalog, estimation, queues, accounting, tests, and documentation. LogoPanel product logic remains in the application. Backward compatibility is not required before the first joint launch. Idempotency, separate accounting for provider cost and customer charges, and prohibition of automatic retries for unknown outcomes are preserved.
 
-Не входят в этот этап:
+Outside this phase:
 
-- Общий резерв составной работы с динамически добавляемыми вызовами. Позже реализован отдельным решением от 20.10.2026: [резерв на составную работу](QUOTING.md#резерв-на-составную-работу).
-- Потоковая выдача строк из элементов массивов, например `/checks/*/note`.
-- Сохранение и повторное использование стилей Recraft.
-- Развёртывание, изменение действующих подключений и платные вызовы без отдельного согласования.
-- Генерация анимаций SVG и самостоятельные продуктовые сценарии редактирования SVG.
+- A shared reservation for composite work with dynamically added calls. Later implemented by a separate decision of 2026-10-20: [composite work reservation](QUOTING.md#reservation-for-compound-work).
+- Streaming strings from array elements, for example `/checks/*/note`.
+- Storing and reusing Recraft styles.
+- Deployment, changes to active connections, and paid calls without separate approval.
+- SVG animation generation and standalone product SVG-editing scenarios.
 
-Существующие незакоммиченные изменения не считать частью этого плана и не перезаписывать. Перед каждым этапом сверять текущее состояние: параллельная работа уже затрагивает streaming, подготовку входов и расчёт кэша.
+Do not treat existing uncommitted changes as part of this plan or overwrite them. Check the current state before each phase: parallel work already affects streaming, input preparation, and cache calculation.
 
-## Согласованные решения
+## Agreed Decisions
 
-| ID | Решение |
+| ID | Decision |
 |---|---|
-| LF-D01 | Эмбеддинги: OpenAI `text-embedding-3-small`, `text-embedding-3-large` и Voyage `voyage-4`. Voyage Large и Lite сейчас не подключать. |
-| LF-D02 | Возможности, размерности, пределы строки и пакета, типы входа задаются моделью с общим защитным потолком установки. Поддерживать `query/document`, если провайдер различает их. Слишком длинный текст отклонять без обрезания. |
-| LF-D03 | Результат embeddings содержит идентичность модели и размерность. Точную ревизию возвращать только при наличии достоверного источника; неизвестную ревизию не подменять алиасом модели. |
-| LF-D04 | Поддержать необязательные свойства JSON Schema и преобразование в форму провайдера. Удалять только служебные значения отсутствия. Явно разрешённый исходной схемой `null` сохранять. Различать отсутствие поля и явный `null`, включая optional nullable. |
-| LF-D05 | Включить запрошенные `enum`, `const`, `anyOf/oneOf`, ограничения строк и массивов, `pattern`, вложенные массивы объектов, локальные `$ref/$defs`. Документировать точное подмножество и пределы. Неподдерживаемые конструкции отклонять до платного вызова. |
-| LF-D06 | Ошибка проверки результата содержит путь поля и причину. Стриминг строк внутри массивов отложен; поддерживаемые пути явно описываются. |
-| LF-D07 | Если модель не поддерживает принудительный tool choice, но поддерживает нужный структурированный ответ, автоматически эмулировать вызов через схему. Возвращать единый `tool_call` и отметку способа исполнения. Отказ модели остаётся отказом. |
-| LF-D08 | Приоритеты `interactive/background`, по умолчанию `background`. Фоновая работа ограничивается так, чтобы оставался запас параллельности для живых вызовов. Приложение явно помечает живые вызовы. |
-| LF-D09 | Оценивать список планируемых вызовов по профилям и ожидаемым объёмам без регистрации рецепта и без финансового резерва. Возвращать прогноз, диапазон, предположения и категорию уверенности с причинами. Диапазон не является гарантированным потолком списания. |
-| LF-D10 | Через Replicate подключить Recraft V4 Styles SVG и V4 Styles Pro SVG с картинками-референсами, а также Recraft Vectorize для преобразования растра в SVG. |
-| LF-D11 | Не сохранять и не переиспользовать `style_id`. Передавать референсы при генерации; возможную стоимость создания стиля учитывать в себестоимости. |
-| LF-D12 | Через прямой API Quiver подключить `arrow-2` и `arrow-2-telos` для генерации SVG по описанию и преобразования растра в SVG. Учёт по фактическим токенам согласно применимому тарифу. |
-| LF-D13 | Выполнить локальную приёмку и подготовить живую приёмку с отдельным расчётом бюджета. Сам платный запуск согласовать после подготовки конкретного сценария. |
+| LF-D01 | Embeddings: OpenAI `text-embedding-3-small`, `text-embedding-3-large`, and Voyage `voyage-4`. Do not connect Voyage Large or Lite now. |
+| LF-D02 | Capabilities, dimensions, string and batch limits, and input types are model-specific, with a shared installation safety ceiling. Support `query/document` when the provider distinguishes them. Reject overlong text without truncation. |
+| LF-D03 | An embeddings result contains model identity and dimensions. Return an exact revision only when a trustworthy source exists; do not substitute a model alias for an unknown revision. |
+| LF-D04 | Support optional JSON Schema properties and conversion to the provider format. Remove only internal absence values. Preserve `null` explicitly permitted by the original schema. Distinguish missing fields from explicit `null`, including optional nullable fields. |
+| LF-D05 | Include the requested `enum`, `const`, `anyOf/oneOf`, string and array constraints, `pattern`, nested arrays of objects, and local `$ref/$defs`. Document the exact subset and limits. Reject unsupported constructs before a paid call. |
+| LF-D06 | Result validation errors contain field path and reason. Streaming strings inside arrays is deferred; supported paths are explicitly described. |
+| LF-D07 | If a model lacks forced tool choice but supports the required structured response, automatically emulate the call through a schema. Return a unified `tool_call` and execution-method marker. A model refusal remains a refusal. |
+| LF-D08 | Priorities `interactive/background`, default `background`. Limit background work to preserve concurrency capacity for live calls. The application explicitly marks live calls. |
+| LF-D09 | Estimate a list of planned calls using profiles and expected volumes without registering a recipe or making a financial reservation. Return forecast, range, assumptions, and a confidence category with reasons. The range is not a guaranteed charge ceiling. |
+| LF-D10 | Connect Recraft V4 Styles SVG and V4 Styles Pro SVG through Replicate with reference images, plus Recraft Vectorize for raster-to-SVG conversion. |
+| LF-D11 | Do not store or reuse `style_id`. Send references during generation; account for any style-creation cost in provider cost. |
+| LF-D12 | Connect `arrow-2` and `arrow-2-telos` through Quiver's direct API for SVG generation from descriptions and raster-to-SVG conversion. Account for actual tokens under the applicable tariff. |
+| LF-D13 | Perform local acceptance and prepare live acceptance with a separate budget calculation. Approve the paid run itself after preparing a concrete scenario. |
 
-### Названия Recraft
+### Recraft Names
 
-В обсуждении владелец назвал варианты «4.1 и 4.1 Pro со styles». Проверенные маршруты с референсами опубликованы как `recraft-ai/recraft-v4-styles-svg` и `recraft-ai/recraft-v4-styles-pro-svg`. Согласованный выбор относится именно к этим Styles-вариантам. Обычные V4.1 SVG и V4.1 Pro SVG не заменяют их: в проверенных входных схемах нет картинок-референсов.
+During discussion the owner called the variants “4.1 and 4.1 Pro with styles.” The verified routes with references are published as `recraft-ai/recraft-v4-styles-svg` and `recraft-ai/recraft-v4-styles-pro-svg`. The agreed selection refers specifically to these Styles variants. Regular V4.1 SVG and V4.1 Pro SVG do not replace them: their checked input schemas have no reference images.
 
-Референсы Styles задают визуальный стиль. Это не обещание точного сохранения геометрии исходного логотипа. Преобразование готового растра выполняется отдельной операцией Vectorize.
+Styles references define visual style. This does not promise exact preservation of the source logo's geometry. Converting an existing raster uses the separate Vectorize operation.
 
-## Этапы реализации
+## Implementation Phases
 
-Каждый этап заканчивается проверками и записью фактических результатов. Следующий этап использует уже проверенный контракт предыдущего.
+Each phase ends with checks and a record of actual results. The next phase uses the previous phase's verified contract.
 
-| Этап | Работа | Условие завершения |
+| Phase | Work | Completion condition |
 |---|---|---|
-| LF-I00 | Сверить текущую реализацию, незакоммиченные изменения, схемы и API провайдеров. Зафиксировать DTO, capability matrix, модель тарификации SVG и пределы ресурсов. | Есть карта изменений и технические решения без выдуманных provider capabilities или цен. |
-| LF-I01 | Расширить контракт embeddings, каталог и OpenAI adapter; добавить Voyage adapter, лимиты и идентичность результата. | Small, Large и Voyage проходят положительные и отрицательные contract-тесты; API/SDK/конфигурации согласованы. |
-| LF-I02 | Реализовать подмножество JSON Schema, преобразование и обратное восстановление optional/null, ограничения сложности, ошибки с путями. | Локальная проверка исходной схемы и результата согласуется с преобразованием; покрыты вложенные варианты и ссылки. |
-| LF-I03 | Добавить эмуляцию forced tool choice поверх LF-I02. | Ровно один требуемый вызов, корректные имя и аргументы, единый формат результата, metadata, сохранённые refusal/defect правила. |
-| LF-I04 | Добавить приоритет в API/SDK и планирование очереди с запасом для interactive. | Фон не занимает выделенный запас; проверки конкурентного допуска проходят на реальной локальной инфраструктуре. |
-| LF-I05 | Добавить пакетную предварительную оценку без рецепта и резерва. | Оценка объяснима и воспроизводима по версиям профилей/тарифов; финансовых и execution-побочных эффектов нет. |
-| LF-I06 | Подключить три маршрута Recraft через Replicate, референсы, выдачу SVG и учёт всех применимых частей цены. | Генерация и Vectorize проходят полный локальный путь, SVG проверяется и безопасно передаётся приложению. |
-| LF-I07 | Подключить Quiver Arrow 2 и Telos, генерацию и векторизацию, usage и token pricing. | Учёт токенов, выдача SVG, отмена, ошибки и неизвестный исход проходят contract/integration-тесты. |
-| LF-I08 | Согласовать документацию и общую приёмку, подготовить сценарии живого прогона, измерения и бюджет. | Выпущен отчёт с LF-Axx, отдельно отмечены локальные доказательства и ещё не выполненные реальные проверки. |
+| LF-I00 | Check current implementation, uncommitted changes, schemas, and provider APIs. Record DTOs, capability matrix, SVG pricing model, and resource limits. | A change map and technical decisions exist without invented provider capabilities or prices. |
+| LF-I01 | Extend the embeddings contract, catalog, and OpenAI adapter; add the Voyage adapter, limits, and result identity. | Small, Large, and Voyage pass positive and negative contract tests; API/SDK/configurations agree. |
+| LF-I02 | Implement the JSON Schema subset, conversion and optional/null restoration, complexity limits, and errors with paths. | Local validation of the original schema and result agrees with conversion; nested variants and references are covered. |
+| LF-I03 | Add forced tool choice emulation on top of LF-I02. | Exactly one required call, correct name and arguments, unified result format, metadata, and preserved refusal/defect rules. |
+| LF-I04 | Add API/SDK priority and queue scheduling with interactive capacity reserve. | Background work does not occupy the reserved capacity; concurrent admission checks pass on real local infrastructure. |
+| LF-I05 | Add batch preliminary estimation without a recipe or reservation. | Estimation is explainable and reproducible from profile/tariff versions, with no financial or execution side effects. |
+| LF-I06 | Connect three Recraft routes through Replicate, references, SVG delivery, and accounting for all applicable price components. | Generation and Vectorize pass the complete local path; SVG is validated and safely delivered to the application. |
+| LF-I07 | Connect Quiver Arrow 2 and Telos, generation and vectorization, usage, and token pricing. | Token accounting, SVG delivery, cancellation, errors, and unknown outcomes pass contract/integration tests. |
+| LF-I08 | Align documentation and overall acceptance; prepare live-run scenarios, measurements, and budget. | A report with LF-Axx is issued, distinguishing local evidence from real checks not yet performed. |
 
-## Критерии приёмки
+## Acceptance Criteria
 
-| ID | Проверяемое поведение |
+| ID | Verified behavior |
 |---|---|
-| LF-A01 | Embeddings: допустимые размерности, включая 3072 у OpenAI Large, не ограничены прежним общим потолком 1536; недопустимые значения и превышения лимитов отклоняются до отправки. |
-| LF-A02 | Embeddings: порядок и количество векторов, конечность координат, размерность, модель и доступная ревизия проверены; `query/document` передаются по контракту модели. |
-| LF-A03 | Embeddings: usage, учёт и повтор идемпотентной команды не создают повторного списания; длинный текст не обрезается. |
-| LF-A04 | Схемы: обязательное/необязательное и nullable/non-nullable различаются, включая вложенные объекты и варианты. Исходная семантика сохраняется после преобразования провайдера. |
-| LF-A05 | Схемы: покрыты заявленные keywords и локальные ссылки; внешние ссылки и неподдерживаемые конструкции не вызывают сетевых загрузок или платной отправки. Ограничены размер, глубина и число свойств. |
-| LF-A06 | Дефект результата возвращает путь и причину без раскрытия приватного содержимого в общих логах. Стриминг и финальный результат согласованы; wildcard-пути массивов не объявлены поддержанными. |
-| LF-A07 | Native и эмулированный tool choice дают единый формат. Неверные имя/аргументы/число вызовов не считаются успехом; refusal не вызывает обход через другую модель. |
-| LF-A08 | Приоритет: отсутствие параметра означает background; под фоновой нагрузкой сохраняется запас для interactive в пределах общих квот. Уже выполняемые запросы не прерываются ради приоритета. |
-| LF-A09 | Приоритет не обходит provider rate limits, бюджет, backpressure, авторизацию, deadline и общий лимит попыток. Проверены конкурентные workers и отсутствие двойного допуска. |
-| LF-A10 | Оценка списка не создаёт резерв, рецепт, операцию или provider call. Пустые/некорректные объёмы и неподдерживаемые профили обрабатываются явно. |
-| LF-A11 | Прогноз отделён от максимального бюджета, себестоимость от списания клиенту. Уверенность объясняет источник неопределённости без неподтверждённого процента точности. |
-| LF-A12 | Recraft Styles: картинки доходят до правильного маршрута; style ID не сохраняется для повторного использования. Стоимость создания стиля не теряется, если она применима. |
-| LF-A13 | Recraft Vectorize и Quiver vectorization принимают растр и возвращают SVG. Генерация SVG по описанию проверяется отдельно от векторизации. |
-| LF-A14 | SVG проходит существующую проверку безопасности. Если реальные форматы требуют `<style>`, расширение согласуется с безопасным разбором CSS, без разрешения внешних загрузок, `url()` и `@import`. |
-| LF-A15 | Quiver: тариф и usage учитывают обычный вход, кэш и выход, включая reasoning без двойного счёта. Неизвестный usage не превращается в нулевую стоимость. Ответ без разбивки кэша тарифицируется по ставке cache write (решение от 20.10.2026). |
-| LF-A16 | Новые адаптеры сохраняют отмену, отсутствие автоматического повтора неизвестного исхода, идемпотентное списание, сохранение результата до ACK и очистку по действующему контракту. |
-| LF-A17 | API, SDK, каталог, конфигурационные схемы и документация описывают одинаковые возможности, ограничения и тарифные единицы. |
-| LF-A18 | План живого прогона перечисляет модели, входы, число вызовов, оценки расходов и условия остановки. Задержку UAI измеряет отдельно от времени провайдера; p50/p95 сопровождаются размером выборки и методикой. |
+| LF-A01 | Embeddings: valid dimensions, including 3072 for OpenAI Large, are not constrained by the former shared ceiling of 1536; invalid values and limit overruns are rejected before dispatch. |
+| LF-A02 | Embeddings: vector order and count, finite coordinates, dimensions, model, and available revision are checked; `query/document` are passed according to the model contract. |
+| LF-A03 | Embeddings: usage, accounting, and idempotent command replay do not create duplicate charges; long text is not truncated. |
+| LF-A04 | Schemas: required/optional and nullable/non-nullable are distinguished, including nested objects and variants. Original semantics survive provider conversion. |
+| LF-A05 | Schemas: declared keywords and local references are covered; external references and unsupported constructs do not cause network fetches or paid dispatch. Size, depth, and property count are bounded. |
+| LF-A06 | A defective result returns a path and reason without disclosing private content in shared logs. Streaming and final result agree; array wildcard paths are not declared supported. |
+| LF-A07 | Native and emulated tool choice produce a unified format. Wrong name/arguments/call count are not success; refusal does not trigger bypass through another model. |
+| LF-A08 | Priority: an omitted parameter means background; under background load, capacity remains reserved for interactive within shared quotas. Running requests are not interrupted for priority. |
+| LF-A09 | Priority does not bypass provider rate limits, budget, backpressure, authorization, deadline, or total attempt limit. Concurrent workers and prevention of double admission are checked. |
+| LF-A10 | List estimation creates no reservation, recipe, operation, or provider call. Empty/invalid volumes and unsupported profiles are handled explicitly. |
+| LF-A11 | Forecast is separate from maximum budget, and provider cost from customer charge. Confidence explains uncertainty sources without an unsupported accuracy percentage. |
+| LF-A12 | Recraft Styles: images reach the correct route; style ID is not stored for reuse. Style-creation cost is not lost when applicable. |
+| LF-A13 | Recraft Vectorize and Quiver vectorization accept raster input and return SVG. SVG generation from descriptions is checked separately from vectorization. |
+| LF-A14 | SVG passes existing security validation. If real formats require `<style>`, any expansion is agreed with safe CSS parsing, without allowing external loads, `url()`, or `@import`. |
+| LF-A15 | Quiver: tariff and usage account for regular input, cache, and output, including reasoning without double counting. Unknown usage does not become zero cost. Responses without a cache breakdown are priced at the cache-write rate (decision of 2026-10-20). |
+| LF-A16 | New adapters preserve cancellation, no automatic retry for unknown outcomes, idempotent charging, result persistence before ACK, and cleanup under the existing contract. |
+| LF-A17 | API, SDK, catalog, configuration schemas, and documentation describe the same capabilities, constraints, and tariff units. |
+| LF-A18 | The live-run plan lists models, inputs, call counts, cost estimates, and stop conditions. It measures UAI latency separately from provider time; p50/p95 include sample size and methodology. |
 
-## Технические детали для LF-I00
+## Technical Details for LF-I00
 
-Эти детали не являются поводом заново обсуждать согласованный продуктовый объём. Их нужно определить по коду и документации; существенные изменения объёма вынести владельцу.
+These details are not grounds for reopening the agreed product scope. Determine them from code and documentation; bring material scope changes to the owner.
 
-- Выбрать конкретные настраиваемые значения запаса параллельности и пределов очередей. Указать область действия: установка, приложение, connection/quota group. Исключить голодание фоновой очереди.
-- Установить безопасные пределы JSON Schema и правила локальных ссылок. Если провайдер не выражает keyword напрямую, явно определить преобразование и локальную проверку без молчаливой потери семантики.
-- Для optional nullable выбрать представление, различающее отсутствие и явный `null`.
-- Определить вычисление прогнозного диапазона и категорий уверенности. Предположения и версии тарифов возвращать вместе с оценкой.
-- Проверить соответствие токенной цены Quiver существующей расчётной политике. Не распространять право отрицательного баланса на новые профили без проверки действующего контракта и отдельного решения при необходимости.
-- Проверить тарифы именно выбранных маршрутов Replicate Styles; цены обычных SVG-моделей не переносить на Styles.
-- Определить достоверную идентичность embedding-модели, когда провайдер не раскрывает точную ревизию. Не обещать автоматическое обнаружение скрытого обновления модели.
+- Choose concrete configurable concurrency-reserve values and queue limits. State their scope: installation, application, connection/quota group. Prevent background queue starvation.
+- Establish safe JSON Schema limits and local-reference rules. When a provider cannot express a keyword directly, explicitly define conversion and local validation without silently losing semantics.
+- Choose a representation for optional nullable that distinguishes absence from explicit `null`.
+- Define forecast-range and confidence-category calculations. Return assumptions and tariff versions with the estimate.
+- Check that Quiver token pricing matches the existing calculation policy. Do not extend negative-balance permission to new profiles without checking the current contract and obtaining a separate decision if needed.
+- Check tariffs for the selected Replicate Styles routes specifically; do not transfer regular SVG-model prices to Styles.
+- Define trustworthy embedding-model identity when the provider does not expose an exact revision. Do not promise automatic detection of hidden model updates.
 
-## Проверки и отчёт
+## Checks and Report
 
-Использовать команды из [LOCAL_RUN](LOCAL_RUN.md), актуальные scripts репозитория и изолированную тестовую БД. Для каждой доработки выполнять целевые тесты, затем общие проверки типов, API, конфигураций, документации и сборки. Финансовые и конкурентные сценарии проверять интеграционно; пропущенные тесты не считать пройденными.
+Use commands from [LOCAL_RUN](LOCAL_RUN.md), current repository scripts, and an isolated test database. For each enhancement, run targeted tests followed by shared type, API, configuration, documentation, and build checks. Verify financial and concurrent scenarios through integration tests; do not count skipped tests as passed.
 
-Результаты записывать отдельно от этого плана с привязкой к LF-Axx. Проверки интерфейсов, если они затронуты, выполнять через Aside. Не сохранять credentials, приватные provider responses или базы в Git.
+Record results separately from this plan with LF-Axx references. Use Aside for interface checks when affected. Do not store credentials, private provider responses, or databases in Git.
 
-Уже выполненные реальные проверки OpenAI описаны в [сводке](REAL_PROVIDER_CHECKS.md). Они не доказывают готовность новых адаптеров и изменённых контрактов. Прежнее разрешение на их бюджет не является разрешением на новые платные вызовы.
+Previously completed real OpenAI checks are described in the [summary](REAL_PROVIDER_CHECKS.md). They do not establish readiness of new adapters or changed contracts. Prior approval of their budget does not authorize new paid calls.
 
-## Проверенные внешние источники
+## Verified External Sources
 
-Сведения просмотрены 25.09.2026; тарифы и доступность повторно сверять перед публикацией конфигураций и живой приёмкой.
+Information reviewed on 2026-09-25; recheck tariffs and availability before publishing configurations and live acceptance.
 
-- [Voyage: модели и параметры](https://docs.voyageai.com/docs/embeddings), [тарифы](https://docs.voyageai.com/docs/pricing).
+- [Voyage: models and parameters](https://docs.voyageai.com/docs/embeddings), [pricing](https://docs.voyageai.com/docs/pricing).
 - [Replicate Recraft Styles SVG](https://replicate.com/recraft-ai/recraft-v4-styles-svg), [Styles Pro SVG](https://replicate.com/recraft-ai/recraft-v4-styles-pro-svg), [Vectorize](https://replicate.com/recraft-ai/recraft-vectorize).
-- [Quiver Arrow 2](https://quiver.ai/models/arrow-2), [Arrow 2 Telos](https://quiver.ai/models/arrow-2-telos), [тарифы API](https://docs.quiver.ai/developers/pricing), [векторизация](https://docs.quiver.ai/api-reference/vectorize-svg/vectorize-svg).
+- [Quiver Arrow 2](https://quiver.ai/models/arrow-2), [Arrow 2 Telos](https://quiver.ai/models/arrow-2-telos), [API pricing](https://docs.quiver.ai/developers/pricing), [vectorization](https://docs.quiver.ai/api-reference/vectorize-svg/vectorize-svg).

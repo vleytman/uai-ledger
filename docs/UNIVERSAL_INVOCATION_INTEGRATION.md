@@ -1,12 +1,12 @@
-# Интеграция универсальных вызовов
+# Universal Invocation Integration
 
-Контракты: [API](API.md), [исполнение](EXECUTION.md), [расчёт](QUOTING.md), [план и критерии](UNIVERSAL_INVOCATION_PLAN.md). Все цены в локальном стенде синтетические. Поддержку конкретной модели объявляют опубликованные `text_features` каталога, а не имя провайдера.
+Contracts: [API](API.md), [execution](EXECUTION.md), [quoting](QUOTING.md), [plan and criteria](UNIVERSAL_INVOCATION_PLAN.md). All prices in the local environment are synthetic. Support for a specific model is declared by the catalog's published `text_features`, rather than the provider name.
 
-## Сервер приложения
+## Application Server
 
-Токен UAI хранится на сервере приложения. Браузер обращается к своему серверу; тот создаёт `UaiClient` с `baseUrl` и `token`, проверяет `/health` и передаёт проверенную identity через `forIdentity`. Нельзя брать account, project или identity из браузера без проверки прав владельца. См. [внешнюю авторизацию](EXTERNAL_AUTH.md).
+The UAI token is stored on the application server. The browser calls its own server, which creates a `UaiClient` with `baseUrl` and `token`, checks `/health`, and passes a verified identity through `forIdentity`. Do not take an account, project, or identity from the browser without checking the owner's permissions. See [external authentication](EXTERNAL_AUTH.md).
 
-Один пользовательский запуск получает постоянный ключ идемпотентности. Его сохраняют вместе с принятым `request_id`. После сетевой ошибки повторяют тот же вызов с теми же байтами и ключом либо подключаются к принятому request. Новый ключ означает новую работу и возможное новое списание.
+Each user invocation receives a persistent idempotency key. Store it together with the accepted `request_id`. After a network error, repeat the same call with the same bytes and key, or connect to the accepted request. A new key means new work and a possible new charge.
 
 ```ts
 const result = await client.ai.run({
@@ -14,9 +14,9 @@ const result = await client.ai.run({
   profile: 'configured-text-profile',
   input: {
     messages: [{role: 'user', content: [
-      {type: 'text', text: 'Опиши изображение.'},
+      {type: 'text', text: 'Describe the image.'},
       {type: 'image', asset_id: inputAssetId},
-      {type: 'text', text: 'Ответь кратко.'}
+      {type: 'text', text: 'Keep the answer brief.'}
     ]}]
   },
   parameters: {max_output_tokens: 512},
@@ -31,44 +31,44 @@ const result = await client.ai.run({
 });
 ```
 
-Профиль, параметры и предел бюджета выбирает приложение по опубликованной конфигурации. Пример не является готовой конфигурацией модели. Для `estimated_actual` исходный резерв следует оценке; фактическое списание может отличаться, включая долг после cache miss. `isInsufficientCredits(error)` позволяет показать пополнение без создания повторного invocation.
+The application chooses the profile, parameters, and budget limit from the published configuration. This example is not a ready-to-use model configuration. With `estimated_actual`, the initial reservation follows the estimate; the actual charge may differ, including debt after a cache miss. `isInsufficientCredits(error)` lets the application show a top-up option without creating another invocation.
 
-## Поток и выдача
+## Streaming and Delivery
 
-`ai.stream(body, {key, signal})` возвращает события `accepted`, `attempt`, `delta`, `result`. У delta есть request, attempt, generation, sequence и необязательный `field_path`. SDK отбрасывает дубликаты и устаревшие попытки. На `attempt` приложение очищает предварительный вывод. `live_incomplete` означает пропуск части потока; итоговый объект остаётся источником результата.
+`ai.stream(body, {key, signal})` returns `accepted`, `attempt`, `delta`, and `result` events. A delta has a request, attempt, generation, sequence, and optional `field_path`. The SDK discards duplicates and outdated attempts. On `attempt`, the application clears provisional output. `live_incomplete` means part of the stream was missed; the final object remains the source of the result.
 
-`delivery.field_paths`, например `['/reply']`, передаёт выбранные строковые поля JSON по мере поступления. Такие фрагменты предварительны до полной проверки схемы. При tools валидируется ровно один вызов; UAI возвращает имя и аргументы, а решение об исполнении инструмента остаётся у приложения.
+`delivery.field_paths`, for example `['/reply']`, streams selected JSON string fields as they arrive. These fragments remain provisional until the full schema is validated. With tools, exactly one call is validated; UAI returns the name and arguments, while the application decides whether to execute the tool.
 
-Разрыв соединения или abort прекращает просмотр. Для остановки работы вызывают `requests.cancel(requestId, key)` явно. Для восстановления используют `ai.resumeStream(requestId)`; это не создаёт новую отправку провайдеру. Старые delta не хранятся как финансовые события; при восстановлении возможен gap и выдача только финального результата.
+A disconnected connection or abort stops viewing. To stop the work, explicitly call `requests.cancel(requestId, key)`. Use `ai.resumeStream(requestId)` to recover; this does not create a new provider dispatch. Old deltas are not stored as financial events; recovery may include a gap and deliver only the final result.
 
-`ai.run` сначала вызывает `persist`, затем ACK. Если сохранение завершилось ошибкой, ACK не отправляется. При низкоуровневом `ai.stream` приложение само сохраняет результат и вызывает `requests.acknowledge` с `result_version` и `manifest_hash` из `delivery`. После ACK временный результат UAI может быть удалён: приложение должно показывать собственную сохранённую копию.
+`ai.run` calls `persist` first, then ACK. If persistence fails, ACK is not sent. With low-level `ai.stream`, the application stores the result itself and calls `requests.acknowledge` with `result_version` and `manifest_hash` from `delivery`. After ACK, UAI's temporary result may be deleted: the application must display its own stored copy.
 
-`execution_status` описывает результат работы; `settlement_status` — завершённость финансового расчёта. Отказ `refused` не повторяется. По умолчанию расход отказа несёт платформа; приложение может явно выбрать `actual_usage`. Неизвестный provider usage не становится нулевым. В `usage.attempts` доступны отдельные модели и расходы; `usage.summary.scope='all_attempts'` включает все попытки.
+`execution_status` describes the work outcome; `settlement_status` describes whether financial settlement is complete. A `refused` outcome is not retried. By default, the platform bears refusal usage; the application may explicitly select `actual_usage`. Unknown provider usage does not become zero. `usage.attempts` exposes individual models and costs; `usage.summary.scope='all_attempts'` includes all attempts.
 
-## Изображения и кошелёк
+## Images and Wallet
 
-`assets.upload` загружает исходный файл с SHA-256, типом и размером. Порядок image-блоков задаёт место изображения в сообщении. Preserve сохраняет исходные байты; преобразование включается в конфигурации явно. Неиспользованные в блоках изображения для реального текстового адаптера отклоняются.
+`assets.upload` uploads the source file with SHA-256, type, and size. The order of image blocks determines image placement within the message. Preserve keeps the original bytes; transformation must be explicitly enabled in configuration. Images not used in blocks are rejected by the real text adapter.
 
-Принятое использование input продлевает срок хранения и удерживает файл для активного request. GET и ACK результата срок не продлевают и общий input не удаляют. Для продления есть `assets.renew(id, key)`. Если файл уже истёк или удалён, приложение повторно загружает собственный оригинал; `reupload` помогает только пока старое содержимое доступно. Постоянную медиатеку хранит приложение.
+Accepted input use extends retention and holds the file for an active request. Result GET and ACK do not extend retention or delete shared input. Use `assets.renew(id, key)` to extend retention. If a file has already expired or been deleted, the application uploads its own original again; `reupload` only helps while the old content is available. The application stores the permanent media library.
 
-`wallets.subscribe(walletId, {signal})` выдаёт начальный снимок, затем изменения с возрастающей `revision`; после разрыва перечитывает снимок. `available_units` уже исключает резервы. Приложение хранит целые денежные значения строками, применяет только более новую revision и отдельно показывает `reserved_units` и отрицательный available.
+`wallets.subscribe(walletId, {signal})` delivers an initial snapshot, followed by changes with increasing `revision`; after a disconnect it rereads the snapshot. `available_units` already excludes reservations. The application stores integer monetary values as strings, applies only newer revisions, and separately displays `reserved_units` and negative available balances.
 
-## Локальная проверка и перенос
+## Local Verification and Migration
 
-Стенд `scripts/universal-fixture.ts` запускается только с `UAI_ENV=test`, отключёнными реальными провайдерами, отдельной тестовой БД и `UAI_FIXTURE_ROOT`, содержащим `.data/demo-config.json` от seed. Порт браузера — `127.0.0.1:4348`. Исходные токены в HTML не передаются. Результаты сохраняются в `UAI_FIXTURE_ROOT/results` до ACK. `scripts/universal-latency.ts` измеряет только этот loopback-стенд; число выборок задаёт `UAI_LATENCY_SAMPLES`, файл отчёта — `UAI_LATENCY_OUTPUT`.
+The `scripts/universal-fixture.ts` environment runs only with `UAI_ENV=test`, real providers disabled, a separate test database, and a `UAI_FIXTURE_ROOT` containing `.data/demo-config.json` from seed. The browser port is `127.0.0.1:4348`. Source tokens are not passed into HTML. Results are saved in `UAI_FIXTURE_ROOT/results` before ACK. `scripts/universal-latency.ts` measures only this loopback environment; `UAI_LATENCY_SAMPLES` sets the sample count and `UAI_LATENCY_OUTPUT` sets the report file.
 
-Для LogoPanel необходима отдельная задача в родительском репозитории: обновить `vendor/uai`, применить миграции, пересобрать сервер и клиент, проверить identity и persist-before-ACK, затем настроить утверждённые реальные ресурсы. Этот документ не означает, что submodule или работающий сервис уже обновлены.
+LogoPanel requires a separate task in the parent repository: update `vendor/uai`, apply migrations, rebuild the server and client, verify identity and persist-before-ACK, then configure approved real resources. This document does not mean the submodule or running service has already been updated.
 
-## Эмбеддинги
+## Embeddings
 
-Capability `embeddings.generate` использует общий `ai.run`/`ai.stream`, но не выдаёт предварительных векторов. Вход — `input: {texts: ['первая строка', 'вторая строка']}`, параметр `dimensions` опционален. Зарегистрированы OpenAI `text-embedding-3-small`, `text-embedding-3-large` и Voyage `voyage-4`; локальная реализация не подтверждает live-доступность.
+The `embeddings.generate` capability uses the shared `ai.run`/`ai.stream`, but does not deliver provisional vectors. Input is `input: {texts: ['first line', 'second line']}`; the `dimensions` parameter is optional. OpenAI `text-embedding-3-small`, `text-embedding-3-large`, and Voyage `voyage-4` are registered; local implementation does not establish live availability.
 
-Профиль публикует расчёт `input_mode: 'embedding_batch'`, без image assets. OpenAI использует `cl100k_base`, Voyage — консервативный UTF-8 bound. Принятый пакет — одна работа и один резерв. Выход содержит `model`, `revision: null`, `dimensions`, `data`; порядок нормализован по индексам. Подробности и причины неизвестной ревизии — в [контракте доработок](LOGOPANEL_FOLLOWUP_INTEGRATION.md).
+The profile publishes an `input_mode: 'embedding_batch'` calculation, without image assets. OpenAI uses `cl100k_base`; Voyage uses a conservative UTF-8 bound. An accepted batch is one work item and one reservation. Output contains `model`, `revision: null`, `dimensions`, and `data`; ordering is normalized by index. Details and reasons for the unknown revision are in the [follow-up contract](LOGOPANEL_FOLLOWUP_INTEGRATION.md).
 
-Общие пределы: 128 строк, 16384 координаты и 512 КиБ результата; размерности и токенные пределы задаются моделью. Large допускает 3072, Voyage — 256/512/1024/2048 и query/document без truncation. См. [таблицу моделей и ограничений](LOGOPANEL_FOLLOWUP_INTEGRATION.md). Неполные или повторные индексы, неверная размерность и нечисловые координаты означают дефект всего пакета. Векторы постоянно хранит приложение после persist-before-ACK.
+Shared limits: 128 strings, 16384 coordinates, and a 512 KiB result; dimensions and token limits are model-specific. Large allows 3072; Voyage allows 256/512/1024/2048 and query/document without truncation. See the [model and limit table](LOGOPANEL_FOLLOWUP_INTEGRATION.md). Missing or duplicate indices, wrong dimensions, and nonnumeric coordinates mean the entire batch is defective. The application stores vectors permanently after persist-before-ACK.
 
-Протокол сверялся с [официальным embeddings API](https://developers.openai.com/api/reference/resources/embeddings/methods/create) 2026-09-25. Синтетические тарифы тестов не являются ценами OpenAI.
+The protocol was checked against the [official embeddings API](https://developers.openai.com/api/reference/resources/embeddings/methods/create) on 2026-09-25. Synthetic test tariffs are not OpenAI prices.
 
-## Дополнения LogoPanel
+## LogoPanel Additions
 
-[Контракт follow-up](LOGOPANEL_FOLLOWUP_INTEGRATION.md) описывает optional/null JSON Schema и локальные refs, эмуляцию forced tool choice, `priority`, `ai.forecast`, Recraft Styles/Vectorize и Quiver. Прогноз не резервирует средства; новые Quiver-профили имеют cap без overdraft.
+The [follow-up contract](LOGOPANEL_FOLLOWUP_INTEGRATION.md) describes optional/null JSON Schema and local refs, forced tool choice emulation, `priority`, `ai.forecast`, Recraft Styles/Vectorize, and Quiver. Forecasts do not reserve funds; new Quiver profiles have a cap without overdraft.

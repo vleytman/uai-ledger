@@ -1,16 +1,16 @@
-# Внешняя авторизация
+# External Authentication
 
-[Оглавление](README.md) · [План и критерии](EXTERNAL_AUTH_PLAN.md) · [Модульная админка](MODULAR_ADMIN.md)
+[Contents](README.md) · [Plan and Criteria](EXTERNAL_AUTH_PLAN.md) · [Modular Admin](MODULAR_ADMIN.md)
 
-UAI принимает проверенную внешнюю личность от доверенного backend приложения. Пользователи, сессии, команды и участие в них принадлежат родительскому проекту. Better Auth можно использовать в родителе, но зависимости от этой библиотеки в UAI нет.
+UAI accepts a verified external identity from the application's trusted backend. Users, sessions, teams, and memberships belong to the parent project. The parent may use Better Auth, but UAI has no dependency on that library.
 
-## Подключение
+## Setup
 
-1. Применить миграции, включая `0055_external_identity.sql`, перед запуском обновлённого API. Для проверки обновления использовать отдельную базу, не действующую demo.
-2. Выдать серверному ключу необходимые существующие scopes и дополнительный `identity:assert`. Старые ключи не получают его автоматически. У пользовательского ключа не должно быть прав начисления и управления установкой.
-3. Проверить `await client.assertExternalIdentitySupport()`. `/health` должен возвращать `capabilities.external_identity: 1`. Старый или недоступный API не считается совместимым. Внешняя административная сборка выполняет такую проверку сама.
-4. В родительском backend проверить сессию, актуальное членство в выбранной команде и продуктовые права на действие/проект.
-5. Получить серверную привязку команды к UAI account/wallet и создать отдельный клиент SDK с контекстом текущего запроса.
+1. Apply migrations, including `0055_external_identity.sql`, before starting the updated API. Verify the upgrade using a separate database, rather than the active demo.
+2. Give the server key the required existing scopes and the additional `identity:assert`. Old keys do not receive it automatically. A user key must not have credit-grant or installation-management permissions.
+3. Check `await client.assertExternalIdentitySupport()`. `/health` must return `capabilities.external_identity: 1`. An old or unavailable API is not considered compatible. An external administrative build performs this check itself.
+4. In the parent backend, verify the session, current membership in the selected team, and product permissions for the action/project.
+5. Obtain the server-side team binding to a UAI account/wallet and create a separate SDK client with the current request's context.
 
 ```ts
 import {UaiClient} from '@uai/sdk';
@@ -18,7 +18,7 @@ import {UaiClient} from '@uai/sdk';
 const service = new UaiClient({baseUrl: apiUrl, token: serverToken});
 await service.assertExternalIdentitySupport();
 
-// Эти значения получены после серверной проверки сессии и membership.
+// These values come from server-side session and membership verification.
 const client = service.forIdentity({
   version: 1,
   kind: 'user',
@@ -28,23 +28,23 @@ const client = service.forIdentity({
 const wallet = await client.wallets.get(verifiedTeam.uaiWalletId);
 ```
 
-`forIdentity` создаёт отдельный клиент и сохраняет неизменяемую копию контекста. Одновременные запросы и вкладки с разными командами не переключают общий объект. Контекст передаётся в обычных вызовах, upload/download и SSE. Повтор запроса при транспортной ошибке сохраняет тело, ключ идемпотентности и identity.
+`forIdentity` creates a separate client and preserves an immutable copy of the context. Concurrent requests and tabs with different teams do not switch a shared object. Context is passed in ordinary calls, upload/download, and SSE. Retrying a request after a transport error preserves the body, idempotency key, and identity.
 
-Provisioning выполняет доверенный серверный код с `accounts:write`: `accounts.create` получает стабильный ID команды в `external_account_id` и `create_wallet`. Пара `application_id + external_account_id` уникальна; повторное и конкурентное создание возвращает прежний account. Email не участвует в ключах. Пользователь с членством в двух командах использует две привязки, сохраняя один внешний user ID.
+Trusted server code with `accounts:write` performs provisioning: `accounts.create` receives the stable team ID as `external_account_id` and `create_wallet`. The `application_id + external_account_id` pair is unique; repeated and concurrent creation returns the existing account. Email is not part of any key. A user with membership in two teams uses two bindings while retaining one external user ID.
 
-## Формат контекста и доверие
+## Context Format and Trust
 
-Заголовок `x-uai-context` содержит `encodeURIComponent(JSON.stringify(identity))`, максимум 4096 символов. Схема строгая; неизвестные поля, версия, роль, пустые/control IDs и повторный заголовок отклоняются. SDK формирует заголовок сам.
+The `x-uai-context` header contains `encodeURIComponent(JSON.stringify(identity))`, up to 4096 characters. The schema is strict; unknown fields, version, role, empty/control IDs, and duplicate headers are rejected. The SDK builds the header itself.
 
-Пользовательская форма содержит `version: 1`, `kind: user`, `user_id`, `account_id`. Административная форма содержит `version: 1`, `kind: staff`, `user_id`, `role: admin | viewer`. Права родителя и его cookies в контекст не входят.
+The user form contains `version: 1`, `kind: user`, `user_id`, and `account_id`. The administrative form contains `version: 1`, `kind: staff`, `user_id`, and `role: admin | viewer`. Parent permissions and cookies are not included in the context.
 
-Organization/application берутся из service token. Account пользователя дополнительно ограничивает разрешённую область токена и должен существовать в ней. User-контекст не может выполнять административные или финансовые команды начисления/возврата, даже если исходный ключ имеет широкие права. Staff-контекст также не получает отсутствующие у токена scopes.
+Organization/application come from the service token. A user's account further constrains the token's permitted scope and must exist within it. User context cannot execute administrative or financial grant/refund commands even if the original key has broad permissions. Staff context likewise cannot gain scopes absent from the token.
 
-Это server-to-server утверждение, а не пользовательский bearer token. Backend обязан создавать его после своих проверок, не пересылать заголовок браузера. Нельзя выдавать браузеру service token. В рабочем окружении транспорт использует HTTPS. UAI доверяет backend с `identity:assert`; не проверяет cookies Better Auth и не запрашивает membership у него самостоятельно.
+This is a server-to-server assertion, rather than a user bearer token. The backend must create it after its own checks, rather than forwarding a browser header. Never expose a service token to the browser. Operational transport uses HTTPS. UAI trusts a backend with `identity:assert`; it does not validate Better Auth cookies or independently query membership from it.
 
-Обычные service-only интеграции сохраняются. Скомпрометированный серверный ключ остаётся привилегированным доступом; переданная identity не является защитой от владельца такого ключа.
+Ordinary service-only integrations remain supported. A compromised server key remains privileged access; the supplied identity does not protect against that key's owner.
 
-## Общая административная сборка
+## Shared Administrative Build
 
 ```ts
 import {createAdminBackend, SessionError} from '@uai/admin-module/server';
@@ -59,8 +59,8 @@ export const handle = createAdminBackend({
       async authenticate(request) {
         const user = await parentAuth.requireCurrentUser(request);
         const role = await parentAuth.getStaffRole(user.id);
-        // Авторизованный человек без staff role должен получить 403
-        // через ошибку адаптера SessionError, а не роль команды.
+        // An authenticated person without a staff role must receive 403
+        // through the adapter's SessionError, rather than a team role.
         if (!role) throw new SessionError(403, 'Staff access required');
         return {version: 1, kind: 'staff', user_id: user.id, role};
       },
@@ -72,36 +72,36 @@ export const handle = createAdminBackend({
 });
 ```
 
-`parentAuth` и `loadServerConfig` в примере принадлежат приложению. Возврат `null` означает 401. Для различения отсутствующей сессии и отсутствия staff-доступа адаптер может бросить экспортируемую из server entrypoint `SessionError` со статусом 403; произвольная ошибка источника identity даёт 503. Неверная форма identity или пользовательская identity в административном адаптере запрещены. Внешний режим никогда не переключается на парольный вход при ошибке.
+`parentAuth` and `loadServerConfig` in the example belong to the application. Returning `null` means 401. To distinguish a missing session from missing staff access, the adapter may throw `SessionError`, exported from the server entrypoint, with status 403; an arbitrary identity-source error yields 503. Invalid identity shapes and user identities in the administrative adapter are forbidden. External mode never falls back to password login on error.
 
-Server config содержит `api_url`, `admin_token`, `account_id`, `wallet_id`. Последние два поля сохраняют совместимость с адресами кошелька по умолчанию, не являются identity сотрудника и не дают прав. Для external не нужны `session_secret` и `login_password`. Без `auth` либо с `mode: standalone` сохраняется существующий вход владельца с этими секретами.
+Server config contains `api_url`, `admin_token`, `account_id`, and `wallet_id`. The last two fields preserve compatibility with default wallet addresses; they are not staff identity and grant no permissions. External mode does not need `session_secret` or `login_password`. Without `auth`, or with `mode: standalone`, the existing owner login using those secrets is preserved.
 
-Adapter проверяет актуальную сессию и роль на каждом запросе. Logout передаёт ответ родительской системы, включая очищающие cookies. Login URL должен принадлежать настроенному origin. Изменения требуют соответствующего Origin и JSON, включая logout; внешний вход не отключает CSRF-проверки. При 401/403 интерфейс заново проверяет сессию, а сервер запрещает действие независимо от состояния кнопок.
+The adapter checks the current session and role on every request. Logout forwards the parent system's response, including clearing cookies. The login URL must belong to the configured origin. Changes require a matching Origin and JSON, including logout; external login does not disable CSRF checks. On 401/403, the UI rechecks the session, and the server forbids the action regardless of button state.
 
-`admin` имеет штатные административные действия в пределах service scopes. `viewer` получает только чтения из явного реестра. Изменения, генерации, повтор, отмена и POST-калькуляторы ему недоступны. Навигация, фильтры и просмотр подробностей остаются доступны. API повторяет проверку роли при прямом вызове. Просмотр model/rate/route конфигураций сохраняет существующее требование `config:write` у сервисного ключа, но не даёт viewer права выполнять изменения.
+`admin` has standard administrative actions within service scopes. `viewer` receives only reads from an explicit registry. Changes, generations, retry, cancellation, and POST calculators are unavailable. Navigation, filters, and details remain available. The API repeats role checking on direct calls. Viewing model/rate/route configurations preserves the existing requirement for `config:write` on the service key, but does not grant viewer permission to make changes.
 
-Продуктовые handlers по умолчанию доступны только admin. Для безопасного чтения viewer нужно явно указать `permissions.reads`, например `{'app.product.settings': ['admin', 'viewer']}`. POST-команды viewer запрещены даже при ошибочном включении роли в permissions.commands. Контекст handler содержит безопасную `identity` и `role`; service token не передаётся. Продукт сам валидирует данные, реализует идемпотентность, авторизацию своих ресурсов и аудит.
+Product handlers default to admin-only. Safe viewer reads require explicit `permissions.reads`, for example `{'app.product.settings': ['admin', 'viewer']}`. POST commands are forbidden to viewer even if the role was mistakenly included in permissions.commands. Handler context contains safe `identity` and `role`; it does not receive the service token. The product validates data and implements idempotency, resource authorization, and audit itself.
 
-Подробности операции для viewer используют явные безопасные проекции. Пользовательские параметры, схемы ответа, prompts, файлы и необработанные ответы провайдера не становятся доступны из-за права просмотра админки. Генератор хоста создаёт `external-auth.example.ts` с незаполненным адаптером, который отказывает в доступе до подключения родителя.
+Operation details for viewer use explicit safe projections. User parameters, response schemas, prompts, files, and raw provider responses do not become accessible through admin-viewing permission. The host generator creates `external-auth.example.ts` with an unimplemented adapter that denies access until the parent is connected.
 
-## Аудит и финансовая история
+## Audit and Financial History
 
-Новая nullable-колонка `audit_identity` сохраняет version, organization/application, service principal ID, внешний user ID, account ID, внешний team ID и operation ID при наличии. Team ID получается из проверенного account. Исторический `actor_id` не переопределён; старые записи сохраняют неизвестную человеческую identity. Email и данные сессии не записываются.
+The new nullable `audit_identity` column stores version, organization/application, service principal ID, external user ID, account ID, external team ID, and operation ID when present. Team ID comes from the verified account. Historical `actor_id` is not redefined; old entries retain an unknown human identity. Email and session data are not recorded.
 
-Атрибуция snapshots операций, quotes, requests и финансовых записей создаётся в транзакции и неизменяема. Последующее действие другого сотрудника получает собственный аудит. Успешные внешние HTTP-команды дополнительно записываются атомарно с результатом; идемпотентный повтор сохраняет первого автора. Тела запросов и секреты не включаются в журнал HTTP-команд.
+Attribution for operation snapshots, quotes, requests, and financial entries is created in the transaction and is immutable. A subsequent action by another employee receives its own audit. Successful external HTTP commands are additionally recorded atomically with their result; an idempotent replay preserves the first author. Request bodies and secrets are excluded from the HTTP command log.
 
-Фоновое действие имеет неизвестного человека и связь с исходной операцией. Исходный user/team snapshot остаётся на операции, а не подменяется последним активным пользователем. `getOperation` и финансовый журнал возвращают соответствующую атрибуцию.
+A background action has an unknown human and a link to its originating operation. The original user/team snapshot remains on the operation instead of being replaced with the last active user. `getOperation` and the financial ledger return the corresponding attribution.
 
-Переключение команды, изменение email, удаление membership и поздний результат не меняют плательщика принятой работы. Возврат относится к исходному списанию и кошельку. Уже принятые задачи после удаления инициатора продолжаются по принятым условиям. Родитель запрещает новые действия удалённому участнику.
+Team switching, email changes, membership deletion, and late results do not change the payer of accepted work. A refund refers to the original charge and wallet. Already accepted tasks continue under accepted terms after their initiator is removed. The parent forbids new actions by a removed member.
 
-## Потоки и отзыв доступа
+## Streams and Access Revocation
 
-Пользовательский браузер подключается к backend родителя. Родитель проверяет membership перед выдачей следующих событий и периодически, пока поток простаивает; при отзыве закрывает поток и отменяет SDK subscription. Сам UAI не знает об изменении membership. UAI перепроверяет service token, `ai:read` и account-ограничения на открытом SSE-соединении и закрывает его при сужении доступа.
+The user's browser connects to the parent backend. The parent checks membership before delivering subsequent events and periodically while a stream is idle; on revocation, it closes the stream and cancels the SDK subscription. UAI itself does not know about membership changes. UAI rechecks the service token, `ai:read`, and account restrictions on an open SSE connection and closes it when access is narrowed.
 
-Контроль проектов, раундов, исследователей, согласований и дополнительных разрешений не входит в UAI. Родитель после согласования отправляет обычную разрешённую команду.
+Project, round, researcher, approval, and additional-permission control is outside UAI. After approval, the parent sends an ordinary authorized command.
 
-## Локальная проверка
+## Local Verification
 
-`UAI_ENV=test DATABASE_URL=<тестовый PostgreSQL с CREATEDB> pnpm exec tsx scripts/run-external-auth-fixture.ts` запускает синтетический родительский хост на loopback `http://127.0.0.1:4327`, создавая отдельную базу через тестовый helper. Реальные провайдеры отключены. После остановки созданная база удаляется. Не использовать fixture-сессии как образец production-входа.
+`UAI_ENV=test DATABASE_URL=<test PostgreSQL with CREATEDB> pnpm exec tsx scripts/run-external-auth-fixture.ts` starts a synthetic parent host on loopback `http://127.0.0.1:4327`, creating a separate database through the test helper. Real providers are disabled. The created database is deleted on shutdown. Do not use fixture sessions as a production-login example.
 
-Хост содержит две команды, пользователя в обеих, пользователя одной команды, администратора команды без staff role и сотрудников viewer/admin. Контрольные действия позволяют снять membership, понизить роль и отозвать сессию. Результаты проверки отделяют подтверждённые сценарии от границ интеграции.
+The host contains two teams, a user in both, a user in one team, a team administrator without a staff role, and viewer/admin employees. Control actions allow removing membership, downgrading a role, and revoking a session. Verification results distinguish confirmed scenarios from integration boundaries.

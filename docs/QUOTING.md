@@ -1,34 +1,34 @@
-# Оценка действий и правила расхода
+# Action quoting and spending rules
 
-[Оглавление](README.md)
+[Contents](README.md)
 
-## Назначение
+## Purpose
 
-Приложение регистрирует ограниченное действие, например раунд обсуждения, четыре изображения или подготовку SVG. Платформа оценивает его в кредитах, фиксирует максимальный бюджет и проверяет фактические запросы при выполнении.
+The application registers a bounded action, such as a discussion round, four images, or SVG preparation. The platform estimates its credits, fixes a maximum budget, and checks actual requests during execution.
 
-Рецепт не выполняет предметный workflow. Он определяет, какие запросы разрешены и сколько они могут потребить. Приложение продолжает выбирать последовательность участников, передавать ответы между проходами и формировать промпты.
+A recipe does not execute the domain workflow. It defines which requests are authorized and how much they may consume. The application still chooses participant order, passes answers between rounds, and constructs prompts.
 
-Для одного вызова приложение не регистрирует свой рецепт. POST /invocations и SDK ai.run используют встроенную версионированную конфигурацию single-call: модель/профиль, capability, ограничиваемые параметры, технические требования к результату и пользовательский предел в кредитах. Сервер сам оценивает запрос и атомарно принимает операцию с резервом. Если рассчитанный максимум превышает предел клиента, вызов отклоняется до dispatch. Для предварительного показа цены можно получить quote по тому же встроенному рецепту через POST /quotes с kind=single_call.
+For one call, the application does not register its own recipe. POST /invocations and SDK ai.run use a built-in versioned single-call configuration: model/profile, capability, bounded parameters, technical result requirements, and a user limit in credits. The server estimates the request and atomically accepts an operation with a reservation. If the calculated maximum exceeds the client limit, the call is rejected before dispatch. To display the price beforehand, obtain a quote for the same built-in recipe through POST /quotes with kind=single_call.
 
-## Версия рецепта
+## Recipe version
 
-### Окончательная цена из центральной модели
+### Final price from the central model
 
-Для новых single-call рецептов с `pricing_mode: quoted_final` методика и версия ставок берутся из опубликованной модели. Составляющие `tokens`, `per_unit`, `lookup` и `formula` возвращают количества либо денежную стоимость. Система складывает стоимости, один раз применяет отдельные для этой модели запас и наценку, переводит сумму в кредитные единицы и округляет. Прогноз не объявляется точным будущим расходом поставщика.
+For new single-call recipes with `pricing_mode: quoted_final`, the method and rate version come from the published model. The `tokens`, `per_unit`, `lookup`, and `formula` components return quantities or monetary cost. The system adds costs, applies that model's separate buffer and markup once, converts the amount to credit units, and rounds. The forecast is not presented as exact future provider spending.
 
-В quote фиксируются версии конфигураций, нормализованные параметры, хеш входа, метаданные подготовленных вложений, разбор стоимости и окончательная цена. Подготовленные байты хранятся отдельно с ограниченным сроком. Принятие quote проверяет неизменность входа; исполнение получает подготовленные при расчёте байты. Новая версия модели или ставок влияет только на новые quotes.
+The quote fixes configuration versions, normalized parameters, input hash, prepared attachment metadata, cost breakdown, and final price. Prepared bytes are stored separately with limited retention. Quote acceptance checks that input is unchanged; execution receives the bytes prepared during calculation. A new model or rate version affects only new quotes.
 
-В этом режиме клиентский резерв равен согласованной цене. Это внутреннее обеспечение атомарного списания, а не обещание последующего расчёта цены по usage. Лимиты расходов поставщика и платформенного риска проверяются отдельно. Поддерживается один вызов; составные legacy-рецепты автоматически не переводятся. Описанные ниже правила оценки фактического расхода применяются к прежнему режиму, если явно не указано иное.
+In this mode, the customer reservation equals the agreed price. It is internal security for an atomic charge, not a promise of subsequent usage-based pricing. Provider spending and platform risk limits are checked separately. One call is supported; compound legacy recipes are not automatically migrated. The actual-spending estimation rules below apply to the earlier mode unless explicitly stated otherwise.
 
-RecipeVersion содержит application_id, recipe key, version, input schema, components, route references, constraints, технические validators, partial policy, settlement policy и описание для пользователя. После публикации версия неизменна. В v1 partial_policy всегда successful_parts; all_or_nothing не принимается валидатором конфигурации.
+RecipeVersion contains application_id, recipe key, version, input schema, components, route references, constraints, technical validators, partial policy, settlement policy, and a user-facing description. A published version is immutable. In v1, partial_policy is always successful_parts; the configuration validator rejects all_or_nothing.
 
-Каждый component задаёт capability, route, число вызовов, ожидаемые объёмы и жёсткие пределы. Разрешён небольшой набор вычислений количества: константа, ссылка на числовой параметр, сумма и произведение таких величин. Входы ограничены schema minimum/maximum. Произвольный JavaScript, сетевые вызовы или рекурсивный язык выражений в рецепте запрещены.
+Each component specifies capability, route, call count, expected quantities, and hard limits. A small set of quantity calculations is permitted: a constant, reference to a numeric parameter, sum, and product of these values. Inputs are constrained by schema minimum/maximum. Arbitrary JavaScript, network calls, or a recursive expression language in recipes are prohibited.
 
-`limits.parameter_values` задаёт точный список разрешённых JSON-значений параметра, включая объекты и массивы. Объекты сравниваются по содержимому независимо от порядка ключей; пропущенные, лишние и изменённые поля отклоняются до вызова провайдера. Это позволяет явно разрешить формат аудио Cartesia целиком. При проверке покрытия ставок структурированное значение представляется каноническим JSON, а не строкой `[object Object]`.
+`limits.parameter_values` defines the exact list of permitted JSON values for a parameter, including objects and arrays. Objects are compared by content regardless of key order; missing, extra, and changed fields are rejected before the provider call. This allows an entire Cartesia audio format to be explicitly authorized. Rate-coverage validation represents a structured value as canonical JSON, not `[object Object]`.
 
-Сервер пересчитывает значения сам. Цена, присланная браузером или backend приложения, не является разрешением на списание.
+The server recalculates values itself. A price submitted by the browser or application backend does not authorize a charge.
 
-Пример конфигурации описывает два прохода четырёх участников и один итоговый ответ. Он не является точным описанием всех существующих проходов Logo Panel:
+This configuration example describes two passes by four participants and one final answer. It is not an exact description of all existing Logo Panel passes:
 
 ~~~json
 {
@@ -59,47 +59,47 @@ RecipeVersion содержит application_id, recipe key, version, input schema
 }
 ~~~
 
-Параметр context_tokens_upper является заявленной верхней границей и используется для оценки. При отправке каждого реального запроса платформа проверяет его самостоятельно. Последующие ответы могут увеличить контекст; если он больше допустимого, приложение должно сократить его либо получить новую оценку. Молчаливое отбрасывание содержимого не допускается.
+context_tokens_upper is a declared upper bound used for estimation. The platform independently checks each actual request on submission. Subsequent answers may increase context; if it exceeds the permitted size, the application must shorten it or obtain a new quote. Silently dropping content is prohibited.
 
-## Обязательные параметры оценки
+## Required estimation parameters
 
-Для текста нужны число вызовов, предел входного контекста, предел output с учётом reasoning согласно провайдеру, схема результата и наличие изображений. Если полный prompt уже известен, применяется доступный токенизатор или endpoint подсчёта. При отсутствии точного подсчёта используется консервативная оценка с явно указанной точностью.
+Text requires call count, input-context limit, output limit including reasoning according to the provider, result schema, and presence of images. If the full prompt is known, an available tokenizer or counting endpoint is used. Without an exact count, a conservative estimate with explicitly stated accuracy is used.
 
-Для изображений нужны модель или route, generation/edit, число результатов, размер, качество и сведения о входных файлах. Фиксированное число изображений не гарантирует фиксированную стоимость, если поставщик тарифицирует токены и входные изображения.
+Images require model or route, generation/edit, result count, size, quality, and input file information. A fixed image count does not guarantee fixed cost when the provider bills tokens and input images.
 
-Четыре картинки представлены четырьмя отдельно оцениваемыми единицами. В v1 каждый image request создаёт один результат. Отправка единого provider batch с неделимым usage не допускается, если из него невозможно получить точную стоимость каждой оплачиваемой единицы. Это позволяет вернуть деньги за дефектную единицу без вымышленного пропорционального расчёта.
+Four images are represented as four separately estimated units. In v1, each image request creates one result. A single provider batch with indivisible usage is prohibited when the exact cost of each billable unit cannot be obtained. This permits refunding a defective unit without inventing a proportional calculation.
 
-Для речи нужны текст или верхняя граница символов/длительности, модель, формат и дополнительные платные функции. Повторное воспроизведение готового audio asset не является новой синтезацией.
+Speech requires text or an upper bound on characters/duration, model, format, and extra paid features. Replaying a ready audio asset is not new synthesis.
 
-Для SVG рецепт обязан различать:
+For SVG, the recipe must distinguish:
 
-- Нативную генерацию вектора у поставщика.
-- Векторизацию входного растрового изображения.
-- Генерацию SVG-кода, проверку и ограниченные исправления.
-- Детерминированную сборку готовых векторных элементов собственным worker.
+- Native vector generation at the provider.
+- Vectorization of an input raster image.
+- SVG code generation, validation, and bounded repairs.
+- Deterministic assembly of ready vector elements by an internal worker.
 
-Собственные вычисления могут иметь зарегистрированную ставку compute.seconds или fixed operation. Если такой ставки нет, UI не должен выдавать внутренний рендер за AI-вызов с вымышленной себестоимостью. Пользовательский код из SVG не исполняется как доверенный код платформы.
+Internal computation may have a registered compute.seconds or fixed operation rate. Without such a rate, the UI must not present internal rendering as an AI call with invented cost. User code from SVG is not executed as trusted platform code.
 
-## Прогноз и максимум
+## Forecast and maximum
 
-Quote возвращает две разные величины:
+A quote returns two different quantities:
 
-- estimated_units: наиболее вероятный расход при заданных входах и доступной статистике.
-- max_units: предел согласованного пользовательского списания.
+- estimated_units: the most likely spending for the inputs and available statistics.
+- max_units: the agreed user charge limit.
 
-Confidence принимает значения measured, modeled, conservative или unavailable. Статистика группируется по recipe version, model/route, размерам контекста, типу операции и параметрам. При недостатке наблюдений сервис использует модель расходов, а не выдуманный точный процентиль.
+Confidence is measured, modeled, conservative, or unavailable. Statistics are grouped by recipe version, model/route, context size, operation type, and parameters. With insufficient observations, the service uses a spending model instead of inventing an exact percentile.
 
-При прогнозе можно учитывать кеширование. Для максимума используется наиболее дорогой допустимый исход кеша: отсутствие чтения, запись нужного TTL и другие применимые ставки. Разрешённый failover также включается в границу. Резерв не является автоматически списываемой надбавкой.
+Forecasts may account for caching. The maximum uses the most expensive permitted cache outcome: no read, a write with the required TTL, and other applicable rates. Authorized failover is included in the bound. A reservation is not an automatically charged surcharge.
 
-Пользовательский максимум включает цену одного валидного результата на единицу, а не сумму всех неудачных attempts. До приёма система проверяет, настроен ли отдельный бюджет платформы для дефектов и технических повторов. Возвращаемая execution policy объясняет предел попыток и ожидания; повторы не повышают пользовательскую цену автоматически. Предложенные сроки временного хранения и правило оплаты отмены входят в условия quote.
+The user maximum includes the price of one valid result per unit, not all failed attempts combined. Before acceptance, the system checks for a configured separate platform budget for defects and technical retries. The returned execution policy explains attempt and waiting limits; retries do not automatically increase the user price. Proposed temporary-retention periods and cancellation charging rules are part of the quote terms.
 
-Каждый маршрут сообщает, можно ли обосновать верхнюю границу себестоимости по ограничиваемым параметрам. Если нет, в первой версии он недоступен для гарантированного ограниченного действия, пока администратор не настроит консервативный предел и бюджет риска платформы. Прогноз P95 сам по себе не является жёсткой границей.
+Each route states whether a cost upper bound can be justified from bounded parameters. If not, it is unavailable for guaranteed bounded actions in the first version until an administrator configures a conservative limit and platform risk budget. A P95 forecast alone is not a hard bound.
 
-Оценка учитывает все платные составляющие: вход, выход, кеш, изображения, speech, tools, зарегистрированное compute. Неавторизованные автоматические tool loops запрещены. Разрешённые циклы имеют max calls и отдельную сумму.
+Estimation includes every paid component: input, output, cache, images, speech, tools, and registered compute. Unauthorized automatic tool loops are prohibited. Authorized loops have max calls and a separate amount.
 
-## Ответ оценки
+## Quote response
 
-Пример использует синтетические суммы, а не реальные цены моделей:
+This example uses synthetic amounts, not real model prices:
 
 ~~~json
 {
@@ -122,104 +122,104 @@ Confidence принимает значения measured, modeled, conservative �
 }
 ~~~
 
-В UI: «Обычно около 120 кредитов. Максимум 180». Можно показать оценку оставшегося баланса. Если стоимость неизвестна, кнопка запуска не должна обещать бесплатное выполнение.
+UI wording: “Usually about 120 credits. Maximum 180.” An estimated remaining balance may be shown. If cost is unknown, the launch button must not promise free execution.
 
-## Принятие и фиксация условий
+## Acceptance and pinned terms
 
-Quote связывается с organization, application, account, wallet, input hash, recipe version, route versions и customer rate card versions. Срок непринятой оценки по умолчанию 15 минут.
+A quote is bound to organization, application, account, wallet, input hash, recipe version, route versions, and customer rate card versions. An unaccepted quote expires after 15 minutes by default.
 
-Принятие атомарно создаёт operation, фиксирует версии и резервирует max_units. Один quote может быть принят только один раз. Повтор возвращает существующую operation. Изменённые входы требуют нового quote.
+Acceptance atomically creates an operation, pins versions, and reserves max_units. A quote can be accepted only once. A retry returns the existing operation. Changed inputs require a new quote.
 
-Платформа не резервирует средства поставщика при простом просмотре цены. При принятии она проверяет его текущую доступность, а перед каждым dispatch получает отдельный внутренний provider exposure claim. Наличие пользовательских кредитов не гарантирует наличие денег на аккаунте поставщика.
+The platform does not reserve provider funds when a price is merely viewed. At acceptance, it checks current availability; before every dispatch, it obtains a separate internal provider exposure claim. User credits do not guarantee funds in the provider account.
 
-Маршрут в recovery_wait/probing можно принять для фонового ожидания, если политика и общий deadline это допускают; quote показывает предупреждение и next_retry_at. Locked, auth_failed и budget_exhausted без рабочего разрешённого варианта не принимаются как готовый путь. Ожидание общего recovery не расходует начальный 15-минутный бюджет обычной очереди, но входит в неизменный общий deadline.
+A route in recovery_wait/probing may be accepted for background waiting if policy and the overall deadline allow it; the quote displays a warning and next_retry_at. Locked, auth_failed, and budget_exhausted without a working authorized alternative are not accepted as a ready path. Shared recovery waiting does not consume the initial 15-minute normal-queue budget but counts toward the immutable overall deadline.
 
-В первой версии клиент не может сам задать окончательную цену или повысить max_units без повторной авторизации. Расширение операции принимает новый quote и добавляет резерв только на увеличение общего максимума. Уже выполненные запросы и captures сохраняются. Уменьшение максимума ниже captures и открытых claims запрещено.
+In the first version, the client cannot set the final price or increase max_units without renewed authorization. An operation extension accepts a new quote and adds reservation only for the increase in the overall maximum. Completed requests and captures are preserved. Reducing the maximum below captures and open claims is prohibited.
 
-Перед каждым request сервис проверяет component, номер вызова, фактические параметры, capability, файлы, максимумы токенов и доступный claim. Обход рецепта прямым произвольным provider payload запрещён. Для экспериментов используется встроенный single-call recipe с явными пределами и разрешениями; ручная регистрация нового рецепта не нужна.
+Before every request, the service checks component, call number, actual parameters, capability, files, token maxima, and available claim. Bypassing a recipe with arbitrary direct provider payload is prohibited. Experiments use the built-in single-call recipe with explicit limits and permissions; manually registering a new recipe is unnecessary.
 
-## Резерв на составную работу
+## Reservation for compound work
 
-Рецепт требует заранее знать компоненты и их количество. Цепочку, где следующий вызов зависит от предыдущего ответа, приложение описывает резервным пулом. Пул называет single-call профили, лимит вызовов на каждый, общий лимит и сумму, которую нужно удержать. Решение владельца записано в [решениях](DECISIONS.md#запросы-logopanel-от-20102026).
+A recipe requires advance knowledge of components and their counts. The application describes a chain whose next call depends on the previous answer as a reservation pool. The pool names single-call profiles, each profile's call limit, the overall limit, and the amount to hold. The owner's decision is recorded in [decisions](DECISIONS.md#logopanel-requests-dated-20102026).
 
 ```json
 {"account_id":"acct_example","kind":"pool","pool":{"profiles":[{"profile":"logopanel.persona","max_calls":12},{"profile":"logopanel.moderator","max_calls":4}],"max_calls":14,"deadline_seconds":3600},"budget":{"max_credits":"2.5"}}
 ```
 
-`POST /v1/quotes` с таким телом возвращает quote `kind=pool`: `max_units` равен удерживаемой сумме, `breakdown` пуст, `pool` содержит профили с зафиксированными версиями. `POST /v1/operations` принимает quote и резервирует сумму целиком. Срок операции по умолчанию 3600 секунд, не больше 86400.
+`POST /v1/quotes` with this body returns a `kind=pool` quote: `max_units` equals the held amount, `breakdown` is empty, and `pool` contains profiles with pinned versions. `POST /v1/operations` accepts the quote and reserves the full amount. The default operation duration is 3600 seconds, no more than 86400.
 
-Каждый вызов идёт через `POST /v1/invocations` (или `/v1/invocations/stream`, SDK `ai.run`) с `operation_id` пула и `profile`. Вызов оценивается как обычная invocation этого профиля по зафиксированной версии, получает собственный quote и забирает заявку из резерва пула. Отдельный `budget` вызова необязателен; если он задан, он ограничивает этот вызов. Повтор с тем же ключом возвращает тот же request. Профиль вне пула, исчерпанный лимит профиля или общий лимит дают `request_exceeds_recipe` без резерва и без вызова. Срок вызова не позже срока пула.
+Each call goes through `POST /v1/invocations` (or `/v1/invocations/stream`, SDK `ai.run`) with the pool's `operation_id` and a `profile`. It is estimated as an ordinary invocation of that profile at the pinned version, receives its own quote, and takes a claim from the pool reservation. A separate call `budget` is optional; if supplied, it limits that call. Repeating the same key returns the same request. A profile outside the pool, exhausted profile limit, or overall limit returns `request_exceeds_recipe` without reservation or a call. The call deadline is no later than the pool deadline.
 
-Резерв пула гарантирует средства, но не ограничивает списание. Если заявка не помещается в свободную часть пула, недостающее резервируется из свободных кредитов, а `accepted_max_units` растёт на эту сумму. Без свободных кредитов вызов получает `insufficient_credits`, пул и кошелёк не меняются. Фактический расход `estimated_actual` сверх заявки вызова сначала покрывается свободной частью пула, затем свободными кредитами, затем долгом, как у отдельного вызова.
+The pool reservation guarantees funds but does not cap charges. If a claim does not fit in the pool's free portion, the shortfall is reserved from free credits, and `accepted_max_units` grows by that amount. Without free credits, the call receives `insufficient_credits`; pool and wallet remain unchanged. Actual `estimated_actual` spending above the call claim is covered first by the pool's free portion, then free credits, then debt, as for a standalone call.
 
-`complete` закрывает приём вызовов; остаток освобождается, когда рассчитаны все принятые вызовы. `cancel` и `finish-partial` работают как для обычной операции. По сроку пул отменяется планировщиком. `amend` для пула отклоняется, `POST /operations/{id}/requests` в пуле не принимает компонент. Backpressure учитывает каждый вызов пула при его создании, заранее объявленные лимиты не считаются ожидающими вызовами.
+`complete` closes call admission; the remainder is released once all accepted calls settle. `cancel` and `finish-partial` behave as for a normal operation. The scheduler cancels the pool at its deadline. `amend` is rejected for a pool; `POST /operations/{id}/requests` does not accept a component in a pool. Backpressure counts each pool call when created; predeclared limits are not counted as waiting calls.
 
-## Изменение цен во время операции
+## Price changes during an operation
 
-Customer rating ограничен опубликованной версией цен принятого quote. Если до dispatch опубликована более низкая применимая цена, на фактическом usage рассчитываются обе суммы и пользователю выставляется меньшая. Provider cost использует применимую известную цену поставщика. История сохраняет обе версии и основание выбора.
+Customer rating is bounded by the accepted quote's published price version. If a lower applicable price is published before dispatch, both totals are calculated from actual usage and the lower is charged. Provider cost uses the applicable known provider price. History preserves both versions and the selection reason.
 
-При известном росте provider price перед новым dispatch сервис проверяет, укладывается ли его стоимость в утверждённый platform risk budget. По умолчанию дополнительное субсидирование отключено. Тогда новые запросы приостанавливаются с requote_required, а готовая работа остаётся доступной до content expiry. Пользователь может принять новую оценку или вызвать finish-partial, отменив ещё не отправленные запросы. Complete только закрывает приём новых requests и не заменяет finish-partial. Резервы активных попыток освобождаются лишь по settlement.
+For a known provider price increase before a new dispatch, the service checks whether its cost fits the approved platform risk budget. Additional subsidy is disabled by default. New requests then pause with requote_required, while completed work remains available until content expiry. The user may accept a new quote or call finish-partial, cancelling requests not yet submitted. Complete only closes new-request admission and does not replace finish-partial. Active attempts' reservations are released only through settlement.
 
-Если поставщик сообщил новую цену только после выполнения, расхождение фиксируется в себестоимости и инциденте. Уже закрытый wallet capture автоматически не увеличивается. Новые оценки используют обновлённый прайс-лист.
+If the provider reports a new price only after execution, the discrepancy is recorded in cost and an incident. A closed wallet capture is not automatically increased. New quotes use the updated rate card.
 
-Истечение quote после его принятия не отменяет работающую operation. У operation есть отдельный deadline и ограничения длительности, зафиксированные при принятии. Продление не выполняется бесконечно без проверки бюджета и актуальности маршрутов.
+Quote expiry after acceptance does not cancel a running operation. An operation has a separate deadline and duration limits fixed on acceptance. It cannot be extended indefinitely without checking budget and route validity.
 
-## Режимы списания
+## Charging modes
 
-Actual_usage является обязательным режимом первой версии. Сумма равна chargeable rated cost, переведённой в неизменную кредитную единицу. Дополнительная скрытая маржа отсутствует.
+Actual_usage is mandatory in the first version. The amount equals chargeable rated cost converted to the immutable credit unit. There is no additional hidden margin.
 
-Successful_parts означает оплату каждой валидной части независимо от общего успеха действия. Если три картинки готовы, а четвёртая дефектна, оплачиваются три. Если финальный ответ обсуждения не получился, предыдущие валидные ответы остаются оплачиваемыми. UI сообщает это до принятия. Для SVG невалидные попытки и их техническое исправление не превращаются в отдельные оплачиваемые части: клиент оплачивает только итоговую валидную попытку. Новая композиция по валидному результату является новой работой.
+Successful_parts means each valid part is charged independently of overall action success. If three images are ready and the fourth defective, three are charged. If a discussion's final answer fails, preceding valid answers remain billable. The UI discloses this before acceptance. Invalid SVG attempts and their technical repair do not become separate billable parts: the customer pays only for the final valid attempt. A new composition based on a valid result is new work.
 
-Fixed_units предусмотрен контрактом, но включается только для рецепта с ограниченным выполнением и подтверждённой экономикой. Примеры: один результат с фиксированной ставкой поставщика либо фиксированная проверенная внутренняя операция. При частичном успехе правило оплаты результата должно быть задано в рецепте; произвольное пропорциональное списание не предполагается.
+Fixed_units is provided by the contract but enabled only for a recipe with bounded execution and validated economics. Examples: one result at a fixed provider rate or a fixed verified internal operation. Partial-success charging rules must be specified in the recipe; arbitrary proportional charging is not assumed.
 
-Fixed_units нельзя включать только потому, что средняя стоимость выглядит небольшой. Требуются предел затрат, тесты дорогих допустимых входов, учёт технических повторов и отдельный лимит убытка. До выполнения этих условий режим остаётся отключённым.
+Fixed_units cannot be enabled merely because average cost looks small. It requires a cost bound, tests of expensive permitted inputs, accounting for technical retries, and a separate loss limit. The mode stays disabled until these conditions are met.
 
-## Маржа и экономика
+## Margin and economics
 
-AI-платформа ограничивает себестоимость выданного бюджета. Платёжный сервис определяет, за сколько этот бюджет продаётся. Например, 10 000 кредитов дают $10 учитываемых расходов независимо от того, проданы они за $30 или выданы бесплатно.
+The AI platform limits the cost of issued budget. The payment service determines its sale price. For example, 10 000 credits provide $10 of accounted spending whether sold for $30 or granted free.
 
-Маржа продажи рассчитывается платёжным сервисом с учётом выручки, комиссий, бонусов, собственных технических потерь и инфраструктуры. AI-платформа отдаёт необходимые отчёты provider cost, charged credits и platform-funded cost.
+The payment service calculates sales margin including revenue, fees, bonuses, internal technical losses, and infrastructure. The AI platform provides the necessary provider cost, charged credits, and platform-funded cost reports.
 
-Изменение розничной цены или количества кредитов в новых пакетах не требует новой credit unit. Введение наценки внутри AI-платформы является отдельной будущей политикой с версией и раскрытием; в описанную базовую модель она не включена.
+Changing retail price or credit quantities in new packages does not require a new credit unit. Introducing markup inside the AI platform is a separate future policy requiring versioning and disclosure; it is excluded from the described baseline model.
 
-## Уточнение оценки по конкретному запросу
+## Refining estimates for a specific request
 
-Новые версии рецептов могут включать `components[].estimation` с `version: 1`, источником правил `source`, необязательным `tokenizer` и массивом `rules`. Каждое правило задаёт billing dimension, единицу `tokens`, `images`, `seconds`, `characters` или `calls`, источник количества, максимальное количество и необязательное ожидаемое количество. Источники количества: `input_tokens`, `output_tokens`, `characters`, `duration`, `fixed`. Условия ставки сохраняются вместе с правилом. Это общие алгоритмы, модели подключаются конфигурацией ставок и границ.
+New recipe versions may include `components[].estimation` with `version: 1`, a rules `source`, optional `tokenizer`, and a `rules` array. Each rule specifies a billing dimension, unit (`tokens`, `images`, `seconds`, `characters`, or `calls`), quantity source, maximum quantity, and optional expected quantity. Quantity sources: `input_tokens`, `output_tokens`, `characters`, `duration`, `fixed`. Rate conditions are retained with the rule. These are general algorithms; models are connected through rate and boundary configuration.
 
-Для `single_call` прогноз учитывает конкретный вход. Токенизатор считает сериализованный вход с запасом на сообщения; это оценка, а не точный счётчик внутреннего формата провайдера. Резерв использует консервативную байтовую границу входа и передаваемый `max_output_tokens`. Ожидаемая длина ответа задаётся явно и не является обещанием. Для неизвестных assets и будущих шагов составной операции используются полные границы рецепта. Символы считаются в единицах UTF-16, как в текущем адаптере речи; другой способ тарификации требует согласованной нормализации адаптера. Длительность используется только при известном значении либо как заданный максимум.
+For `single_call`, the forecast considers specific input. The tokenizer counts serialized input with message overhead allowance; this is an estimate, not an exact counter for the provider's internal format. Reservation uses a conservative input byte bound and the submitted `max_output_tokens`. Expected answer length is explicit and is not a promise. Unknown assets and future compound-operation steps use full recipe bounds. Characters are counted in UTF-16 units, as in the current speech adapter; another billing method requires consistent adapter normalization. Duration is used only when known, or as a specified maximum.
 
-`estimated_units` теперь может быть меньше `max_units`. Для рецепта с оценщиком резерв равен стоимости максимального разрешённого количества; cap маршрута ограничивает admission сверху. Превышение cap даёт `route_cost_limit`. Без оценщика сохраняется прежний консервативный расчёт. Старые опубликованные рецепты, принятые quotes и резервы не меняются.
+`estimated_units` may now be less than `max_units`. For a recipe with an estimator, reservation equals the cost of the maximum permitted quantity; the route cap bounds admission above. Exceeding the cap returns `route_cost_limit`. Without an estimator, the earlier conservative calculation remains. Previously published recipes, accepted quotes, and reservations are unchanged.
 
-Фактическое списание продолжает использовать terminal usage и принятую тарифную версию, в пределах согласованного резерва. Риск технических повторов учитывается отдельно. Кеш в предварительную скидку не включается. Правила должны покрывать все разрешённые параметры модели; если цена зависит от качества, размера или иной настройки, границы профиля должны соответствовать выбранной таблице.
+Actual charging still uses terminal usage and the accepted rate version within the agreed reservation. Technical-retry risk is accounted separately. Cache is not included as an advance discount. Rules must cover every permitted model parameter; if price depends on quality, size, or another setting, profile boundaries must match the selected table.
 
-Методики расчёта описаны в [спецификации](MODEL_PRICING_SPEC.md).
+Calculation methods are described in the [specification](MODEL_PRICING_SPEC.md).
 
-## Фиксированная цена результата
+## Fixed result price
 
-У компонента может быть `billing.mode: fixed`. `price_parameters` перечисляет только параметры, влияющие на цену. `prices` содержит уникальные строки `parameters` и `units`; каждая строка может иметь собственную оценку себестоимости `estimation`. Параметры вне `price_parameters` по-прежнему проверяются по `limits`, но не создают новые строки цены. Публикация требует полного покрытия разрешённых сочетаний ценовых параметров и запрещает дубликаты.
+A component may have `billing.mode: fixed`. `price_parameters` lists only price-affecting parameters. `prices` contains unique `parameters` and `units` rows; each may have its own cost `estimation`. Parameters outside `price_parameters` are still validated against `limits` but do not create new price rows. Publication requires complete coverage of allowed price-parameter combinations and prohibits duplicates.
 
-Quote возвращает `settlement: fixed`, `actual_usage` или `mixed`. При фиксированной цене пользовательский максимум и ожидаемое списание равны выбранной цене. Для будущего шага составной операции резервируется максимальная фиксированная цена разрешённых вариантов; конкретный запрос фиксирует цену выбранного сочетания. Все параметры отдельного вызова связаны хешем с принятым quote.
+A quote returns `settlement: fixed`, `actual_usage`, or `mixed`. With fixed pricing, the user maximum and expected charge equal the selected price. A future compound-operation step reserves the highest fixed price of allowed variants; a specific request pins its selected combination's price. All single-call parameters are hash-bound to the accepted quote.
 
-Кредиты пользователя и provider exposure разделены. Provider exposure определяется оценкой затрат поставщика, не пользовательской ценой. Успешный технически валидный доступный результат оплачивается один раз по фиксированной цене. Технические повторы не увеличивают цену. Отмена до выдачи результата и подтверждённая неудача не оплачиваются; подтверждённые затраты поставщика остаются расходами платформы. Неизвестный исход сохраняет резерв до разбирательства; после финансового закрытия позднее списание запрещено. Неизвестная себестоимость при уже подтверждённом доступном результате не мешает фиксированному списанию, но остаётся неизвестной в provider accounting. Автоматический возврат из-за снижения ставок поставщика для fixed не применяется.
+User credits and provider exposure are separate. Provider exposure is determined by estimated provider costs, not user price. A successful technically valid available result is charged once at the fixed price. Technical retries do not increase it. Cancellation before result delivery and confirmed failure are not charged; confirmed provider costs remain platform expenses. An unknown outcome retains reservation pending investigation; late charging after financial closure is prohibited. Unknown cost for an already confirmed available result does not prevent a fixed charge but remains unknown in provider accounting. An automatic refund for lower provider rates does not apply to fixed pricing.
 
-Наценка не добавляется в адаптере или алгоритме оценки себестоимости. Фиксированная базовая цена хранится в настройках тарификации отдельно от реального provider usage. Денежная доходность зависит также от условий продажи кредитов внешним тарифным сервисом.
+Markup is not added in an adapter or cost estimation algorithm. The fixed base price is stored in billing settings separately from actual provider usage. Financial return also depends on credit sale terms in the external plan service.
 
-## Прогнозная оплата текста `estimated_actual`
+## Estimated text billing `estimated_actual`
 
-Для одиночного OpenAI text.generate опубликованный рецепт может выбрать `pricing_mode: "estimated_actual"`. Центральная модель содержит `expected_output_tokens` и выходной компонент `policy: "estimated_parameter"`, указывающий на этот параметр через `limit_parameter`. Значение не передаётся провайдеру; `max_output_tokens` в модели этого режима запрещён.
+For a single OpenAI text.generate, a published recipe may select `pricing_mode: "estimated_actual"`. The central model contains `expected_output_tokens` and an output component with `policy: "estimated_parameter"` referencing that parameter through `limit_parameter`. The value is not sent to the provider; `max_output_tokens` is prohibited in a model using this mode.
 
-Quote возвращает `settlement: "actual_usage"`, `estimate_only: true`, `overdraft_allowed: true`, `confidence: "modeled"`. Поля `max_units` и `accepted_max_units` сохранены для совместимости и в этом режиме обозначают первоначальный прогнозный резерв, а не максимум итогового списания. Клиент обязан учитывать `estimate_only`, показывать приблизительную стоимость и сообщать о возможности отрицательного баланса. `price_units` отсутствует. Фиксированный `budget` отклоняется, поскольку его потолок невозможно гарантировать без ограничения генерации.
+The quote returns `settlement: "actual_usage"`, `estimate_only: true`, `overdraft_allowed: true`, `confidence: "modeled"`. `max_units` and `accepted_max_units` are retained for compatibility and in this mode mean the initial estimated reservation, rather than the final charge maximum. The client must honor `estimate_only`, display approximate cost, and disclose the possibility of a negative balance. `price_units` is absent. A fixed `budget` is rejected because its ceiling cannot be guaranteed without limiting generation.
 
-Начальный прогноз включает запас и наценку из опубликованной модели; факт включает только наценку и округление. Прогноз 4096 токенов не обрезает ответ на 4096. Собственные ограничения API провайдера и deadline продолжают действовать. Резерв оценивает расход пользователя; лимиты риска и бюджеты выполнения хранятся отдельно.
+The initial forecast includes the published model's buffer and markup; actual charges include only markup and rounding. A 4096-token forecast does not truncate the answer at 4096. The provider API's own limits and deadline still apply. Reservation estimates user spending; risk limits and execution budgets are stored separately.
 
-## Расширение платных API
+## Paid API extension
 
-Контракт PA-I01, единицы измерения, периоды, резервы allowance и границы совместимости описаны в [контракте платных API](PAID_API_CONTRACT.md). Статус реализации и стабильные сценарии PA-A01–PA-A25 приведены в [плане](PAID_API_PLAN.md). Проект контракта не подтверждает доступность новых HTTP handlers.
+Contract PA-I01, units, periods, allowance reservations, and compatibility boundaries are described in the [paid API contract](PAID_API_CONTRACT.md). Implementation status and stable PA-A01–PA-A25 scenarios appear in the [plan](PAID_API_PLAN.md). A draft contract does not establish that new HTTP handlers are available.
 
-## Условия универсального вызова
+## Universal call terms
 
-Политика разрешается до резерва: дефолт UAI, выбранный профиль, параметры вызова. Итоговые execution, billing и идентификатор файловой политики входят в snapshot. Оперативные пределы установки не могут повысить max_attempts выше восьми. Недопустимое переопределение отклоняет транзакцию без резерва. Поздняя активация другой версии не меняет принятую работу.
+Policy is resolved before reservation: UAI default, selected profile, call parameters. Resulting execution, billing, and file-policy ID enter the snapshot. Installation operational limits cannot raise max_attempts above eight. An invalid override rejects the transaction without reservation. Later activation of another version does not change accepted work.
 
-## Прогноз списка вызовов
+## Call-list forecast
 
-См. [контракт доработок LogoPanel](LOGOPANEL_FOLLOWUP_INTEGRATION.md): API/SDK, ограничения и неактивированные примеры конфигураций. Реальные вызовы требуют отдельного согласования по [правилам проверки провайдеров](REAL_PROVIDER_CHECKS.md).
+See the [LogoPanel follow-up integration contract](LOGOPANEL_FOLLOWUP_INTEGRATION.md): API/SDK, constraints, and inactive configuration examples. Real calls require separate agreement under the [provider verification rules](REAL_PROVIDER_CHECKS.md).

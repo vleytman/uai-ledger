@@ -1,108 +1,112 @@
-# План реализации 0.3 и состояние работы
+# Implementation plan 0.3 and work status
 
-[Спецификация](README.md) · [Матрица приёмки](ACCEPTANCE_RESULTS.md)
+[Specification](README.md) · [Acceptance matrix](ACCEPTANCE_RESULTS.md)
 
-Дата начала: 2026-09-18. Админка полностью переведена на английский по указанию владельца. Реальный OpenAI-прогон через SDK/demo завершён в разрешённом бюджете 1 USD: четыре успешных запроса, расчётная себестоимость 0.004452 USD. Serper и Cartesia прошли по одному реальному запросу при отдельном лимите 0.50 USD; стоимость Cartesia остаётся unknown. Anthropic отложен владельцем, финансовые отчёты ожидают отдельного reporting credential. Локальная реализация и A01–A91 подтверждены воспроизводимыми проверками. Последний PostgreSQL-прогон: 291/291 на новой базе в Linux-контейнере, 30 файлов; типизация и сборки проверены.
-Согласованный стек: TypeScript, PostgreSQL, pnpm workspaces, Fastify, Drizzle с SQL-миграциями, Vitest, Docker Compose, TanStack Start, shadcn/ui.
-Координатор использует xhigh через настройку UI; все субагенты high, модель наследуется. Не более трёх одновременно работающих субагентов.
+Start date: 2026-09-18. The admin interface has been fully translated into English at the owner's request. The real OpenAI run through SDK/demo completed within an authorized 1 USD budget: four successful requests, calculated cost 0.004452 USD. Serper and Cartesia each passed one real request under a separate 0.50 USD limit; Cartesia's cost remains unknown. Anthropic was deferred by the owner, and financial reports await a separate reporting credential. The local implementation and A01–A91 are supported by reproducible checks. Latest PostgreSQL run: 291/291 on a new database in a Linux container, 30 files; types and builds verified.
+Agreed stack: TypeScript, PostgreSQL, pnpm workspaces, Fastify, Drizzle with SQL migrations, Vitest, Docker Compose, TanStack Start, shadcn/ui.
+The coordinator uses xhigh through the UI setting; all subagents use high and inherit the model. No more than three subagents run concurrently.
 
-## Границы и исходное состояние
+## Boundaries and initial state
 
-Незакоммиченные изменения README.md и docs/API.md, ARCHITECTURE.md, DECISIONS.md, IMPLEMENTATION.md, OPERATIONS.md, README.md, SOURCES.md являются входной спецификацией. Не откатывать. Ветку и PR не создавать без отдельного разрешения.
-Полный объём: этапы 1–5 и 6а. Этап 6б и production-часть этапа 7 отложены. Локальные проверки безопасности, restore и удаления входят в текущую приёмку.
-Платные provider checks требуют отдельных доступа и бюджета. Отсутствие доступа не отменяет fixture и интеграционные проверки и не подтверждает реальную интеграцию.
+Uncommitted changes to README.md and docs/API.md, ARCHITECTURE.md, DECISIONS.md, IMPLEMENTATION.md, OPERATIONS.md, README.md and SOURCES.md are the input specification. Do not revert them. Do not create a branch or PR without separate permission.
+Full scope: stages 1–5 and 6a. Stage 6b and the production portion of stage 7 are deferred. Local security, restore and deletion checks are part of current acceptance.
+Paid provider checks require separate access and budget. Missing access neither cancels fixture/integration checks nor establishes real integration.
 
-## Общие правила реализации
+## Shared implementation rules
 
-Координатор владеет packages/contracts, packages/db, корневыми конфигурациями, миграциями 0001 и интеграцией. Модули экспортируют сервисы, принимающие общий SqlExecutor, и допускают передачу транзакции. Сетевые вызовы не держат финансовые блокировки.
-Деньги: bigint внутри домена и PostgreSQL, строки в JSON. Decimal rates рассчитываются точно. Общий Clock позволяет ускорить recovery/expiry в тестах.
-Каждый модуль владеет своими таблицами. Номера миграций закреплены: 0001 foundation, 0002 accounting, 0003 catalog/pricing, 0004 execution/storage, 0005 quoting, 0006 operations. Изменения общих контрактов согласуются с координатором.
-Финансовые эффекты и durable outbox сохраняются одной транзакцией. Durable события и идемпотентные ответы содержат ссылки, а не prompts/results.
+The coordinator owns packages/contracts, packages/db, root configuration, migration 0001 and integration. Modules export services accepting a shared SqlExecutor and permit passing a transaction. Network calls do not hold financial locks.
+Money uses bigint within the domain and PostgreSQL, and strings in JSON. Decimal rates are calculated exactly. A shared Clock accelerates recovery/expiry in tests.
+Each module owns its tables. Migration numbers are assigned: 0001 foundation, 0002 accounting, 0003 catalog/pricing, 0004 execution/storage, 0005 quoting, 0006 operations. Shared contract changes are coordinated with the coordinator.
+Financial effects and the durable outbox are persisted in one transaction. Durable events and idempotent responses contain references rather than prompts/results.
 
-## Зависимости, владельцы и критерии
+## Dependencies, owners and criteria
 
-| Задача | Владелец | Зависимости | Критерий завершения | Статус |
+| Task | Owner | Dependencies | Completion criterion | Status |
 |---|---|---|---|---|
-| P00 Каркас, денежные типы, ошибки, scope, Clock, SQL, CI | Координатор | Спецификация | Установка зависимостей, PostgreSQL, миграции и базовая проверка работают | Каркас, миграции 0001–0014, PostgreSQL и CI готовы |
-| P01 Учёт, lots, postings, reserve/claim/capture/refund/revocation, expiry | Финансовое ядро | P00 | Инварианты и конкурентность на PostgreSQL, replay без двойных эффектов | Финансовые инварианты, concurrency, replay, expiry и revocation проверены на PostgreSQL |
-| P02 Каталог, pricing, adapter contract и fixtures | Провайдеры | P00 | Разные схемы usage/cache, неизвестные величины не становятся нулём | Каталог, rational pricing, adapters и fixtures проверены; реальные OpenAI/Serper/Cartesia прошли, Anthropic отложен владельцем |
-| P03 Очередь, attempts, leases, recovery, exposure, storage | Выполнение | P00, контракты P01/P02 | Fault injection, unknown, cancellation, TTL и tombstones | Очередь, native hooks, recovery, fencing, TTL и restore guard проверены |
-| P04 Визуальный каркас, обзор, операция и кошелёк | Координатор | P00 | Общая тема и компоненты, desktop/mobile прототип | Общая тема и интерфейсы подтверждены Aside на desktop и ширине 390 px |
-| P05 Quoting, recipes, admission, single invocation, amend | Координатор/оценка | P01/P02/P03 | Атомарный reserve+work, лимиты component и согласованный максимум | Расчёт и атомарный admission проверены, включая actual usage и успешные части |
-| P06 API, scopes, OpenAPI, SSE | Координатор/API | P01/P03/P05 | Изоляция, replay, reconnect, все контрактные команды | HTTP scopes, OpenAPI, типы, SSE disconnect/reconnect и revocation проверены |
-| P07 Сверка, incidents, notification/webhook, admin API | Эксплуатация | P02/P03/P06 | Scope/freshness, дедупликация, corrections без debit | Сверка, reporting credentials, incidents, revocation holds и delivery fixtures проверены |
-| P08 SDK и независимый demo | SDK/demo | P04/P06 | Чат, image, составное действие, persist-before-ack, защищённый grant | Demo проверен через SDK и реальный OpenAI; persistence, ACK, reload, grants и deletion подтверждены |
-| P09 Все страницы админки | Интерфейсы | P04/P06/P07 | Реальные API-действия, состояния, доступность и Aside QA | Страницы, фильтры, калькулятор, сравнение ставок и effective budgets проверены через Aside и HTTP |
-| P10 Независимая приёмка | Проверяющий | P01–P09 | Все применимые A01–A91 с доказательствами; дефекты устранены | Матрица содержит 91 локальное подтверждение; 291/291 тест на новой базе в Linux-контейнере, без пропусков |
-| P11 Воспроизводимость и отчёт | Координатор | P10 | Чистый запуск, CI, отчёт разделяет fixture/integration/browser/real | Чистый запуск, restore, типизация, сборки и отчёты готовы; OpenAI/Serper/Cartesia проверены, reporting ожидает доступа |
+| P00 Scaffold, monetary types, errors, scope, Clock, SQL, CI | Coordinator | Specification | Dependency installation, PostgreSQL, migrations and basic validation work | Scaffold, migrations 0001–0014, PostgreSQL and CI ready |
+| P01 Accounting, lots, postings, reserve/claim/capture/refund/revocation, expiry | Financial core | P00 | PostgreSQL invariants and concurrency; replay without duplicate effects | Financial invariants, concurrency, replay, expiry and revocation verified on PostgreSQL |
+| P02 Catalog, pricing, adapter contract and fixtures | Providers | P00 | Different usage/cache schemas; unknown quantities do not become zero | Catalog, rational pricing, adapters and fixtures verified; real OpenAI/Serper/Cartesia passed, Anthropic deferred by the owner |
+| P03 Queue, attempts, leases, recovery, exposure, storage | Execution | P00, P01/P02 contracts | Fault injection, unknown, cancellation, TTL and tombstones | Queue, native hooks, recovery, fencing, TTL and restore guard verified |
+| P04 Visual scaffold, overview, operation and wallet | Coordinator | P00 | Shared theme and components, desktop/mobile prototype | Shared theme and interfaces verified through Aside on desktop and at 390 px width |
+| P05 Quoting, recipes, admission, single invocation, amend | Coordinator/quoting | P01/P02/P03 | Atomic reserve+work, component limits and agreed maximum | Quoting and atomic admission verified, including actual usage and successful parts |
+| P06 API, scopes, OpenAPI, SSE | Coordinator/API | P01/P03/P05 | Isolation, replay, reconnect, all contract commands | HTTP scopes, OpenAPI, types, SSE disconnect/reconnect and revocation verified |
+| P07 Reconciliation, incidents, notification/webhook, admin API | Operations | P02/P03/P06 | Scope/freshness, deduplication, corrections without debit | Reconciliation, reporting credentials, incidents, revocation holds and delivery fixtures verified |
+| P08 SDK and independent demo | SDK/demo | P04/P06 | Chat, image, composite action, persist-before-ack, protected grant | Demo verified through SDK and real OpenAI; persistence, ACK, reload, grants and deletion confirmed |
+| P09 All admin pages | Interfaces | P04/P06/P07 | Real API actions, states, accessibility and Aside QA | Pages, filters, calculator, rate comparison and effective budgets verified through Aside and HTTP |
+| P10 Independent acceptance | Reviewer | P01–P09 | All applicable A01–A91 with evidence; defects fixed | Matrix contains 91 local confirmations; 291/291 tests on a new Linux-container database, no skips |
+| P11 Reproducibility and report | Coordinator | P10 | Clean startup, CI; report distinguishes fixture/integration/browser/real checks | Clean startup, restore, types, builds and reports ready; OpenAI/Serper/Cartesia verified, reporting awaits access |
 
-## Порядок командной работы
+## Team workflow
 
-Первая волна: финансовое ядро; провайдеры/цены; выполнение/хранение. Координатор готовит основание, согласует контракты и рано создаёт UI-каркас.
-Вторая волна: оценка/API; эксплуатационные модули; SDK/demo. Координатор интегрирует и проверяет финансовые границы.
-Третья волна: админка; завершение SDK/demo; независимая сквозная проверка. Автор каждого модуля запускает свои проверки; проверяющий ищет дефекты на стыках.
+First wave: financial core; providers/pricing; execution/storage. The coordinator prepares the foundation, agrees contracts and creates the UI scaffold early.
+Second wave: quoting/API; operational modules; SDK/demo. The coordinator integrates and verifies financial boundaries.
+Third wave: admin interface; SDK/demo completion; independent end-to-end validation. Each module author runs their checks; the reviewer looks for defects at integration boundaries.
 
-## Доказательства и продолжение
+## Evidence and continuation
 
-В ACCEPTANCE_RESULTS.md отмечать статус каждого сценария, команду, результат, доказательство и ограничения. Статус «пройден» требует воспроизводимого результата; наличие кода или теста недостаточно.
-Сохранять отчёты без секретов и приватного контента только в игнорируемом `.data/reports/`. Не коммитить базы и provider responses с пользовательскими данными.
-После каждой волны обновлять этот файл, матрицу, открытые дефекты и команды продолжения. Цель не закрывать при недостающих обязательных проверках.
+Record each scenario's status, command, result, evidence and limitations in ACCEPTANCE_RESULTS.md. A passed status requires a reproducible result; code or a test alone is insufficient.
+Keep reports without secrets or private content only in the ignored `.data/reports/` directory. Do not commit databases or provider responses containing user data.
+After each wave, update this file, the matrix, open defects and continuation commands. Do not close the goal while mandatory checks are missing.
 
-## История первой передачи контекста
+## First context handoff history
 
-- accounting агент завершил первую волну, реализует quoting и миграцию 0007_operations.sql.
-- providers агент завершил 49 тестов, реализует reconciliation/notifications и usage/cost persistence в миграции 0006_operations.sql.
-- execution агент проверяет storage/recovery, затем делает apps/worker и apps/scheduler.
-- Координатор реализует apps/api и packages/sdk, затем подключение интерфейсов.
-- Миграция 0005_quoting.sql сейчас содержит service_tokens и command_idempotency. Таблицы quote/operation будут в 0007.
-- Docker compose работает на 127.0.0.1:55432. Базы uai_test и uai_execution_test созданы для разработки. Первая содержит раннюю 0004. После стабилизации всех миграций выполнить полностью чистую проверку в новой БД, не менять checksum ради зелёного результата.
-- `pnpm --filter @uai/admin dev` запускает визуальный прототип на 127.0.0.1:4311. Он ещё не подключён к API. Desktop screenshot просмотрен, Aside навигация кошелька проверена. Узкий viewport не принят.
-- API scopes/grant/replay прошли 7 интеграционных тестов на uai_execution_test. Полный API ещё не готов.
+- The accounting agent completed the first wave and is implementing quoting and migration 0007_operations.sql.
+- The providers agent completed 49 tests and is implementing reconciliation/notifications and usage/cost persistence in migration 0006_operations.sql.
+- The execution agent is verifying storage/recovery, then implementing apps/worker and apps/scheduler.
+- The coordinator is implementing apps/api and packages/sdk, then interface integration.
+- Migration 0005_quoting.sql currently contains service_tokens and command_idempotency. Quote/operation tables will be in 0007.
+- Docker compose runs on 127.0.0.1:55432. Databases uai_test and uai_execution_test were created for development. The former contains an early 0004. After all migrations stabilize, run a completely clean check in a new database; do not change a checksum to make checks pass.
+- `pnpm --filter @uai/admin dev` starts the visual prototype at 127.0.0.1:4311. It is not yet connected to the API. A desktop screenshot was reviewed and Aside wallet navigation verified. Narrow viewport acceptance is incomplete.
+- API scopes/grant/replay passed 7 integration tests on uai_execution_test. The full API is not ready yet.
 
-Платная проверка выполняется только после отдельного разрешения владельца на бюджет конкретного прогона. Результаты исторических проверок приведены ниже.
+Paid verification is performed only after the owner separately authorizes the specific run's budget. Historical validation results follow.
 
-## Дополнение цели 2026-09-19
+## Goal addition 2026-09-19
 
-Полностью перевести административный интерфейс на английский без русской версии и переключателя языка. Проверить все страницы, формы, ошибки, доступность и форматирование чисел/дат через Aside. Изменение не затрагивает язык demo и пользовательские данные.
+Translate the entire admin interface into English, without a Russian version or language switcher. Check every page, form, error, accessibility behavior and number/date format through Aside. This change does not affect the demo language or user data.
 
-Выполнено. TypeScript, сборки и 258 тестов прошли; Aside подтвердил английский интерфейс на desktop и ширине 390 px.
+Completed. TypeScript, builds and 258 tests passed; Aside confirmed the English interface on desktop and at 390 px width.
 
-## Реальный OpenAI, 2026-09-19
+## Real OpenAI, 2026-09-19
 
-Выполнены текст, изображение и составное действие через SDK/demo. Все четыре запроса прошли с первой попытки, расчётная себестоимость 0.004452 USD, открытых резервов нет. Aside и проверка локальных файлов подтвердили сохранение перед ACK, reload без новых запросов и удаление тестового диалога с сохранением финансовой истории. Финансовая сверка с поставщиком ещё не выполнялась.
+Text, image and a composite action were executed through the SDK/demo. All four requests succeeded on the first attempt, with calculated cost 0.004452 USD and no open reservations. Aside and local-file checks confirmed persistence before ACK, reload without new requests and deletion of the test conversation while retaining financial history. Financial reconciliation with the provider has not yet been performed.
 
-Перед прогоном исправлены параметры и версии опубликованных Demo recipes, карточка связанных provider limits и передача сохранённого `created_at` операций. Итоговый PostgreSQL-прогон содержит 259 успешных тестов. Реальные worker-процессы завершены, обычный worker восстановлен с выключенными реальными провайдерами. Оставшиеся доступы перечислены в [матрице реальных проверок](REAL_PROVIDER_CHECKS.md).
+Before the run, parameters and versions of published Demo recipes, the associated provider-limits card and delivery of the stored `created_at` for operations were corrected. The final PostgreSQL run contains 259 successful tests. Real worker processes were stopped and the regular worker restored with real providers disabled. Remaining access requirements are listed in the [real-check matrix](REAL_PROVIDER_CHECKS.md).
 
-## Аудит завершения Demo, 2026-09-19
+## Demo completion audit, 2026-09-19
 
-Исправлены устаревший резерв в сохранённой операции, отмена до первого запроса, повтор ACK после сетевого сбоя и применение запоздалой ревизии кошелька. Карточки шагов раскрывают диагностику и показывают доступную сумму, резерв и баланс. Чистый PostgreSQL-прогон: 262 теста в 29 файлах. В Aside отмена fixture-операции вернула весь резерв без provider attempts, повторное чтение OpenAI сохранило прежние четыре запроса и расход.
+Fixed a stale reservation in a saved operation, cancellation before the first request, repeated ACK after a network failure and application of an outdated wallet revision. Step cards expose diagnostics and show available funds, reserved funds and balance. Clean PostgreSQL run: 262 tests across 29 files. In Aside, canceling a fixture operation returned its entire reservation without provider attempts; rereading OpenAI preserved the previous four requests and cost.
 
-## Повторные команды завершения
+## Repeated completion commands
 
-Исправлены перезапись терминального результата поздней отменой, ослабление действующей отмены через complete и повторные события закрытия. Demo сохраняет фактический результат и после прямой поздней команды cancel. PostgreSQL, HTTP API и SDK/Demo проверены на чистой базе: 267 тестов, 29 файлов, без пропусков.
+Fixed terminal results overwritten by late cancellation, active cancellation weakened by complete, and repeated closure events. Demo preserves the actual result even after a direct late cancel command. PostgreSQL, HTTP API and SDK/Demo were checked on a clean database: 267 tests, 29 files, no skips.
 
-## Итоговые статусы запросов и операций
+## Final request and operation statuses
 
-Публичный API и обзор админки больше не возвращают completed для всех отменённых requests или сочетания ошибок и отмен без успеха. Десять сценариев сверяют четыре HTTP-проекции, резерв и списание. На чистой базе прошли 277 тестов в 29 файлах. Остальные реальные проверки ожидали отдельного согласования.
+The public API and admin overview no longer return completed for every canceled request or for a mixture of errors and cancellations without success. Ten scenarios compare four HTTP projections, reservation and charge. A clean database passed 277 tests across 29 files. Other live checks awaited separate authorization.
 
-## Проверка Linux CI и оставшиеся доступы
+## Linux CI verification and remaining access
 
-В отдельном Linux amd64 контейнере с Node.js 22.23.2 прошли установка из frozen lockfile, 14 миграций, OpenAPI, типизация, 277 тестов без пропусков, документация и client/SSR сборки Admin/Demo. В workflow включён обязательный PostgreSQL-набор. Временные исходники, контейнер и база удалены.
+In a separate Linux amd64 container with Node.js 22.23.2, installation from the frozen lockfile, 14 migrations, OpenAPI, type checking, 277 tests with no skips, documentation and Admin/Demo client/SSR builds passed. The workflow enables the mandatory PostgreSQL suite. Temporary sources, container and database were removed.
 
-На момент этого этапа локальные проверки завершены, а реальные RP02/RP04/RP05 и RP06 ожидали доступов и отдельного разрешения бюджета. Разрешение OpenAI 1 USD использовано для согласованного завершённого прогона.
+At this stage, local checks were complete, while real RP02/RP04/RP05 and RP06 awaited access and separate budget authorization. The OpenAI 1 USD authorization was used for the agreed completed run.
 
-## Новые подключения и перенос Anthropic — 2026-09-19
+## New connections and Anthropic deferral, 2026-09-19
 
-После бесплатной проверки Cartesia и подготовки плана владелец разрешил до 0.50 USD. Выполнены один поиск и одна фраза из 15 символов, без повторов. Serper вернул 7 результатов и 1 credit; Cartesia вернула WAV 1.6 s без индивидуального billed usage. Сохранение, ACK и reload проверены. Обычный worker снова работает с выключенными реальными вызовами.
+After a free Cartesia check and preparation of the plan, the owner authorized up to 0.50 USD. One search and one 15-character phrase were executed, without retries. Serper returned 7 results and 1 credit; Cartesia returned a 1.6 s WAV without individual billed usage. Persistence, ACK and reload were verified. The regular worker again runs with real calls disabled.
 
-Реальная проверка Anthropic RP02 отложена по прямому указанию владельца и не блокирует этот прогон. Проверка финансовых отчётов RP06 по-прежнему требует отдельного reporting credential. Требование полностью английской админки остаётся выполненным.
+Real Anthropic check RP02 was deferred at the owner's explicit request and does not block this run. Financial report check RP06 still requires a separate reporting credential. The requirement for an entirely English admin interface remains satisfied.
 
-В ходе проверки исправлено сравнение структурированных параметров и итоговые суммы в карточке операции. Административный API теперь возвращает рассчитанные для этой операции provider/platform costs и metadata передачи результата, сохраняя unknown при неполных данных. PostgreSQL-тесты и Aside подтвердили исправление без дополнительных платных запросов.
+The check fixed structured-parameter comparison and final totals in the operation card. The administrative API now returns provider/platform costs calculated for this operation and result-delivery metadata, preserving unknown when data is incomplete. PostgreSQL tests and Aside confirmed the fix without additional paid requests.
 
-## Завершение локального объёма, 2026-09-19
+## Local scope completion, 2026-09-19
 
-Этапы 1–5 и 6а выполнены в согласованных границах. Финальная проверка нашла и устранила приём произвольных непустых audio bytes. Общий валидатор WAV/MP3 проверяет файлы до хранения и списания; PostgreSQL-сценарий A50 подтверждает оплату дефектной попытки платформой. Ранее сохранённый ответ Cartesia принят новым валидатором без нового обращения к провайдеру.
+Stages 1–5 and 6a were completed within the agreed boundaries. Final validation found and fixed acceptance of arbitrary nonempty audio bytes. The shared WAV/MP3 validator checks files before persistence and charging; PostgreSQL scenario A50 confirms platform-funded payment for a defective attempt. A previously persisted Cartesia response was accepted by the new validator without another provider call.
 
-На свежей базе Linux amd64 с Node.js 22.23.2 прошли frozen install, 14 миграций, OpenAPI, типизация, 291 тест в 30 файлах, документация и обе сборки. Матрица A01–A91 содержит локальные доказательства всех сценариев; доступные реальные OpenAI, Serper и Cartesia проверены отдельно. Anthropic отложен владельцем. Отсутствие reporting credentials записано как ограничение подключений согласно этапу 5, без фиктивной финансовой сверки. Неизвестная стоимость Cartesia остаётся в предусмотренном часовом процессе урегулирования и не объявляется нулём.
+On a fresh Linux amd64 database with Node.js 22.23.2, frozen installation, 14 migrations, OpenAPI, type checking, 291 tests across 30 files, documentation and both builds passed. Matrix A01–A91 contains local evidence for every scenario; accessible real OpenAI, Serper and Cartesia were checked separately. Anthropic was deferred by the owner. Missing reporting credentials are recorded as connection limitations under stage 5, without fictitious financial reconciliation. Cartesia's unknown cost remains in the prescribed one-hour resolution process and is not declared zero.
 
-Админка полностью на английском, Demo и документация на русском. Ветка, PR, production deployment, Logo Panel 6б и полный этап 7 не выполнялись. Новых платных запросов после двух согласованных вызовов Serper/Cartesia нет. Обычный локальный worker работает с выключенными реальными провайдерами.
+At this milestone, the admin interface was entirely English, while Demo and documentation were in Russian. No branch, PR, production deployment, Logo Panel 6b or full stage 7 was performed. No new paid requests followed the two authorized Serper/Cartesia calls. The regular local worker runs with real providers disabled.
+
+## Documentation language, 2026-10-22
+
+At the owner's request, UAI Ledger documentation, including README.md and AGENTS.md, is now maintained in English. This changes the documentation language; historical implementation statuses, product UI text and API contracts remain as recorded.

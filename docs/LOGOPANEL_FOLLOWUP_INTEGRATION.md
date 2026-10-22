@@ -1,54 +1,54 @@
-# Контракты доработок LogoPanel
+# LogoPanel Follow-up Contracts
 
-Дата: 2026-09-25. [План](LOGOPANEL_FOLLOWUP_PLAN.md).
+Date: 2026-09-25. [Plan](LOGOPANEL_FOLLOWUP_PLAN.md).
 
 ## Embeddings
 
-Все три модели используют `embeddings.generate`, `input.texts` и общий результат `type: embeddings`. Индексы нормализованы в порядке входных строк. Результат содержит `model`, `revision`, `dimensions`, `data`. У текущих адаптеров `revision: null`: алиас не доказывает точную ревизию и не позволяет обнаружить скрытое обновление модели.
+All three models use `embeddings.generate`, `input.texts`, and the shared `type: embeddings` result. Indices are normalized to input string order. The result contains `model`, `revision`, `dimensions`, and `data`. Current adapters return `revision: null`: an alias does not establish the exact revision or allow detecting a hidden model update.
 
-| Модель | Размерности | По умолчанию | Токены: строка / пакет | Тип входа |
+| Model | Dimensions | Default | Tokens: string / batch | Input type |
 |---|---|---|---|---|
-| OpenAI text-embedding-3-small | 1–1536 | 1536 | 8192 / 300000 | Не передаётся |
-| OpenAI text-embedding-3-large | 1–3072 | 3072 | 8192 / 300000 | Не передаётся |
-| Voyage voyage-4 | 256, 512, 1024, 2048 | 1024 | 32000 / 320000 | `query`, `document`, либо не задан |
+| OpenAI text-embedding-3-small | 1–1536 | 1536 | 8192 / 300000 | Not sent |
+| OpenAI text-embedding-3-large | 1–3072 | 3072 | 8192 / 300000 | Not sent |
+| Voyage voyage-4 | 256, 512, 1024, 2048 | 1024 | 32000 / 320000 | `query`, `document`, or unset |
 
-Защитные пределы установки пересекаются с модельными: 128 строк, 16384 координаты суммарно, 512 КиБ сериализованного результата. Для Large 3072 это максимум пять строк за вызов. OpenAI дополнительно ограничен 32768 UTF-8 bytes на строку; общий подготовленный текст пакета — 128000 bytes. Опубликованные profiles/catalog возвращают `embedding_features` с модельными и общими пределами.
+Installation safety limits intersect with model limits: 128 strings, 16384 total coordinates, and a 512 KiB serialized result. For Large 3072, this means at most five strings per call. OpenAI is additionally limited to 32768 UTF-8 bytes per string; total prepared batch text is limited to 128000 bytes. Published profiles/catalog return `embedding_features` with model and shared limits.
 
-OpenAI использует `cl100k_base`. Для Voyage нет локального точного токенизатора: проверка использует число UTF-8 bytes и запас 64 на строку с `input_type`. Поэтому часть допустимых у провайдера текстов будет отклонена консервативно. Адаптер всегда передаёт `truncation: false`, `output_dtype: float`; `dimensions` переводится в `output_dimension`. Скрытой обрезки нет. В примере профиля прогноз добавляет общий запас 8192 токена на пакет; фактический учёт использует provider usage.
+OpenAI uses `cl100k_base`. Voyage has no exact local tokenizer: validation uses UTF-8 byte count plus a margin of 64 per string with `input_type`. Some texts acceptable to the provider are therefore conservatively rejected. The adapter always sends `truncation: false`, `output_dtype: float`; `dimensions` maps to `output_dimension`. There is no hidden truncation. The example profile forecast adds a shared margin of 8192 tokens per batch; actual accounting uses provider usage.
 
-Пакет остаётся атомарной работой. Дефект одного вектора делает дефектным весь результат. Векторы постоянно хранит приложение; повтор команды с тем же ключом и повтор ACK не вызывают нового запроса и списания.
+The batch remains an atomic work item. A defect in one vector makes the entire result defective. The application stores vectors permanently; repeating a command with the same key and repeating ACK do not create a new request or charge.
 
-## Структурированные ответы и tools
+## Structured Responses and Tools
 
-Поддерживается ограниченное подмножество JSON Schema:
+A limited JSON Schema subset is supported:
 
-- `type`: object, array, string, number, integer, boolean, null, включая массив типов.
-- `properties`, `required`, `additionalProperties: false`, `items`; необязательные свойства допускаются. Для преобразования в API провайдера все объекты должны явно запрещать неизвестные свойства.
-- Скалярные `enum`, `const`; `anyOf`, `oneOf`. У union-узла допускаются только варианты, `$defs`, `title`, `description`; assertion-соседи отклоняются. `oneOf` проверяется на ровно один подходящий вариант локально.
-- `minimum`, `maximum`, `minLength`, `maxLength`, `minItems`, `maxItems`, `pattern`; вложенные массивы объектов.
-- `$defs` в корне и `$ref` вида `#/$defs/name` с JSON Pointer escaping. Циклы, внешние ссылки и siblings у `$ref`, кроме аннотаций, отклоняются без сетевых запросов.
+- `type`: object, array, string, number, integer, boolean, null, including an array of types.
+- `properties`, `required`, `additionalProperties: false`, `items`; optional properties are allowed. For provider API conversion, every object must explicitly forbid unknown properties.
+- Scalar `enum`, `const`; `anyOf`, `oneOf`. A union node permits only variants, `$defs`, `title`, and `description`; assertion siblings are rejected. `oneOf` is locally checked for exactly one matching variant.
+- `minimum`, `maximum`, `minLength`, `maxLength`, `minItems`, `maxItems`, `pattern`; nested arrays of objects.
+- Root `$defs` and `$ref` of the form `#/$defs/name` with JSON Pointer escaping. Cycles, external references, and `$ref` siblings other than annotations are rejected without network requests.
 
-Пределы: 64 КиБ схемы, глубина 16, 2048 развёрнутых узла, 256 свойств, 16 ветвей на union, 256 значений enum, pattern до 256 символов. Числовые длины/размеры — до 1000000. Regex — Unicode JavaScript, без групп, lookaround, alternation, backreferences и повторных квантификаторов. Допустим максимум один повторяемый атом; с повтором обязательны `^` и `$`; числовой повтор не более 10000. Например, `^[a-z]+$` поддерживается. Это намеренно ограниченный язык без опасного backtracking. Остальные keywords, в том числе `format`, `allOf`, `not`, `patternProperties`, отклоняются до отправки.
+Limits: 64 KiB schema, depth 16, 2048 expanded nodes, 256 properties, 16 branches per union, 256 enum values, and patterns up to 256 characters. Numeric lengths/sizes are capped at 1000000. Regex uses Unicode JavaScript without groups, lookaround, alternation, backreferences, or repeated quantifiers. At most one repeated atom is permitted; repetition requires `^` and `$`; numeric repetition is at most 10000. For example, `^[a-z]+$` is supported. This is an intentionally restricted language without dangerous backtracking. Other keywords, including `format`, `allOf`, `not`, and `patternProperties`, are rejected before dispatch.
 
-В wire schema optional-поле становится служебным объектом `{present:false}` или `{present:true,value:…}`. Клиент никогда не видит эту оболочку. После восстановления отсутствующее поле удаляется, а явный пользовательский `null` сохраняется. Ограничения проверяются по исходной схеме; провайдеру отправляется более простая строгая схема. Корневые скаляры/массивы и union также получают служебную оболочку.
+In the wire schema, an optional field becomes an internal object `{present:false}` or `{present:true,value:…}`. The client never sees this wrapper. After restoration, an absent field is removed while explicit user `null` is preserved. Constraints are checked against the original schema; the provider receives a simpler strict schema. Root scalars/arrays and unions also receive an internal wrapper.
 
-Для преобразованной схемы промежуточные дельты буферизуются до полного восстановления и проверки. Для неизменённой схемы поток сохраняется. `delivery.field_paths` поддерживает объявленные строковые свойства объектов, включая вложенные; индексы и wildcard массивов не поддерживаются. Итоговый результат остаётся авторитетным. Дефект содержит `usage.attempts[].validation_error` с JSON Pointer `path` и коротким `reason`, без значения поля.
+For transformed schemas, intermediate deltas are buffered until complete restoration and validation. Unchanged schemas retain streaming. `delivery.field_paths` supports declared string properties of objects, including nested ones; array indices and wildcards are unsupported. The final result remains authoritative. A defect contains `usage.attempts[].validation_error` with a JSON Pointer `path` and short `reason`, without the field value.
 
-Каталог может объявить `text_features.forced_tool_choice: false` или `tools: false, schema: true`. UAI автоматически запрашивает структурированный envelope одного tool call, проверяет имя, аргументы и число вызовов и возвращает обычный `tool_call` с `execution_method: schema`. Для native tools значение — `native`. У зарегистрированных Anthropic семейств Opus 5.5, Fable 5.1, Mythos 5.1 принудительный вызов переводится в schema-режим. Нужна опубликованная возможность structured output. Refusal остаётся отказом; эмуляция не создаёт дополнительной попытки и не исполняет сам инструмент.
+The catalog may declare `text_features.forced_tool_choice: false` or `tools: false, schema: true`. UAI automatically requests a structured single-tool-call envelope, validates the name, arguments, and call count, and returns a standard `tool_call` with `execution_method: schema`. Native tools use `native`. For registered Anthropic Opus 5.5, Fable 5.1, and Mythos 5.1 families, forced calls switch to schema mode. Published structured-output capability is required. A refusal remains a refusal; emulation neither creates an extra attempt nor executes the tool itself.
 
-## Приоритет и запас параллельности
+## Priority and Concurrency Reserve
 
-`priority: interactive | background` принимается в quote/invocation; по умолчанию `background`. Приложение явно маркирует запрос пользователя. При использовании готового quote изменить его приоритет нельзя.
+`priority: interactive | background` is accepted in quote/invocation; the default is `background`. The application explicitly marks user requests. An existing quote's priority cannot be changed when using it.
 
-Начальный `interactive_reserve` — один слот. Фон может занять не более `max(1, total - reserve)` слотов. Запас действует для исполняемых задач очереди, приложения и аккаунта, публикации jobs очереди/приложения/аккаунта, provider quota group и legacy limiter. Общая активная ёмкость аккаунта продолжает ограничивать оба класса. Настройки очереди, группы и limiter доступны через существующие admin API и формы. Legacy lease API принимает `interactive_reserve`; worker-процесс использует `UAI_WORKER_INTERACTIVE_RESERVE` (по умолчанию 1), `UAI_WORKER_CONCURRENCY` — общую ёмкость.
+The initial `interactive_reserve` is one slot. Background work may occupy at most `max(1, total - reserve)` slots. The reserve applies to executing queue, application, and account tasks; publishing queue/application/account jobs; provider quota groups; and the legacy limiter. Total active account capacity continues to constrain both classes. Queue, group, and limiter settings are available through existing admin APIs and forms. The legacy lease API accepts `interactive_reserve`; the worker process uses `UAI_WORKER_INTERACTIVE_RESERVE` (default 1), and `UAI_WORKER_CONCURRENCY` defines total capacity.
 
-При ёмкости 1 отдельного слота для interactive нет. Уже запущенная работа не вытесняется. Отказ локального worker gate оставляет durable request в очереди; reconciler вновь публикует его. Возраст задачи повышает порядок выбора; разница между новыми interactive/background — десять минут ожидания. Fairness между аккаунтами сохраняется. Это не обещание времени начала при непрерывном превышении доступной мощности.
+At capacity 1 there is no separate interactive slot. Running work is not preempted. Rejection by the local worker gate leaves the durable request queued; the reconciler republishes it. Task age raises selection order; the difference between new interactive/background tasks equals ten minutes of waiting. Fairness across accounts is preserved. This does not promise a start time when demand continuously exceeds available capacity.
 
-Приоритет не меняет budget, authorization, rate windows, backpressure, deadline, attempt cap или неизвестный исход. Он не позволяет обойти provider quota. Введены миграции `0070_logopanel_validation.sql`, `0071_interactive_capacity.sql`.
+Priority does not change budget, authorization, rate windows, backpressure, deadline, attempt cap, or unknown outcomes. It cannot bypass provider quota. Migrations `0070_logopanel_validation.sql` and `0071_interactive_capacity.sql` were introduced.
 
-## Прогноз списка вызовов
+## Call-list Forecast
 
-`POST /v1/forecasts`, scope `ai:quote`, SDK `client.ai.forecast(body)`. Вызов читает опубликованные single-call профили; новый рецепт не регистрируется. Кошелёк, reserve, allowance, operation, execution request и provider call не создаются. Account authorization сохраняется.
+`POST /v1/forecasts`, scope `ai:quote`, SDK `client.ai.forecast(body)`. The call reads published single-call profiles; no new recipe is registered. It creates no wallet, reserve, allowance, operation, execution request, or provider call. Account authorization is preserved.
 
 ```json
 {
@@ -66,45 +66,45 @@ OpenAI использует `cl100k_base`. Для Voyage нет локально
 }
 ```
 
-`quantity/low/high` — ожидаемый объём одного вызова; `count` умножает его. Все денежные величины и количества передаются строками. Лимиты: 100 позиций, 1000 повторений позиции, 32 dimensions. Нужны все тарифицируемые dimensions профиля; пустой список, нулевой суммарный объём, дубли, неизвестные dimensions и неупорядоченный диапазон отклоняются. Поддерживаются профили с quantity components или объявленными `maximum_items`; USD-formula и multi-component recipe требуют конкретного ввода и здесь явно отклоняются.
+`quantity/low/high` are the expected volume of one call; `count` multiplies it. All monetary values and quantities are transmitted as strings. Limits: 100 items, 1000 repetitions per item, 32 dimensions. All billable profile dimensions are required; an empty list, zero total volume, duplicates, unknown dimensions, and unordered ranges are rejected. Profiles with quantity components or declared `maximum_items` are supported; USD-formula and multi-component recipes require concrete input and are explicitly rejected here.
 
-Ответ разделяет `provider_cost` и `customer_charge`, каждый с `expected_units/low_units/high_units`, фиксирует версии profile/route/catalog/rate card, время и `method_version: lf-forecast-1`. Для tokens без пользовательских границ используется эвристика от половины до удвоенного объёма, confidence `low`. Иначе confidence `modeled`; `approximate` расчёт также даёт `low`. Процент точности не заявляется. Причины и предположения возвращаются в ответе. Не учитываются дополнительные attempts, fallback, бесплатный allowance и скрытые скидки. Safety применяется к цене quoted-final профиля, markup — по его политике; при actual pricing safety не увеличивает фактическое списание.
+The response separates `provider_cost` and `customer_charge`, each with `expected_units/low_units/high_units`, and records profile/route/catalog/rate-card versions, time, and `method_version: lf-forecast-1`. For tokens without user boundaries, it uses a heuristic range from half to twice the volume, with `low` confidence. Otherwise confidence is `modeled`; an `approximate` calculation also yields `low`. No accuracy percentage is claimed. Reasons and assumptions are returned in the response. Additional attempts, fallback, free allowance, and hidden discounts are excluded. Safety applies to the quoted-final profile price, and markup follows its policy; with actual pricing, safety does not increase the actual charge.
 
-`range_is_charge_cap: false`: верхняя граница прогноза не разрешает расход и не гарантирует максимум. Отдельная quote/invocation по-прежнему авторизует работу.
+`range_is_charge_cap: false`: the forecast upper bound neither authorizes spending nor guarantees a maximum. A separate quote/invocation still authorizes work.
 
-## Recraft и Quiver SVG
+## Recraft and Quiver SVG
 
-| Провайдер / модель | Capability | Вход |
+| Provider / model | Capability | Input |
 |---|---|---|
 | Replicate recraft-ai/recraft-v4-styles-svg | image.generate | prompt, 1–10 raster references |
 | Replicate recraft-ai/recraft-v4-styles-pro-svg | image.generate | prompt, 1–10 raster references |
-| Replicate recraft-ai/recraft-vectorize | image.vectorize | Ровно один raster asset, без prompt |
-| Quiver arrow-2, arrow-2-telos | image.generate | prompt, до 16 references |
-| Quiver arrow-2, arrow-2-telos | image.vectorize | Ровно один raster asset, без prompt |
+| Replicate recraft-ai/recraft-vectorize | image.vectorize | Exactly one raster asset, no prompt |
+| Quiver arrow-2, arrow-2-telos | image.generate | prompt, up to 16 references |
+| Quiver arrow-2, arrow-2-telos | image.vectorize | Exactly one raster asset, no prompt |
 
-Картинки предварительно загружаются стандартным assets API, затем передаются как `input.asset_ids`. При подготовке SVG-профилей требуется `mode: preserve`; байты не уменьшаются и не перекодируются незаметно для клиента. Допускаются PNG/JPEG/WebP, один кадр, до 4096 по стороне и 16777216 пикселей. Replicate — до 5000000 bytes на файл, Quiver — до 12 МиБ, подготовленный пакет UAI — до 20000000 bytes. Recraft Vectorize требует минимум 256 по каждой стороне. Проверка декодирует точные отправляемые байты до provider call. Prompt — до 10000 bytes.
+Images are uploaded through the standard assets API first, then passed as `input.asset_ids`. SVG profile preparation requires `mode: preserve`; bytes are not reduced or transcoded without the client knowing. PNG/JPEG/WebP, one frame, up to 4096 per side and 16777216 pixels are allowed. Replicate allows up to 5000000 bytes per file, Quiver up to 12 MiB, and the prepared UAI batch up to 20000000 bytes. Recraft Vectorize requires at least 256 per side. Validation decodes the exact bytes to be sent before the provider call. Prompt size is up to 10000 bytes.
 
-Replicate получает `style_reference_images`, именно так поле названо в input schema; README провайдера использует другое имя. Styles допускает `size` из опубликованного списка и `style_match: precise | flexible`; Pro использует удвоенные размеры. Создаётся native prediction, его ID сохраняется до polling; lookup и cancel используют фиксированный API host. Результат скачивается только с HTTPS `replicate.delivery` и поддоменов, без redirect и передачи Authorization. `style_id` не сохраняется в результате или usage и не принимается во входе.
+Replicate receives `style_reference_images`, the field name in the input schema; the provider README uses another name. Styles allows `size` from the published list and `style_match: precise | flexible`; Pro uses doubled dimensions. A native prediction is created and its ID stored before polling; lookup and cancel use a fixed API host. Results are downloaded only from HTTPS `replicate.delivery` and its subdomains, without redirects or forwarding Authorization. `style_id` is not stored in result or usage and is not accepted as input.
 
-Цена успешного результата: `output.image/images=1`, для Styles дополнительно `style.creation/calls=1`. В проверенной цене 25.09.2026 Styles — $0.05, Pro — $0.12, Vectorize — $0.01 за output image; отдельная надбавка за создание стиля не опубликована. В файлах она **явно включена** нулевой отдельной ставкой, а не забыта. Если применимый тариф изменится, нужна новая rate card с нужной надбавкой. Failed/canceled prediction не доказывает нулевой расход: usage остаётся unknown.
+Successful-result pricing: `output.image/images=1`, plus `style.creation/calls=1` for Styles. In prices checked on 2026-09-25, Styles costs $0.05, Pro $0.12, and Vectorize $0.01 per output image; no separate style-creation surcharge is published. The files **explicitly include** it as a separate zero rate rather than omitting it. If the applicable tariff changes, a new rate card with the required surcharge is needed. A failed/canceled prediction does not establish zero usage: usage remains unknown.
 
-Quiver использует прямые `/v1/svgs/generations` и `/v1/svgs/vectorizations`, `n:1` при генерации и обязательный `max_output_tokens` (1–65536). Для генерации доступны `reasoning_effort`, `temperature`, `top_p`; для vectorize — `auto_crop`, `temperature`, `top_p`. Результат — один `image/svg+xml`.
+Quiver uses direct `/v1/svgs/generations` and `/v1/svgs/vectorizations`, `n:1` for generation, and mandatory `max_output_tokens` (1–65536). Generation supports `reasoning_effort`, `temperature`, and `top_p`; vectorize supports `auto_crop`, `temperature`, and `top_p`. The result is one `image/svg+xml`.
 
-Для реальной генерации нужен production-ключ Quiver. Ключи `sk_test_` возвращают синтетический SVG без запуска модели и расходов; адаптер отклоняет их до отправки с `quiver_sandbox_key`. Ответ с `x-quiver-environment: test` также не выдаётся как реальная генерация. [Документация sandbox](https://docs.quiver.ai/developers/guides/sandbox-and-test-keys).
+Real generation requires a Quiver production key. `sk_test_` keys return synthetic SVG without running the model or incurring costs; the adapter rejects them before dispatch with `quiver_sandbox_key`. A response with `x-quiver-environment: test` is also not delivered as real generation. [Sandbox documentation](https://docs.quiver.ai/developers/guides/sandbox-and-test-keys).
 
-| Quiver, USD / 1M tokens | Обычный вход | Cache read | Cache write | Выход |
+| Quiver, USD / 1M tokens | Regular input | Cache read | Cache write | Output |
 |---|---|---|---|---|
 | arrow-2 | 4 | 0.4 | 5 | 20 |
 | arrow-2-telos | 6 | 0.6 | 7.5 | 30 |
 
-`input_tokens` включает кэш: обычный вход = input − cached − cache_write; все три части тарифицируются один раз. Reasoning входит в `output_tokens` и сохраняется только как breakdown, без второго начисления. Несогласованные counters или только один из двух cache counters дают `unknown`, а не стоимость ноль. **Native SVG reference Quiver не гарантирует поля cache breakdown**; их имена подтверждены в документации Responses API. По [решению от 20.10.2026](DECISIONS.md#запросы-logopanel-от-20102026) ответ совсем без разбивки тарифицирует весь вход по ставке cache write, самой высокой ставке входа, с отметкой `input_cache_split=absent_priced_as_cache_write` в breakdown. Расход становится известным, и вызов рассчитывается. Это верхняя граница, а не точная цена Quiver.
+`input_tokens` includes cache: regular input = input − cached − cache_write; each of the three portions is billed once. Reasoning is included in `output_tokens` and stored only as a breakdown, without a second charge. Inconsistent counters or only one of the two cache counters yield `unknown`, rather than zero cost. **Quiver's native SVG reference does not guarantee cache breakdown fields**; their names are confirmed in Responses API documentation. Under the [decision of 2026-10-20](DECISIONS.md#logopanel-requests-dated-20102026), a response with no breakdown at all prices all input at the cache-write rate, the highest input rate, with `input_cache_split=absent_priced_as_cache_write` in the breakdown. Cost becomes known and the call is settled. This is an upper bound, rather than Quiver's exact price.
 
-Проверка Quiver выявила отсутствие разбивки кэша в usage. Сумма из интерфейса поставщика не заменяет счётчики тарификации. Политика расчёта входа по ставке cache write описана в [решениях](DECISIONS.md).
+Quiver verification found no cache breakdown in usage. The amount in the provider UI does not replace billing counters. The policy of pricing input at the cache-write rate is described in [decisions](DECISIONS.md).
 
-Новые Quiver-профили используют `actual_capped`: резервируется явный customer cap, actual usage тарифицируется с markup, capture ограничен принятым максимумом. Право overdraft передаётся отдельным признаком только для `estimated_actual`; наличие token pricing само по себе его не включает. Фактическая себестоимость сохраняется целиком, даже если она выше customer cap. Сбой транспорта/5xx/408 после отправки — unknown без автоматического повторения. Quiver не объявляет native lookup/cancel: abort после отправки не доказывает отмену у провайдера.
+New Quiver profiles use `actual_capped`: an explicit customer cap is reserved, actual usage is priced with markup, and capture is limited to the accepted maximum. Overdraft permission is passed as a separate flag only for `estimated_actual`; token pricing alone does not enable it. Actual provider cost is stored in full even when above the customer cap. Transport failure/5xx/408 after dispatch means unknown, without automatic retry. Quiver declares no native lookup/cancel: abort after dispatch does not establish provider cancellation.
 
-SVG проходит существующий storage/manifest/ACK/TTL и локальную проверку. Запрещены script, foreignObject, style, animation, event handlers, внешние href/src, `url()`, `@import`, entities/DOCTYPE и processing instructions. Поддержка `<style>` не расширена без реального проверенного формата. Безопасность подтверждается отказом от неподдерживаемого SVG, а не его молчаливой «починкой».
+SVG follows the existing storage/manifest/ACK/TTL path and local validation. Script, foreignObject, style, animation, event handlers, external href/src, `url()`, `@import`, entities/DOCTYPE, and processing instructions are prohibited. `<style>` support has not been expanded without a real verified format. Safety is established by rejecting unsupported SVG, rather than silently “repairing” it.
 
-## Конфигурации
+## Configurations
 
-В `configurations/ai/logopanel/` находятся десять отдельных неактивированных bundles: три embeddings, три Replicate и по generate/vectorize для двух Quiver. Symbolic bindings `primary` и `period` задаются владельцем установки при публикации. Эти файлы не меняют действующие подключения. Цены имеют источник и дату; перед применением их нужно пересверить. Markup 0 и один attempt в примерах — настройки примера, не универсальная продуктовая политика. Генератор: `pnpm exec tsx scripts/generate-logopanel-examples.ts`.
+`configurations/ai/logopanel/` contains ten separate unactivated bundles: three embeddings, three Replicate, and generate/vectorize for each of two Quiver models. The installation owner sets symbolic bindings `primary` and `period` at publication. These files do not change active connections. Prices have a source and date; recheck them before use. Markup 0 and one attempt in examples are example settings, not universal product policy. Generator: `pnpm exec tsx scripts/generate-logopanel-examples.ts`.

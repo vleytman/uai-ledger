@@ -1,27 +1,27 @@
-# Продукт
+# Product
 
 ## Register
 
 product
 
-## Пользователи и назначение
+## Users and purpose
 
-Владелец собственной установки UAI управляет подключениями AI-провайдеров, маршрутизацией, расходами и кредитами приложений. Админка предназначена для повседневной настройки и разбора операций. Финансовые правила и возможности API сохраняются.
+The owner of a self-hosted UAI installation manages AI provider connections, routing, costs and application credits. The admin interface is intended for everyday configuration and operation analysis. Financial rules and API capabilities remain unchanged.
 
-## Характер интерфейса
+## Interface character
 
-Спокойный, компактный, понятный. Сохраняем существующую светлую тему shadcn/ui, английские подписи и привычную навигацию. Основной рабочий сценарий: владелец за компьютером настраивает подключение или проверяет расходы.
+Calm, compact and clear. Retain the existing light shadcn/ui theme, English labels and familiar navigation. The primary workflow is an owner at a desktop computer configuring a connection or reviewing spending.
 
-## Нежелательные решения
+## Unwanted solutions
 
-Большие JSON-редакторы вместо обычных полей, множество равнозначных кнопок в каждой строке, технические идентификаторы вместо доступных названий, метаданные, выглядящие как действующие ограничения.
+Large JSON editors instead of ordinary fields, many equally prominent buttons in each row, technical identifiers in place of available names, and metadata that looks like an active limit.
 
-## Принципы
+## Principles
 
-- Основные действия и поля видны сразу; дополнительные доступны по раскрытию.
-- Все существующие возможности сохраняются, включая полный JSON и копирование идентификаторов.
-- Суммы и время имеют понятные единицы; точность и финансовая семантика не меняются.
-- Обычные поля и JSON редактируют одни данные без потери неизвестных параметров.
-- Меню, формы и раскрытия доступны с клавиатуры; состояния и ошибки обозначаются текстом.
+- Primary actions and fields are visible immediately; secondary ones can be expanded.
+- Preserve all existing capabilities, including full JSON access and copying identifiers.
+- Amounts and times have clear units; precision and financial semantics do not change.
+- Ordinary fields and JSON edit the same data without losing unknown parameters.
+- Menus, forms and expandable sections are keyboard accessible; states and errors are described in text.
 
-Контекст подтверждён владельцем при согласовании упрощения админки 19 сентября 2026 года.
+The owner confirmed this context when agreeing to simplify the admin interface on September 19, 2026.

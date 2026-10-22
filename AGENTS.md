@@ -4,9 +4,9 @@
 
 UAI contains the specification and a local implementation of API, PostgreSQL accounting, workers, scheduler, SDK, admin and demo. Use `docs/LOCAL_RUN.md` for commands and `docs/ACCEPTANCE_RESULTS.md` for verified coverage. Local fixtures do not establish real-provider or production readiness. Implementation phases and acceptance scenarios remain defined in `docs/IMPLEMENTATION.md`; Logo Panel integration and full production preparation are outside the current scope.
 
-## Совместимость до первого запуска
+## Compatibility before the first launch
 
-По решению владельца от 2026-09-25 UAI и LogoPanel разрабатываются параллельно и будут введены в эксплуатацию одновременно. До этого запуска обратная совместимость не является требованием. При изменении контрактов обновляйте затронутые API, SDK, конфигурации, тесты и документацию согласованно; не добавляйте legacy-ветки, адаптеры, отдельные версии форматов или переходные режимы исключительно ради совместимости с прежней реализацией. Это правило относится к UAI и его интеграции с LogoPanel, а не ко всем проектам владельца. Финансовые инварианты и идемпотентность остаются обязательными. См. [решения](docs/DECISIONS.md).
+By the owner's decision of 2026-09-25, UAI and LogoPanel are being developed in parallel and will launch together. Backward compatibility is not a requirement before that launch. When changing contracts, update the affected API, SDK, configuration, tests and documentation together; do not add legacy branches, adapters, separate format versions or transitional modes solely to remain compatible with an earlier implementation. This rule applies to UAI and its LogoPanel integration, not to all of the owner's projects. Financial invariants and idempotency remain mandatory. See the [decisions](docs/DECISIONS.md).
 
 ## Architecture and Ownership
 
@@ -18,7 +18,7 @@ The intended deployment is one independent installation per owner-operated appli
 
 ## Documentation Changes
 
-Keep documentation in Russian and use relative links between repository documents. JSON examples must parse, monetary integer values travel as strings, and examples must not imply that synthetic prices are current provider prices. Preserve stable requirement and acceptance IDs when extending their coverage.
+Keep documentation in English and use relative links between repository documents. JSON examples must parse, monetary integer values travel as strings, and examples must not imply that synthetic prices are current provider prices. Preserve stable requirement and acceptance IDs when extending their coverage.
 
 Check Markdown fences, local links, JSON examples, and cross-document policy consistency after edits. Distinguish documentation validation from implementation tests. Store no credentials, provider responses containing private content, or application databases in Git.
 

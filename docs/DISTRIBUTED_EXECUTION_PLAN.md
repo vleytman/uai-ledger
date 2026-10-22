@@ -1,191 +1,191 @@
-# План распределённого выполнения и квот
+# Distributed execution and quota plan
 
-Дата плана: 2026-09-19. Статус: реализация и обязательная локальная приёмка завершены 2026-09-20. Исторические результаты сведены в [матрице приёмки](ACCEPTANCE_RESULTS.md). Основная локальная установка переключена на BullMQ и S3, проверена через API и demo. Итоговая нагрузочная сверка выполнена локально; проверки на настоящих VPS исключены владельцем из текущей цели 2026-09-20.
+Plan date: 2026-09-19. Status: implementation and required local acceptance completed on 2026-09-20. Historical results are consolidated in the [acceptance matrix](ACCEPTANCE_RESULTS.md). The main local installation switched to BullMQ and S3 and was checked through the API and demo. Final load verification ran locally; the owner excluded checks on real VPSs from the current objective on 2026-09-20.
 
-## 1. Цель и границы
+## 1. Goal and boundaries
 
-Перейти на BullMQ и Redis для доставки заданий нескольким исполнителям. Сохранить PostgreSQL источником истины для операций, attempts, quote, резервов, usage, результатов и проводок. Начальная цель проверки: 30 одновременно активных пользователей со смешанными текстовыми и графическими задачами. Следующая ступень проверки: 100 пользователей без изменения финансового ядра. Это цели тестирования, не обещание измеренной производительности.
+Move to BullMQ and Redis to deliver jobs to multiple executors. Keep PostgreSQL as the source of truth for operations, attempts, quotes, reservations, usage, results, and postings. Initial verification target: 30 simultaneously active users with mixed text and image tasks. Next verification level: 100 users without changing the financial core. These are testing targets, not a claim of measured performance.
 
-Сохраняются [решения продукта](DECISIONS.md), [финансовые инварианты](ACCOUNTING.md), [правила оценки](QUOTING.md) и [правила выполнения](EXECUTION.md). Одна установка на приложение; публичный многопользовательский SaaS и интеграция Logo Panel не входят в этот переход. Отрицательный баланс разрешён только согласно уже принятой политике estimated_actual. Смена транспорта не меняет принятые цены и условия.
+The [product decisions](DECISIONS.md), [financial invariants](ACCOUNTING.md), [quoting rules](QUOTING.md), and [execution rules](EXECUTION.md) remain intact. One installation per application; a public multiuser SaaS and Logo Panel integration are outside this transition. Negative balances are permitted only under the already accepted estimated_actual policy. Changing transport does not change accepted prices or terms.
 
-## 2. Что уже есть и что мешает
+## 2. Existing capabilities and obstacles
 
-- `apps/worker/src/index.ts` последовательно ожидает `executeOne`; один процесс не выполняет несколько синхронных вызовов одновременно.
-- `packages/execution/src/index.ts` использует общий advisory lock scheduler, в том числе для dispatch, наблюдения и восстановления. Удалять его без замены защиты бюджетов, квот и справедливости нельзя.
-- Есть долговечные requests, attempts, fencing, outbox, отмена, восстановление и settlement. Их не заменяем статусами BullMQ.
-- `execution_limiters` поддерживает одну группу на вариант маршрута, запросы и токены за одно окно плюс concurrency. Нет полноценного совместного допуска по минутным, суточным и графическим квотам.
-- OpenAI использует общий тестовый limiter `check.openai.run`; это не схема реальных квот моделей. Лимиты application/account также ограничивают пропускную способность и должны стать явными настройками.
-- Адаптер умеет читать заголовки квот, но исполнитель не применяет их к текущей пропускной способности.
-- Локальные файлы подходят одному хосту; несколько хостов требуют общего объектного хранилища.
+- `apps/worker/src/index.ts` awaits `executeOne` sequentially; one process does not execute several synchronous calls concurrently.
+- `packages/execution/src/index.ts` uses a shared scheduler advisory lock, including for dispatch, observation, and recovery. It cannot be removed without replacing budget, quota, and fairness protection.
+- Durable requests, attempts, fencing, outbox, cancellation, recovery, and settlement exist. BullMQ statuses do not replace them.
+- `execution_limiters` supports one group per route variant, requests and tokens within one window, plus concurrency. It lacks full joint admission across minute, daily, and image quotas.
+- OpenAI uses shared test limiter `check.openai.run`; this does not represent real model quotas. Application/account limits also constrain throughput and must become explicit settings.
+- The adapter reads quota headers, but the executor does not apply them to current throughput.
+- Local files suit one host; multiple hosts require shared object storage.
 
-## 3. Выбор компонентов
+## 3. Component selection
 
-| Компонент | Ответственность |
+| Component | Responsibility |
 |---|---|
-| PostgreSQL | Финансы, конфигурации, разрешение внешних попыток, состояния, аудит, outbox и восстановление |
-| BullMQ OSS | Доставка, delayed jobs, блокировка транспортного задания, ограничение числа обработчиков |
-| Redis | Состояние BullMQ и атомарный допуск по квотам; отдельные namespaces, без вытеснения ключей |
-| Workers | Вызовы провайдеров, сохранение usage и результата, heartbeat |
-| Dispatcher и relay | Справедливый выбор готовых requests и доставка через outbox |
-| Scheduler/reconciler | Deadline, потерянные lease, неизвестные результаты, финансовое закрытие и восстановление доставки |
-| Объектное хранилище | Файлы и результаты для нескольких хостов; существующие TTL и удаление |
+| PostgreSQL | Finances, configurations, authorization of external attempts, states, audit, outbox, and recovery |
+| BullMQ OSS | Delivery, delayed jobs, transport-job locks, handler-count limits |
+| Redis | BullMQ state and atomic quota admission; separate namespaces, no key eviction |
+| Workers | Provider calls, usage and result persistence, heartbeat |
+| Dispatcher and relay | Fair selection of ready requests and outbox delivery |
+| Scheduler/reconciler | Deadlines, lost leases, unknown results, financial closure, and delivery recovery |
+| Object storage | Files and results for multiple hosts; existing TTL and deletion |
 
-Не добавляем Bottleneck как вторую очередь. `rate-limiter-flexible` можно использовать для независимого ограничения входящего API, но не считаем объединение нескольких его счётчиков транзакцией. Для provider admission нужен небольшой отдельный модуль с одной атомарной Redis Lua-операцией для всех применимых правил. Это уточнение прежнего предложения о готовом limiter: готовая очередь не решает атомарность разнотипных квот.
+Do not add Bottleneck as a second queue. `rate-limiter-flexible` may independently limit incoming API traffic, but combining several of its counters is not considered a transaction. Provider admission requires a small separate module with one atomic Redis Lua operation covering all applicable rules. This clarifies the earlier off-the-shelf limiter proposal: a ready-made queue does not solve atomicity across different quota types.
 
-Версии BullMQ/Redis фиксируются после проверки совместимости Node.js, зависимостей, лицензий и теста сбоя. Возможности BullMQ Pro не являются обязательной зависимостью.
+BullMQ/Redis versions are pinned after checking Node.js compatibility, dependencies, licenses, and a failure test. BullMQ Pro features are not required dependencies.
 
-## 4. Очереди и параллельность
+## 4. Queues and concurrency
 
-Очереди установки: `text`, `image`, `audio`, `tools`, `observe`, `maintenance`. Нативные асинхронные jobs после submit переходят в периодическое наблюдение; HTTP-соединение и worker не удерживаются между проверками. Синхронная генерация занимает worker до завершения вызова.
+Installation queues: `text`, `image`, `audio`, `tools`, `observe`, `maintenance`. After submission, native asynchronous jobs move to periodic observation; neither the HTTP connection nor a worker is held between checks. Synchronous generation occupies a worker until the call ends.
 
-Настраиваются отдельно: локальная concurrency процесса, общий предел capability, предел пользователя и приложения, квоты аккаунта поставщика. Параллельность worker сама по себе не является квотой OpenAI. Workers по типам запускаются независимо; ожидание лимита возвращает транспортное задание и не держит слот генерации.
+Configure separately: process-local concurrency, overall capability limit, user and application limits, and provider-account quotas. Worker concurrency alone is not an OpenAI quota. Workers of different types start independently; waiting for a limit returns the transport job and does not hold a generation slot.
 
-Справедливость сохраняет dispatcher: выбирает accounts по очереди с учётом возраста заданий и серверного приоритета. В BullMQ поступает ограниченное число готовых заданий на account и capability. Миллион jobs одного пользователя не должен оказаться впереди остальных. Dispatcher масштабируется по установкам/capability; несколько экземпляров внутри одной области используют lease и короткие транзакции. Один application не получает глобальную блокировку всей установки.
+The dispatcher preserves fairness: it selects accounts in turn, considering job age and server priority. A bounded number of ready jobs per account and capability enters BullMQ. A million jobs from one user must not precede everyone else's work. The dispatcher scales across installations/capabilities; multiple instances in one scope use leases and short transactions. One application does not acquire a global lock on the entire installation.
 
-## 5. Данные и идентификаторы
+## 5. Data and identifiers
 
-Предлагаемые новые сущности PostgreSQL:
+Proposed new PostgreSQL entities:
 
-- `execution_dispatches`: request, generation, transport, queue, due_at, состояние доставки. Уникальность request + generation + purpose.
-- `provider_quota_groups`: область provider organization/project, связанные подключения и модели, capability/service tier/режим контекста при применимости.
-- `quota_rules`: метрика, период, ёмкость, политика burst, источник, дата проверки, версия и ручное переопределение.
-- `quota_observations`: источник ответа, время отправки/получения, группа, безопасные заголовки, ограничения/остатки/reset.
-- `dispatch_admissions`: idempotency key, request, attempt/fence, версия правил, вектор расхода, состояние допуска и сроки.
-- Явные версии настроек concurrency/fairness и отметка `execution_backend` у requests для миграции.
+- `execution_dispatches`: request, generation, transport, queue, due_at, delivery state. Unique request + generation + purpose.
+- `provider_quota_groups`: provider organization/project scope, related connections and models, capability/service tier/context mode where applicable.
+- `quota_rules`: metric, period, capacity, burst policy, source, verification date, version, and manual override.
+- `quota_observations`: response source, send/receive time, group, safe headers, limits/remaining/reset.
+- `dispatch_admissions`: idempotency key, request, attempt/fence, rules version, consumption vector, admission state, and deadlines.
+- Explicit concurrency/fairness setting versions and a request `execution_backend` marker for migration.
 
-Метрики квот: requests, input/output/total tokens согласно провайдеру, images, audio seconds при необходимости. Одно правило имеет один период; минута и сутки являются разными правилами. Один запрос может зависеть от нескольких групп. Alias и snapshot не получают независимые квоты, если провайдер их объединяет.
+Quota metrics: requests, input/output/total tokens according to the provider, images, and audio seconds when needed. One rule has one period; minutes and days are separate rules. One request may depend on several groups. Aliases and snapshots do not receive independent quotas if the provider groups them together.
 
-В Redis хранятся восстанавливаемые счётчики и admission IDs. В BullMQ payload содержит только идентификаторы и версию доставки, без ключей API, промптов и файлов. Job ID детерминирован из installation/request/generation/purpose, без запрещённых выбранной версией символов. Удаление completed jobs не отменяет дедупликацию в PostgreSQL.
+Redis stores recoverable counters and admission IDs. BullMQ payloads contain only identifiers and delivery version, without API keys, prompts, or files. The job ID is deterministic from installation/request/generation/purpose, excluding characters forbidden by the selected version. Deleting completed jobs does not remove PostgreSQL deduplication.
 
-## 6. Путь задания и границы атомарности
+## 6. Job path and atomicity boundaries
 
-1. API проверяет quote и создаёт operation/request, финансовый claim и outbox в одной транзакции PostgreSQL. Отсутствие Redis не теряет принятый запрос.
-2. Dispatcher/relay публикует разрешённое транспортное задание. Сбой после enqueue до подтверждения допускает повторную доставку с тем же ID. Сверка исправляет пропущенную доставку по PostgreSQL.
-3. Worker получает конкретный request по ID, проверяет backend/generation, отмену, deadline и состояние. Выполнение больше не выбирает произвольный request через `leaseNext`.
-4. В PostgreSQL получает доменный lease и создаёт admission intent, без разрешения внешней отправки. Короткая транзакция завершается.
-5. Одним финальным Lua-вызовом проверяет и резервирует все окна квот. В реализации concurrency и unknown holds остаются в PostgreSQL, защищены session locks групп и финальной транзакцией; Redis permit сам по себе не разрешает отправку. Длинная подготовка квот выполняется ограниченными проходами перед финальной атомарной проверкой. Допуск идемпотентен по admission ID. Отказ ничего частично не расходует, возвращает блокирующее правило и ближайшее время допуска.
-6. В новой транзакции PostgreSQL повторно проверяет fence/deadline/отмену, фиксирует бюджеты риска, attempt и submission intent. Если проверки не прошли, снимает только доказанно неиспользованный Redis-допуск; при сбое его подберёт reconciler.
-7. После фиксации и проверки актуальности admission отправляет HTTP-запрос. Ни одна SQL-транзакция не удерживается во время сетевого вызова.
-8. Сохраняет наблюдение usage и результат, выполняет идемпотентный settlement и outbox согласно существующему контракту. Только после durable записи подтверждает транспортное задание.
+1. The API validates the quote and creates operation/request, financial claim, and outbox in one PostgreSQL transaction. Redis unavailability does not lose an accepted request.
+2. Dispatcher/relay publishes the authorized transport job. Failure after enqueue but before acknowledgement permits redelivery with the same ID. Reconciliation repairs missed delivery from PostgreSQL.
+3. The worker retrieves a specific request by ID and checks backend/generation, cancellation, deadline, and state. Execution no longer selects an arbitrary request through `leaseNext`.
+4. In PostgreSQL, it obtains a domain lease and creates an admission intent without authorization for external dispatch. The short transaction ends.
+5. One final Lua call checks and reserves every quota window. In the implementation, concurrency and unknown holds remain in PostgreSQL, protected by group session locks and the final transaction; a Redis permit alone does not authorize dispatch. Lengthy quota preparation runs in bounded passes before the final atomic check. Admission is idempotent by admission ID. Rejection consumes nothing partially and returns the blocking rule and earliest admission time.
+6. In a new PostgreSQL transaction, it rechecks fence/deadline/cancellation and records risk budgets, the attempt, and submission intent. If checks fail, it releases only provably unused Redis admission; the reconciler handles this after a failure.
+7. After commit and checking that admission remains valid, it sends the HTTP request. No SQL transaction is held during the network call.
+8. It saves usage observations and the result and performs idempotent settlement and outbox recording under the existing contract. It acknowledges the transport job only after durable persistence.
 
-PostgreSQL и Redis не имеют общей транзакции. Между шагами возможны сбои: admission intent и журнал attempt позволяют отличить безопасно освобождаемый допуск от потенциально использованного. Срок admission и lease продлеваются; истёкший допуск запрещает новую отправку. Потеря lease после возможной отправки не доказывает отсутствие выполнения.
+PostgreSQL and Redis have no shared transaction. Failures may occur between steps: admission intent and the attempt journal distinguish safely releasable admission from potentially consumed admission. Admission validity and leases are extended; expired admission forbids new dispatch. Losing a lease after possible dispatch does not prove that execution did not occur.
 
-## 7. Учёт квот
+## 7. Quota accounting
 
-Предлагаемый алгоритм: взвешенное скользящее окно отправок по каждому правилу плюс ограничение коротких всплесков и `blocked_until`. Redis TIME задаёт время допуска. Lua сначала проверяет весь вектор, затем записывает расход. События окна агрегируются/удаляются по сроку; память ограничена числом отправок в максимальном периоде, а не числом ожидающих пользователей. Детальный retention и максимальная длина Lua-операции проверяются нагрузкой.
+Proposed algorithm: a weighted sliding dispatch window per rule, plus short-burst limits and `blocked_until`. Redis TIME determines admission time. Lua checks the whole vector first, then records consumption. Window events are aggregated/deleted on expiry; memory is bounded by dispatch count in the longest period, not the number of waiting users. Detailed retention and maximum Lua-operation length are load-tested.
 
-Все ключи атомарного допуска размещаются вместе. Для первой установки используется один Redis primary; для будущего Cluster ключи общей области допуска должны иметь общий hash tag. Нельзя обещать атомарность правил, разнесённых по независимым Redis-шардам. Шардирование возможно по независимым аккаунтам/установкам после измерений.
+All atomic-admission keys are colocated. The first installation uses one Redis primary; in a future Cluster, keys in a shared admission scope must share a hash tag. Atomicity cannot be promised for rules spread across independent Redis shards. Sharding by independent accounts/installations is possible after measurement.
 
-Оценка квоты отделена от оценки цены: `estimateLimitUsage` реализует семантику endpoint. В частности, ожидание 4096 выходных токенов не является доказанным потолком фактического расхода. Подтверждённый избыток корректирует локальную оценку; неизвестный billable usage не заменяет наблюдения квоты. Успешное завершение не возвращает использованный минутный лимит.
+Quota estimation is separate from price estimation: `estimateLimitUsage` implements endpoint semantics. In particular, an expectation of 4096 output tokens is not a proven ceiling on actual consumption. Confirmed excess adjusts the local estimate; unknown billable usage does not replace quota observations. Successful completion does not return consumed minute quota.
 
-Заголовки провайдера накладывают дополнительное ограничение на локальный допуск. Ответы могут прийти не по порядку: уменьшать доступность можно консервативно, увеличивать только с учётом reset и локальных отправок после наблюдения. Не присваиваем `remaining` напрямую. Внешние приложения того же аккаунта не видны локальному журналу, поэтому 429 остаётся ожидаемым сигналом обратной связи.
+Provider headers impose additional constraints on local admission. Responses may arrive out of order: availability can be reduced conservatively, but increased only considering reset and local dispatches after the observation. Do not assign `remaining` directly. External applications on the same account are invisible to the local journal, so 429 remains an expected feedback signal.
 
-`Retry-After` временного отказа ограничивает только соответствующую область; если область неизвестна, используем документированную консервативную область подключения. Insufficient quota/auth не запускают минутные повторы. Если потребность больше полной ёмкости правила, возвращаем `quota_request_too_large`, а не вечное waiting_retry. Для уже принятого запроса допускается исправление настройки до deadline либо терминальное закрытие без вызова и освобождение резерва.
+A transient refusal's `Retry-After` limits only the relevant scope; if unknown, use the connection's documented conservative scope. Insufficient quota/auth does not trigger minute-based retries. If demand exceeds a rule's full capacity, return `quota_request_too_large` rather than endless waiting_retry. For an already accepted request, settings may be corrected before deadline, or it may close terminally without a call and release the reservation.
 
-## 8. Неизвестный исход, lease и повторы
+## 8. Unknown outcomes, leases, and retries
 
-BullMQ обеспечивает повторную доставку; это не exactly-once внешнего вызова. Доменный fence и PostgreSQL определяют право начать новую попытку. При повторной доставке завершённый request возвращает сохранённый итог; отправленная попытка направляется на наблюдение, не на новую генерацию.
+BullMQ provides redelivery; this is not exactly-once external execution. The domain fence and PostgreSQL determine permission to start a new attempt. On redelivery, a completed request returns its saved outcome; a submitted attempt goes to observation rather than new generation.
 
-Разделяются worker lease и занятость провайдера. После смерти worker локальный слот освобождается, но внешняя работа могла продолжиться. Для неизвестного результата хранится отдельный bounded hold провайдерской concurrency до документированного максимального времени или проверки результата. Если максимум неизвестен, нужна явная политика риска и предел числа unknown на группу; бесконечного удержания всех групп нет. Финансовое закрытие спустя час не объявляет внешнюю job завершённой.
+Worker leases and provider occupancy are separate. After worker death, the local slot is released, but external work may continue. An unknown outcome has a separate bounded provider-concurrency hold until a documented maximum time or a result check. If the maximum is unknown, an explicit risk policy and group unknown-count limit are required; no group is held indefinitely. Financial closure after an hour does not declare the external job completed.
 
-Автоматические повторы BullMQ допускаются только для инфраструктурного повторного входа через доменную проверку. Принятая execution policy, конечный backoff/recovery и общий предел attempts остаются в UAI; действующий контракт определён планом универсальных вызовов. Scheduler записывает due_at и dispatch generation; BullMQ delayed job будит worker. Периодическая сверка восстанавливает потерянный delayed job. Два независимых владельца политики повторов запрещены.
+Automatic BullMQ retries are allowed only for infrastructure reentry through the domain check. Accepted execution policy, finite backoff/recovery, and overall attempt limits remain in UAI; the current contract is defined by the universal invocation plan. The scheduler records due_at and dispatch generation; a BullMQ delayed job wakes a worker. Periodic reconciliation restores a lost delayed job. Two independent owners of retry policy are forbidden.
 
-## 9. Сбои и восстановление
+## 9. Failures and recovery
 
-| Сбой | Поведение |
+| Failure | Behavior |
 |---|---|
-| Redis недоступен | Новые внешние отправки остановлены; принятые задания в PostgreSQL. API явно показывает ожидание инфраструктуры |
-| Redis потерял данные/failover | Сначала закрыть admission, восстановить активные и недавние допуски из БД; если данных недостаточно, дождаться окна/reset. Пустой Redis не означает полную квоту |
-| PostgreSQL недоступен до отправки | Вызов запрещён |
-| PostgreSQL недоступен после отправки | Повторная доставка не повторяет генерацию; восстановление той же попытки или unknown |
-| Worker упал до submission intent | Истёкший intent можно вернуть в очередь после сверки |
-| Worker упал после submission intent | Lookup/idempotency провайдера либо unknown, включая случай падения прямо перед HTTP |
-| Job повторно доставлен после settlement | Нет нового вызова и проводок |
-| Отмена во время очереди/отложенного запуска | PostgreSQL закрывает request; устаревший job ничего не отправляет |
-| Остановка процесса | Перестать брать jobs, дождаться ограниченного grace period, сохранить допустимое состояние; не обещать отмену удалённого исполнения |
+| Redis unavailable | New external dispatches stop; accepted jobs remain in PostgreSQL. The API explicitly shows infrastructure waiting |
+| Redis data loss/failover | First close admission, then restore active and recent admissions from the database; if data is insufficient, wait for the window/reset. Empty Redis does not mean full quota |
+| PostgreSQL unavailable before dispatch | The call is forbidden |
+| PostgreSQL unavailable after dispatch | Redelivery does not repeat generation; recover the same attempt or mark unknown |
+| Worker dies before submission intent | An expired intent may return to the queue after reconciliation |
+| Worker dies after submission intent | Provider lookup/idempotency or unknown, including a crash immediately before HTTP |
+| Job redelivered after settlement | No new call or postings |
+| Cancellation in queue/delayed start | PostgreSQL closes the request; the stale job sends nothing |
+| Process shutdown | Stop taking jobs, await a bounded grace period, preserve valid state; do not promise cancellation of remote execution |
 
-Backpressure: ограничить backlog на account/application и общий возраст очереди, возвращать понятный отказ до нового финансового резерва. Восстановление Redis не должно отправлять весь backlog одновременно.
+Backpressure: bound backlog per account/application and overall queue age, returning a clear refusal before a new financial reservation. Redis recovery must not dispatch the entire backlog at once.
 
-## 10. Начальная конфигурация и рост
+## 10. Initial configuration and growth
 
-Значения для обсуждения, не принятые эксплуатационные настройки:
+Values for discussion, not accepted operational settings:
 
-- OpenAI Tier 4 как исходный шаблон. GPT-5.6 Sol/Terra: по опубликованным таблицам 10 000 RPM / 4 млн TPM; GPT-4.1: 10 000 / 2 млн; nano: 10 000 / 10 млн; каждая image-модель: 150 IPM / 3 млн TPM. Общие группы и overrides проекта подтверждаются отдельно; одинаковые цифры не доказывают общую группу.
-- Использовать 90% подтверждённой квоты как начальный технический запас, отдельно от финансового safety factor. Настройка видна и меняется в админке.
-- Начальный предел установки: 8 text + 8 image, отдельные небольшие пулы tools/audio/observe. На account: 2 активные генерации. Приёмочный профиль на 30 одновременных генераций отдельно повышает предел до 30 при достаточной памяти и квотах.
-- Несколько API и worker процессов; явный суммарный бюджет соединений PostgreSQL, без нового pool на каждое задание. Ограничить память и параллельность обработки файлов, не блокировать Node event loop тяжёлым CPU.
-- Redis с persistence, `noeviction`, отдельным доступом и мониторингом памяти. Для production с требованием доступности: управляемый failover Redis/PostgreSQL, резервные копии и проверка восстановления. Failover не даёт гарантии отсутствия потерянных последних записей.
-- Многохостовый режим требует общего S3-совместимого blob store и общей безопасной доставки credentials. Локальный диск остаётся только для односерверного demo.
-- Автомасштабирование ориентируется на возраст готовых к запуску jobs и загрузку workers. Ожидание квоты не является поводом бесконечно добавлять workers.
+- OpenAI Tier 4 as the starting template. GPT-5.6 Sol/Terra: published tables give 10,000 RPM / 4 million TPM; GPT-4.1: 10,000 / 2 million; nano: 10,000 / 10 million; each image model: 150 IPM / 3 million TPM. Shared groups and project overrides require separate confirmation; equal figures do not prove a shared group.
+- Use 90% of confirmed quota as the initial technical margin, separately from the financial safety factor. The setting is visible and editable in the admin.
+- Initial installation limit: 8 text + 8 image, with separate small tools/audio/observe pools. Per account: 2 active generations. The 30-concurrent-generation acceptance profile separately raises the limit to 30 when memory and quotas suffice.
+- Multiple API and worker processes; an explicit total PostgreSQL connection budget, without a new pool per job. Limit memory and concurrent file processing; do not block the Node event loop with heavy CPU work.
+- Redis with persistence, `noeviction`, separate access, and memory monitoring. For production requiring availability: managed Redis/PostgreSQL failover, backups, and tested recovery. Failover does not guarantee preservation of the latest writes.
+- Multihost operation requires a shared S3-compatible blob store and shared secure credential delivery. Local disk remains only for a single-server demo.
+- Autoscaling follows the age of jobs ready to run and worker utilization. Quota waiting is not a reason to add workers indefinitely.
 
-## 11. Админка и диагностика
+## 11. Admin and diagnostics
 
-Экран квот: провайдер/аккаунт, модели и общая группа, режим использования, метрика/период, документированный лимит, наш предел, локальная оценка остатка и наблюдение провайдера с датой. Редактирование с revision и аудитом. Изменения квот применяются к будущему допуску, не меняют quote.
+Quota screen: provider/account, models and shared group, usage mode, metric/period, documented limit, our limit, locally estimated remainder, and dated provider observation. Editing uses revisions and audit. Quota changes apply to future admission and do not alter quotes.
 
-В очереди: конкретное правило ожидания, потребность, доступность, next_attempt и deadline. Отдельно показывать ожидание worker, квоты, восстановления и инфраструктуры.
+In the queue: specific waiting rule, demand, availability, next_attempt, and deadline. Show worker, quota, recovery, and infrastructure waiting separately.
 
-Метрики: глубина/возраст очереди по capability, p50/p95 ожидания без provider wait, активные workers, 429, admission latency, Redis/DB latency, outbox lag, unknown count/age, восстановленные jobs, ошибки settlement. Request ID остаётся в трассировке/логах, а не в labels метрик высокой кардинальности. SSE строится из durable событий PostgreSQL, BullMQ events используются для операционной диагностики.
+Metrics: queue depth/age by capability, p50/p95 waiting excluding provider wait, active workers, 429, admission latency, Redis/DB latency, outbox lag, unknown count/age, recovered jobs, settlement errors. Request IDs remain in traces/logs rather than high-cardinality metric labels. SSE is built from durable PostgreSQL events; BullMQ events serve operational diagnostics.
 
-## 12. Этапы реализации
+## 12. Implementation phases
 
-| Этап | Результат и условие перехода |
+| Phase | Result and transition condition |
 |---|---|
-| 0. Согласование | Владелец поручил реализацию плана; согласованы пределы очереди 20/200/15 минут. Остальные предложенные значения не считаются подтверждёнными только из-за начала реализации |
-| 1. Контракт транспорта | Выделены исполнение по request ID и транспортный интерфейс; существующие тесты проходят на старом backend |
-| 2. BullMQ и outbox | Локальный Redis, миграции dispatch intent, relay и восстановление доставки; только mock provider |
-| 3. Параллельность | Пулы capability, fairness, per-account limits, замена общего scheduler lock scoped-блокировками; доказаны прежние инварианты |
-| 4. Квоты | Атомарный admission, журнал, headers, 429, Lua-тесты, восстановление Redis, Tier 4 шаблоны |
-| 5. Интерфейс | Админка квот/очереди, SSE и понятные ошибки demo; без технических ключей вместо основных названий |
-| 6. Надёжность и нагрузка | Все сценарии ниже, отчёт на фиксированном окружении и настройках |
-| 7. Переход demo | Контролируемое переключение новых requests, проверка принятых/unknown, итоговый отчёт; платные проверки только по отдельному разрешению |
+| 0. Agreement | The owner requested implementation of the plan; queue limits of 20/200/15 minutes are agreed. Other proposed values are not confirmed merely because implementation has begun |
+| 1. Transport contract | Execution by request ID and a transport interface are extracted; existing tests pass on the old backend |
+| 2. BullMQ and outbox | Local Redis, dispatch-intent migrations, relay, and delivery recovery; mock provider only |
+| 3. Concurrency | Capability pools, fairness, per-account limits, replacement of the common scheduler lock with scoped locks; existing invariants proven |
+| 4. Quotas | Atomic admission, journal, headers, 429, Lua tests, Redis recovery, Tier 4 templates |
+| 5. Interface | Quota/queue admin, SSE, clear demo errors; no technical keys in place of primary names |
+| 6. Reliability and load | All scenarios below, report on fixed environment and settings |
+| 7. Demo transition | Controlled switch of new requests, accepted/unknown verification, final report; paid checks only with separate authorization |
 
-Ориентиры кода: apps/worker, apps/scheduler, packages/execution, providers, db/outbox, runtime-config, contracts/API/SDK, admin/demo; новый модуль транспорта и quota admission. После реализации обновить ARCHITECTURE, EXECUTION, OPERATIONS, LOCAL_RUN и матрицу приёмки. Существующие IDs требований сохранить.
+Code reference points: apps/worker, apps/scheduler, packages/execution, providers, db/outbox, runtime-config, contracts/API/SDK, admin/demo; a new transport and quota-admission module. After implementation, update ARCHITECTURE, EXECUTION, OPERATIONS, LOCAL_RUN, and the acceptance matrix. Preserve existing requirement IDs.
 
-## 13. Переключение и откат
+## 13. Switching and rollback
 
-Миграции сначала только добавляют поля/таблицы. Backend фиксируется при создании request. Старый worker обрабатывает только legacy, новый только bullmq. Перенос неотправленного request возможен под блокировкой и с новой generation; уже отправленные/unknown attempts не переотправляются.
+Migrations initially only add fields/tables. The backend is pinned when a request is created. The old worker handles only legacy, the new one only bullmq. An unsent request may migrate under lock with a new generation; already submitted/unknown attempts are not resubmitted.
 
-Порядок: mock → shadow расчёт квот без двойного расхода/вызова → новые demo requests через BullMQ → сверка результата и ledger → снятие legacy dispatcher после завершения старых задач. В shadow нельзя создавать вторые реальные permits.
+Sequence: mock → shadow quota calculation without duplicate consumption/calls → new demo requests through BullMQ → result and ledger reconciliation → retire the legacy dispatcher after old tasks complete. Shadow mode must not create second real permits.
 
-Откат прекращает новые BullMQ admissions, даёт завершить активные попытки, возвращает новые requests на старый backend. Pending jobs переводятся только после проверки отсутствия отправки и fencing. Redis jobs становятся недействительными по generation. Не удаляем финансовые записи, attempts и accepted quotes. Возврат старого backend не гарантирует старую пропускную способность; это режим восстановления.
+Rollback stops new BullMQ admissions, allows active attempts to finish, and returns new requests to the old backend. Pending jobs transfer only after checking no dispatch occurred and applying fencing. Redis jobs become invalid by generation. Do not delete financial records, attempts, or accepted quotes. Returning to the old backend does not guarantee old throughput; it is a recovery mode.
 
-## 14. Приёмка
+## 14. Acceptance
 
-Уточнение объёма владельцем, 2026-09-20: развёртывание и проверки на настоящих VPS, отдельных VM или физических хостах не требуются для завершения этой цели. Обязательными остаются локальные процессные и контейнерные проверки, общее S3, финансовые инварианты и согласованные нагрузочные профили. Реальная многохостовая проверка остаётся рекомендацией перед production и не считается выполненной локальными тестами.
+Owner's scope clarification, 2026-09-20: deployment and checks on real VPSs, separate VMs, or physical hosts are not required to complete this objective. Local process and container checks, shared S3, financial invariants, and agreed load profiles remain mandatory. Real multihost verification remains recommended before production and is not considered completed by local tests.
 
-Новые IDs дополняют существующую матрицу, не заменяют её:
+New IDs extend the existing matrix rather than replacing it:
 
-- DIST-01: несколько воркеров получают дубликаты одного job; одна разрешённая внешняя попытка и один settlement.
-- DIST-02: два конкурентных допуска на последний остаток; проходит только один. Отказ по одному правилу не расходует остальные.
-- DIST-03: 30 пользователей, смесь text/image; долгая image не мешает свободной text-группе. Один account с большим backlog не блокирует остальные.
-- DIST-04: серия запросов с разным token/image weight, shared groups, minute/day windows, oversize и всплесками. Локальные допуски не превышают заданные квоты.
-- DIST-05: 429/Retry-After, billing/auth, отсутствующие и пришедшие не по порядку headers; корректная область паузы.
-- DIST-06: kill worker на каждой границе admission/submission/result/settlement; unknown не повторяется автоматически, ledger сходится.
-- DIST-07: Redis restart, полная потеря его данных, недоступность PostgreSQL; восстановление не открывает полную квоту и не теряет request.
-- DIST-08: cancellation/deadline, stale fencing, поздний ответ после финансового закрытия, refund/debt; сохраняются прежние правила.
-- DIST-09: потеря outbox acknowledgement, удаление completed job, перезапуск scheduler; сверка восстанавливает доставку без нового эффекта.
-- DIST-10: смена квот/маршрута и rollback во время работы; accepted quotes неизменны, старые задания не отправляются новым backend повторно.
-- DIST-11: несколько отдельных API/worker контейнеров с раздельными filesystem и network namespaces на локальном Docker host читают общие assets через S3; подтверждение/TTL/delete не нарушены. Проверка на настоящих VPS/VM и физических хостах исключена из обязательной приёмки текущей цели по решению владельца 2026-09-20.
+- DIST-01: several workers receive duplicate copies of one job; one authorized external attempt and one settlement.
+- DIST-02: two concurrent admissions compete for the last remainder; only one succeeds. Rejection by one rule consumes none of the others.
+- DIST-03: 30 users, mixed text/image; a long image does not block a free text group. One account with a large backlog does not block others.
+- DIST-04: requests with differing token/image weights, shared groups, minute/day windows, oversize demand, and bursts. Local admissions stay within configured quotas.
+- DIST-05: 429/Retry-After, billing/auth, missing and out-of-order headers; correct pause scope.
+- DIST-06: kill a worker at every admission/submission/result/settlement boundary; unknown is not retried automatically, and the ledger reconciles.
+- DIST-07: Redis restart, complete data loss, PostgreSQL unavailability; recovery does not open full quota or lose requests.
+- DIST-08: cancellation/deadline, stale fencing, late response after financial closure, refund/debt; existing rules hold.
+- DIST-09: lost outbox acknowledgement, completed-job deletion, scheduler restart; reconciliation restores delivery without another effect.
+- DIST-10: quota/route changes and rollback during execution; accepted quotes remain unchanged, and old jobs are not dispatched again by the new backend.
+- DIST-11: several separate API/worker containers with distinct filesystem and network namespaces on a local Docker host read shared assets through S3; acknowledgement/TTL/delete remain correct. Checks on real VPSs/VMs and physical hosts are excluded from mandatory acceptance of the current objective by the owner's decision of 2026-09-20.
 
-Нагрузочный профиль: 30 пользователей 30 минут, затем 100 пользователей 15 минут; mock text 2–10 секунд, image 30–90 секунд, короткие всплески, часть 429/timeout. Отдельный прогон 30 in-flight генераций. Генератор создаёт поступления независимо от ответа, чтобы не скрывать перегрузку. Отчёт фиксирует железо, память, DB/Redis соединения и throughput.
+Load profile: 30 users for 30 minutes, then 100 users for 15 minutes; mock text takes 2–10 seconds, images 30–90 seconds, with short bursts and some 429/timeouts. A separate run covers 30 in-flight generations. The generator creates arrivals independently of responses to avoid hiding overload. The report records hardware, memory, DB/Redis connections, and throughput.
 
-Предлагаемые критерии на согласованном оборудовании: p95 API quote/admission до 1 секунды на коротких текстовых входах; p95 платформенного ожидания до 2 секунд при свободных слотах и квотах; отсутствие устойчивого роста backlog при входящей нагрузке ниже измеренной мощности; ноль повторных финансовых эффектов и потерянных accepted requests. Время провайдера, законное ожидание квот и очередь при перегрузке учитываются отдельно. Тесты файлов и длинных контекстов имеют отдельные бюджеты.
+Proposed criteria on agreed hardware: p95 API quote/admission up to 1 second for short text inputs; p95 platform waiting up to 2 seconds with available slots and quota; no sustained backlog growth when arrivals remain below measured capacity; zero duplicate financial effects and lost accepted requests. Provider time, legitimate quota waiting, and overload queues are measured separately. File and long-context tests have separate budgets.
 
-## 15. Что обсудить перед реализацией
+## 15. Topics to discuss before implementation
 
-1. Начальные пулы 8 text + 8 image и 2 активных задания на пользователя либо сразу иной профиль.
-2. Готовы ли включить общее объектное хранилище в этот этап для настоящего многохостового запуска. Рекомендация: включить адаптер и проверку двух workers, production-хостинг выбрать отдельно.
-3. Для backpressure владелец согласовал 20 ожидающих заданий на account, 200 на application и отказ при возрасте старейшего ожидающего задания приложения от 15 минут. Технический запас 10% квоты остаётся отдельной настройкой допуска провайдера.
-4. Цель первого запуска: локальное demo с production-совместимой схемой, без развёртывания production в рамках этой задачи.
+1. Initial pools of 8 text + 8 image and 2 active jobs per user, or a different profile immediately.
+2. Whether to include shared object storage in this phase for actual multihost operation. Recommendation: include the adapter and a two-worker check; select production hosting separately.
+3. For backpressure, the owner agreed to 20 waiting jobs per account, 200 per application, and refusal when the application's oldest waiting job reaches 15 minutes. The 10% technical quota margin remains a separate provider-admission setting.
+4. First-launch goal: a local demo with a production-compatible design, without production deployment in this task.
 
-## Источники
+## Sources
 
-Проверены 2026-09-19:
+Checked on 2026-09-19:
 
 - [BullMQ: concurrency](https://docs.bullmq.io/guide/workers/concurrency)
 - [BullMQ: stalled jobs](https://docs.bullmq.io/guide/workers/stalled-jobs)
 - [BullMQ: rate limiting](https://docs.bullmq.io/guide/rate-limiting)
 - [BullMQ: production](https://docs.bullmq.io/guide/going-to-production)
 - [RateLimiterUnion](https://github.com/animir/node-rate-limiter-flexible/wiki/RateLimiterUnion)
-- [OpenAI: квоты и заголовки](https://developers.openai.com/api/docs/guides/rate-limits)
-- Модели Tier 4: [Sol](https://developers.openai.com/api/docs/models/gpt-5.6-sol), [Terra](https://developers.openai.com/api/docs/models/gpt-5.6-terra), [GPT-4.1](https://developers.openai.com/api/docs/models/gpt-4.1), [nano](https://developers.openai.com/api/docs/models/gpt-4.1-nano), [Image 2](https://developers.openai.com/api/docs/models/gpt-image-2), [Sunburst](https://developers.openai.com/api/docs/models/gpt-image-2.5-sunburst), [Flare](https://developers.openai.com/api/docs/models/gpt-image-2.5-flare).
+- [OpenAI: quotas and headers](https://developers.openai.com/api/docs/guides/rate-limits)
+- Tier 4 models: [Sol](https://developers.openai.com/api/docs/models/gpt-5.6-sol), [Terra](https://developers.openai.com/api/docs/models/gpt-5.6-terra), [GPT-4.1](https://developers.openai.com/api/docs/models/gpt-4.1), [nano](https://developers.openai.com/api/docs/models/gpt-4.1-nano), [Image 2](https://developers.openai.com/api/docs/models/gpt-image-2), [Sunburst](https://developers.openai.com/api/docs/models/gpt-image-2.5-sunburst), [Flare](https://developers.openai.com/api/docs/models/gpt-image-2.5-flare).

@@ -1,62 +1,62 @@
-# Источники и ограничения
+# Sources and limitations
 
-[Оглавление](README.md)
+[Contents](README.md)
 
-Дата подготовки: 2026-09-18. Официальные страницы ниже были прочитаны при обсуждении архитектуры. Это проверка документации, а не успешное обращение к финансовым API пользовательских аккаунтов. Перед реализацией адаптера нужно повторно проверить схему, доступ и актуальные условия.
+Prepared on 2026-09-18. The official pages below were read during the architecture discussion. This is documentation verification, not successful access to financial APIs for user accounts. Before implementing an adapter, recheck its schema, access requirements and current terms.
 
-В этих документах не приводится рабочий прайс конкретной модели. Все числовые примеры операций являются синтетическими. Коэффициент кредитной единицы является нашим проектным решением.
+These documents do not provide a live price list for any specific model. All numerical operation examples are synthetic. The credit-unit coefficient is our project decision.
 
 ## OpenAI
 
-- [Usage API](https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/usage) описывает агрегированные виды usage и разбиение по доступным измерениям. Общий usage не является пользовательским кошельком.
-- [Costs API](https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/usage/methods/costs) описывает расходы; прочитанная версия поддерживает дневные buckets и группировки по доступной области. Это не обещание realtime остатка prepaid account.
-- [Rate limits](https://developers.openai.com/api/docs/guides/rate-limits) описывает лимиты организации и проекта, общие группы моделей, Retry-After и заголовки remaining/reset. Временный лимит отличается от проблем квоты и оплаты.
+- [Usage API](https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/usage) describes aggregated usage types and breakdowns by available dimensions. Aggregate usage is not a user wallet.
+- [Costs API](https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/usage/methods/costs) describes costs; the version reviewed supports daily buckets and grouping within the available scope. This does not promise a real-time prepaid account balance.
+- [Rate limits](https://developers.openai.com/api/docs/guides/rate-limits) describes organization and project limits, shared model groups, Retry-After and remaining/reset headers. A temporary rate limit differs from quota and payment issues.
 
-Из этих источников не делается вывод, что любой обычный API-ключ может читать финансовые отчёты или что любой request ID позволяет восстановить результат. Такие возможности проверяются отдельно для endpoint и аккаунта.
+These sources do not establish that any ordinary API key can read financial reports or that any request ID can recover a result. Such capabilities must be verified separately for each endpoint and account.
 
 ## Anthropic
 
-- [Prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching) описывает cache_read_input_tokens, cache_creation_input_tokens и input_tokens, который не включает эти две категории. Для записи кеша различаются TTL.
-- [Usage and Cost API](https://platform.claude.com/docs/en/manage-claude/usage-cost-api) описывает организационные отчёты и отдельные требования к credentials. В прочитанной версии usage/cost обычно появляется в течение пяти минут после запроса; стоимость доступна с дневной гранулярностью. Документ также указывает ограничения покрытия отдельных режимов биллинга.
+- [Prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching) describes cache_read_input_tokens, cache_creation_input_tokens and input_tokens, which excludes those two categories. Cache writes have different TTLs.
+- [Usage and Cost API](https://platform.claude.com/docs/en/manage-claude/usage-cost-api) describes organization reports and separate credential requirements. In the reviewed version, usage/cost usually appears within five minutes of a request; costs are available at daily granularity. The document also identifies coverage limitations for particular billing modes.
 
-Адаптер не должен предполагать, что сумма input_tokens имеет тот же смысл, что у другого поставщика. Финансовый scope проверяется при подключении; отсутствие прав не считается нулевым расходом.
+An adapter must not assume that input_tokens has the same meaning as another provider's counter. Financial scope is checked when connecting; missing permissions do not mean zero cost.
 
 ## OpenRouter
 
-- [Get remaining credits](https://openrouter.ai/docs/api/api-reference/credits/get-remaining-credits) описывает total_credits и total_usage. На прочитанной странице также показано ограничение операции management keys.
+- [Get remaining credits](https://openrouter.ai/docs/api/api-reference/credits/get-remaining-credits) describes total_credits and total_usage. The reviewed page also shows a restriction to management keys for this operation.
 
-Наличие такого API у OpenRouter не означает наличие эквивалентного метода у каждого поставщика. Остаток по внешнему аккаунту не является остатком кредитов конкретного пользователя нашей платформы.
+An API of this kind at OpenRouter does not imply an equivalent method exists at every provider. An external account balance is not the credit balance of an individual user on our platform.
 
 ## Cartesia
 
-- [Get Credit Usage](https://docs.cartesia.ai/api-reference/usage/credits) описывает агрегированный расход кредитов по времени и доступным измерениям, включая модель и API key.
+- [Get Credit Usage](https://docs.cartesia.ai/api-reference/usage/credits) describes aggregate credit usage over time and available dimensions, including model and API key.
 
-Потреблённые provider credits необходимо переводить в себестоимость по условиям соответствующего connection. Их нельзя автоматически приравнивать к ai-credit-usd-v1. Включённые в provider subscription объёмы и оплачиваемые превышения должны быть явно отражены выбранной моделью затрат.
+Consumed provider credits must be converted to cost under the terms of the corresponding connection. They cannot automatically be equated to ai-credit-usd-v1. Allowance included in a provider subscription and paid overages must be explicitly represented by the chosen cost model.
 
-## Применение тарифных пакетов провайдера
+## Applying provider plans
 
-Некоторые поставщики продают подписку с включённым использованием. Для такого connection администратор выбирает документированную модель provider costing: эффективная распределённая ставка либо предельная ставка следующего использования. Источник и метод указываются в rate card.
+Some providers sell subscriptions with included usage. For such a connection, the administrator selects a documented provider costing model: an effective allocated rate or the marginal rate of the next use. The rate card specifies the source and method.
 
-Плата за подписку учитывается отдельно в provider cost report. Нельзя одновременно включить её полностью в эффективную ставку каждого запроса и повторно прибавить ту же сумму к итогу затрат. При отсутствии установленной модели стоимость остаётся неизвестной.
+The subscription fee is accounted for separately in the provider cost report. Do not both include the entire fee in each request's effective rate and add the same amount again to total costs. Without an established model, the cost remains unknown.
 
-Себестоимость, используемая для пользовательского rating, должна быть опубликованной и понятной. Разовое изменение распределения подписочной платы при сверке не создаёт задним числом новые wallet debits.
+The cost used for customer rating must be published and understandable. A one-off change to subscription-fee allocation during reconciliation does not create retroactive wallet debits.
 
-## Текущий Logo Panel
+## Current Logo Panel
 
-Пути к исходникам в этом разделе относятся к отдельному проекту Logo Panel. Его код не включён в UAI; эти ссылки на структуру сохранены как контекст миграции, а не как файлы данного репозитория.
+Source paths in this section belong to the separate Logo Panel project. Its code is not part of UAI; these structural references are retained as migration context, not as files in this repository.
 
-Исходный код был повторно прочитан при подготовке документации:
+The source code was reread when preparing this documentation:
 
 - `server/providers/contracts.ts`.
-- `server/engine.ts`, включая job execution и сохранение usage после fn.
-- `server/store.ts`, включая project jobs, расчёт totalCost и поведение при удалении проекта.
+- `server/engine.ts`, including job execution and usage persistence after fn.
+- `server/store.ts`, including project jobs, totalCost calculation and project deletion behavior.
 - `server/index.ts`.
 
-Эти наблюдения используются только для плана миграции. Новая документация не меняет реализованный `SPEC.md` текущего продукта и не объявляет универсальную платформу готовой.
+These observations are used only for the migration plan. The new documentation does not change the current product's implemented `SPEC.md` or declare the universal platform ready.
 
-## Стек интерфейсов
+## Interface stack
 
-- [Установка shadcn/ui для TanStack Start](https://ui.shadcn.com/docs/installation/tanstack) описывает официально поддерживаемую настройку этого сочетания.
-- [Обзор TanStack Start](https://tanstack.com/start/latest/docs/framework/react/overview) описывает серверный слой и маршрутизацию. При обсуждении 2026-09-18 страница обозначает статус Release Candidate. Это наблюдение на дату проверки; при реализации нужно проверить актуальную версию, закрепить зависимости и проверить сборку/запуск в выбранном окружении.
+- [Installing shadcn/ui for TanStack Start](https://ui.shadcn.com/docs/installation/tanstack) describes the officially supported setup for this combination.
+- [TanStack Start overview](https://tanstack.com/start/latest/docs/framework/react/overview) describes the server layer and routing. During the 2026-09-18 discussion, the page identified its status as Release Candidate. This is an observation as of that review date; implementation requires checking the current version, pinning dependencies and validating build/startup in the selected environment.
 
-Выбор компонентов не заменяет требования к оформлению и браузерной приёмке из [OPERATIONS](OPERATIONS.md).
+Component selection does not replace the design and browser acceptance requirements in [OPERATIONS](OPERATIONS.md).

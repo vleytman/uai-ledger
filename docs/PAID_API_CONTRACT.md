@@ -1,67 +1,67 @@
-# Контракт платных API и allowance
+# Paid API and Allowance Contract
 
-[План и решения](PAID_API_PLAN.md) · [Рабочий HTTP API](API.md) · [Проект OpenAPI](openapi-paid-api.json)
+[Plan and Decisions](PAID_API_PLAN.md) · [Operational HTTP API](API.md) · [OpenAPI Draft](openapi-paid-api.json)
 
-Схемы локальной реализации определены в [paid-api.ts](../packages/contracts/paid-api.ts). `pnpm generate:paid-api` создаёт OpenAPI расширения, `pnpm check:paid-api` проверяет его. Полный HTTP API и клиентские типы описывает `openapi.json`. Реальные вызовы поставщиков проверяются отдельно.
+Local implementation schemas are defined in [paid-api.ts](../packages/contracts/paid-api.ts). `pnpm generate:paid-api` creates the OpenAPI extension; `pnpm check:paid-api` validates it. `openapi.json` describes the full HTTP API and client types. Real provider calls are checked separately.
 
-## Идентичности и версии
+## Identities and Versions
 
-`provider_account_id` идентифицирует аккаунт поставщика в организации и приложении. Это не клиентский `account_id`. Несколько connections с одинаковым аккаунтом используют одну подписку. Повторная подписка для того же аккаунта отклоняется, чтобы второй ключ не создавал второй пакет. Тариф публикуется неизменяемой версией из Git; подписка сохраняет ID этой версии, начало и явную долю каждого счётчика установки. Привязка connection меняется с revision и аудитом. Принятая работа сохраняет исходную подписку и тариф.
+`provider_account_id` identifies the provider account within an organization and application. It is not the client `account_id`. Multiple connections with the same account share one subscription. A duplicate subscription for the same account is rejected so that a second key cannot create a second allowance package. A tariff is published as an immutable version from Git; the subscription stores that version's ID, its start, and an explicit installation share for each counter. Connection binding changes require a revision and audit. Accepted work retains its original subscription and tariff.
 
-Все административные методы требуют `operations:admin`, изменения также `config:write`. Account-scoped токены не получают остатки поставщика. Изменения используют `Idempotency-Key`, привязка использует `If-Match`. Первая привязка имеет ожидаемую revision 0. Повтор команды с тем же содержимым возвращает тот же результат; изменение содержимого конфликтует.
+All administrative methods require `operations:admin`; changes also require `config:write`. Account-scoped tokens do not receive provider balances. Changes use `Idempotency-Key`; binding uses `If-Match`. The first binding has expected revision 0. Repeating a command with the same content returns the same result; changing its content conflicts.
 
-## Измерения и цена
+## Measurements and Price
 
-Нативные величины передаются десятичными строками, до девяти знаков после точки. Денежные суммы передаются целыми строками в существующих единицах UAI. Requests, provider credits, pages, bytes и деньги не суммируются между собой.
+Native quantities are transmitted as decimal strings, with up to nine decimal places. Monetary amounts are integer strings in existing UAI units. Requests, provider credits, pages, bytes, and money are not summed together.
 
-Операция задаёт входную и выходную JSON Schema, зарегистрированный `adapter_ref`, ограничения файлов, источник каждой метрики и максимум. Значения `verified_assets` получаются после проверки ownership, содержимого и размеров файлов. Клиент не может передать их как готовые биллинговые показатели. Пользовательская цена использует существующий движок фиксированной цены или формулы. API допускает `quoted_final` или `actual_capped`. Последний ограничивает списание принятым максимумом даже при большем расходе поставщика. Отсутствие usage означает неизвестный результат измерения, а не нулевую цену.
+An operation defines input and output JSON Schema, a registered `adapter_ref`, file constraints, and the source and maximum of each metric. `verified_assets` values are obtained after checking file ownership, content, and dimensions. A client cannot submit them as ready-made billing metrics. Customer pricing uses the existing fixed-price or formula engine. The API permits `quoted_final` or `actual_capped`. The latter limits the charge to the accepted maximum even if provider usage is greater. Missing usage means an unknown measurement outcome, rather than a zero price.
 
-Себестоимость, цена клиента, расход allowance и rate limits ведутся раздельно. При `incremental` стоимость включённого объёма равна нулю, учитываются дополнительные расходы. При `allocated` распределение абонентской платы является отдельным аналитическим представлением. Его нельзя складывать с той же полной абонентской платой второй раз.
+Provider cost, customer price, allowance usage, and rate limits are tracked separately. With `incremental`, included volume costs zero and additional expenses are counted. With `allocated`, subscription-fee allocation is a separate analytical view. It must not be added to the same full subscription fee a second time.
 
-## Периоды и перенос
+## Periods and Rollover
 
-Границы периода вычисляются в часовом поясе тарифа. Календарный месяц начинается в полночь первого числа. Для anniversary сохраняются исходные день и местное время: 31 января → последний день февраля → 31 марта. При повторении местного времени выбирается первое вхождение; при пропущенном времени граница сдвигается вперёд на величину перехода.
+Period boundaries are calculated in the tariff's time zone. A calendar month starts at midnight on its first day. Anniversary periods retain the original day and local time: January 31 → the last day of February → March 31. When local time repeats, the first occurrence is selected; when local time is skipped, the boundary moves forward by the transition duration.
 
-Каждый период получает долю установки по каждому счётчику. Повтор scheduler не создаёт второе начисление. Перенос выключен по умолчанию. При включении остатки переносятся в пределах cap, сначала с ближайшим сроком истечения. Новый лот сохраняет исходный срок и ссылку на происхождение; повторный перенос не продлевает срок. Пропущенные месяцы обрабатываются последовательно. Удаление или изменение файла не меняет историю.
+Each period receives the installation's share for every counter. Repeated scheduler execution does not create a second allocation. Rollover is disabled by default. When enabled, balances roll over within the cap, earliest expiry first. A new lot retains the original expiry and provenance reference; repeated rollover does not extend expiry. Missed months are processed sequentially. Deleting or changing a file does not alter history.
 
-Открытый резерв не переносится как свободный остаток. При освобождении или уточнении после закрытия периода освободившаяся величина остаётся в старом периоде. Автоматического доначисления в новом месяце нет; корректировка требует доказательства и аудита. Это предотвращает двойное расходование при поздних ответах.
+An open reservation is not rolled over as a free balance. When released or adjusted after period closure, the released quantity stays in the old period. There is no automatic allocation in the new month; an adjustment requires evidence and audit. This prevents double spending on late responses.
 
-## Допуск и исход вызова
+## Admission and Call Outcomes
 
-1. Идемпотентный повтор принятой операции читается до новых проверок допуска.
-2. Максимум каждого счётчика резервируется в PostgreSQL в одной транзакции с денежным резервом. Ошибка любого счётчика откатывает всю транзакцию. При исчерпании возвращаются `allowance_exhausted`, метрика и `resets_at`; деньги ещё не зарезервированы.
-3. Короткий rate limit оставляет запрос в очереди с deadline. В durable send boundary worker проверяет период и снимки. Неотправленный резерв переносится в новый период атомарно либо вызов не отправляется.
-4. Каждая новая фактическая попытка получает собственный allowance. Redis admission, SQL intent и HTTP не считаются общей транзакцией.
-5. Подтверждённое usage списывает расход и освобождает разницу. Повтор observation идемпотентен. Ревизия usage ниже уже принятой отклоняется; новая ревизия оставляет корректирующие записи в журнале.
-6. Неизвестный исход сохраняет максимум. Денежный спор клиента может закрыться через час, но allowance остаётся занят до подтверждённого usage или аудируемого решения. Нельзя освобождать его по таймеру или без доказательства повторять платный запрос.
-7. Фактическое превышение записывается целиком. При запрещённом overage дефицит блокирует новые вызовы, в том числе после обновления месяца, пока не будет подтверждённая корректировка. При разрешённом overage допускаются только известные ставки и отдельный денежный предел с учётом параллельных резервов.
+1. An idempotent replay of an accepted operation is read before new admission checks.
+2. The maximum for each counter is reserved in PostgreSQL in the same transaction as the monetary reservation. Failure of any counter rolls back the entire transaction. Exhaustion returns `allowance_exhausted`, the metric, and `resets_at`; money has not yet been reserved.
+3. A short rate limit leaves the request queued with a deadline. At the durable send boundary, the worker checks the period and snapshots. An unsent reservation moves into the new period atomically, or the call is not dispatched.
+4. Each new actual attempt receives its own allowance. Redis admission, SQL intent, and HTTP are not treated as one transaction.
+5. Confirmed usage consumes allowance and releases the difference. Repeated observations are idempotent. A usage revision lower than one already accepted is rejected; a new revision adds corrective ledger entries.
+6. An unknown outcome retains the maximum. A customer's monetary dispute may close after an hour, but allowance remains occupied until confirmed usage or an audited decision. It cannot be released by a timer, nor can a paid request be retried without evidence.
+7. Actual overruns are recorded in full. When overage is forbidden, a deficit blocks new calls, including after monthly renewal, until a confirmed adjustment exists. When overage is permitted, only known rates and a separate monetary limit accounting for concurrent reservations are allowed.
 
-Журнал расхода неизменяемый. Коррекции являются новыми записями. PostgreSQL сериализует допуск на подписке; месячный allowance не переносится в суточные счётчики Redis.
+The usage ledger is immutable. Corrections are new entries. PostgreSQL serializes admission on the subscription; monthly allowance is not moved into Redis daily counters.
 
-## Сверка и уведомления
+## Reconciliation and Notifications
 
-Snapshot содержит аккаунт, период, метрику, время наблюдения, время покрытия, precision и scope. Будущее время и несовместимый период отклоняются. Снимок ограничивает локальный остаток сверху. Расход после покрытия и незавершённые вызовы вычитаются дополнительно. Только подтверждённое покрытие завершённого измерения позволяет исключить его из повторного вычитания. Оценочный или устаревший снимок никогда не увеличивает доступность. Новое большее значение само по себе не отменяет прежнее ограничение внутри периода; для восстановления после ошибочного снимка нужно отдельное аудируемое решение.
+A snapshot contains account, period, metric, observation time, coverage time, precision, and scope. Future timestamps and incompatible periods are rejected. A snapshot places an upper bound on the local balance. Usage after coverage and unfinished calls are additionally subtracted. Only confirmed coverage of a completed measurement allows excluding it from repeated subtraction. An estimated or stale snapshot never increases availability. A new higher value alone does not cancel an earlier constraint within the period; recovery from an incorrect snapshot requires a separate audited decision.
 
-Отсутствие статистики не сбрасывает локальные счётчики. Состояние возвращает used, reserved, remaining, overdrawn, включённый и перенесённый объём, период, overage и свежесть. Процент остатка рассчитывается от включённого объёма плюс перенос, с учётом открытых резервов.
+Missing statistics do not reset local counters. State returns used, reserved, remaining, overdrawn, included and rolled-over volume, period, overage, and freshness. The remaining percentage is calculated against included volume plus rollover, accounting for open reservations.
 
-Правила notifications выбирают подписку, метрику, единицу и порог. Процент и нативные единицы имеют разную базу сравнения. Fingerprint учитывает правило, подписку, период и метрику. Порог пересекается один раз до восстановления с учётом cooldown. `allowance.renewed` является разовым событием. Доставка использует существующий outbox и подписанный webhook с прежним ID при повторе. Приложение выбирает получателя email/Telegram и пользовательских notifications.
+Notification rules select subscription, metric, unit, and threshold. Percentages and native units use different comparison bases. The fingerprint includes rule, subscription, period, and metric. A threshold is crossed once until recovery, subject to cooldown. `allowance.renewed` is a one-time event. Delivery uses the existing outbox and signed webhook with the same ID on retry. The application selects recipients for email/Telegram and user notifications.
 
-## Приёмка
+## Acceptance
 
-Стабильные проверки PA-A01–PA-A25 остаются в [плане](PAID_API_PLAN.md). Схемы и документация не заменяют runtime-проверки. Реальная доступность четырёх Firecrawl-операций и наблюдаемый расход проверяются отдельно от синтетических fixtures, после согласования платного прогона.
+Stable checks PA-A01–PA-A25 remain in the [plan](PAID_API_PLAN.md). Schemas and documentation do not replace runtime checks. Actual availability of the four Firecrawl operations and observed usage are checked separately from synthetic fixtures, after approval of a paid run.
 
 
-## Реализованные HTTP-пути и ограничения
+## Implemented HTTP Paths and Limits
 
-`api.call` использует прежние `/v1/quotes`, `/v1/operations`, `/v1/requests`, `/v1/invocations` и `/v1/events`. SDK добавляет `services.quote/run`; прежние `ai.*` совместимы. Административные endpoints и типы включены в основной OpenAPI. Просмотр allowance ограничен installation-admin/staff; account-scoped токен не получает статистику поставщика.
+`api.call` uses the existing `/v1/quotes`, `/v1/operations`, `/v1/requests`, `/v1/invocations`, and `/v1/events`. The SDK adds `services.quote/run`; existing `ai.*` remain compatible. Administrative endpoints and types are included in the main OpenAPI. Allowance viewing is limited to installation admin/staff; an account-scoped token does not receive provider statistics.
 
-API-файлы проверяются по владельцу, hash, реальному размеру, количеству и разрешённому MIME из storage. Произвольные PDF/аудио processors не запускаются: подтверждённые страницы/секунды поступают от адаптера. MIME-проверка использует metadata storage, а не универсальное определение формата содержимого. Вход ограничен 16 файлами и 20 MB; JSON Schema — явно ограниченный набор, без внешних `$ref` и исполняемого кода.
+API files are checked against owner, hash, actual size, count, and allowed MIME from storage. Arbitrary PDF/audio processors are not run: verified pages/seconds come from the adapter. MIME checking uses storage metadata, rather than universal content-format detection. Input is limited to 16 files and 20 MB; JSON Schema uses an explicitly bounded subset, without external `$ref` or executable code.
 
-Соответствие native allowance и usage задаётся точным ключом/единицей. Для составного AI-счётчика тариф может указать `dimensions`; совпадения единицы само по себе недостаточно. Requests измеряется отдельно. Rolling quotas поддерживают requests, AI tokens/images/audio_seconds и API credits/pages/files/bytes. Для них дробный максимум округляется вверх до целой нативной единицы; месячный allowance сохраняет девять десятичных знаков. Дополнительные quota metrics регистрируются в коде; отсутствие оценки запрещает допуск.
+Native allowance-to-usage matching uses an exact key/unit. For a composite AI counter, the tariff may specify `dimensions`; matching units alone is insufficient. Requests are measured separately. Rolling quotas support requests, AI tokens/images/audio_seconds, and API credits/pages/files/bytes. Their fractional maximum is rounded up to a whole native unit; monthly allowance retains nine decimal places. Additional quota metrics are registered in code; a missing estimate prevents admission.
 
-`POST /v1/admin/connections/{id}/allowance-refresh` читает Firecrawl credit-usage при явно включённом real-provider режиме и настроенном credential. Период должен точно совпадать с подпиской. Отсутствующее покрытие остаётся `estimated`, и общая разность snapshots не используется как себестоимость запроса. Ручной `ProviderSnapshot.supersedes` явно заменяет ошибочные snapshots того же периода/метрики; lineage и причина неизменяемы. Обычное обновление статистики не увеличивает ранее ограниченный остаток.
+`POST /v1/admin/connections/{id}/allowance-refresh` reads Firecrawl credit-usage with explicitly enabled real-provider mode and a configured credential. The period must match the subscription exactly. Missing coverage remains `estimated`, and the overall difference between snapshots is not used as request cost. Manual `ProviderSnapshot.supersedes` explicitly replaces incorrect snapshots for the same period/metric; lineage and reason are immutable. Ordinary statistics refresh does not increase a previously constrained balance.
 
-Пример правила для существующего `POST /v1/admin/notification-rules`:
+Example rule for the existing `POST /v1/admin/notification-rules`:
 
 ```json
 {
@@ -75,8 +75,8 @@ API-файлы проверяются по владельцу, hash, реаль�
     "recipients": [],
     "enabled": true
   },
-  "reason": "Предупреждать при остатке 20 процентов"
+  "reason": "Warn when 20 percent remains"
 }
 ```
 
-Пустые recipients сохраняют инцидент в админке; для внешней доставки выбирается существующий webhook destination. Те же правила работают для AI connection после явной привязки provider subscription. Один аккаунт имеет одну подписку; смена тарифного шаблона существующей подписки пока не поддерживается, требуется отдельная миграция периода. Ручная корректировка текущего остатка и смена connection binding доступны с аудитом; открытые резервы защищают привязку.
+Empty recipients keep the incident in the admin; external delivery selects an existing webhook destination. The same rules work for an AI connection after explicitly binding a provider subscription. One account has one subscription; changing the tariff template of an existing subscription is not yet supported and requires a separate period migration. Manual current-balance adjustment and connection-binding changes are available with audit; open reservations protect the binding.

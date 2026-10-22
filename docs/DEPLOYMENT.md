@@ -1,85 +1,85 @@
-# Раздельное размещение UAI
+# Deploying UAI roles separately
 
-[Оглавление](README.md) · [Операции](OPERATIONS.md) · [План распределённого выполнения](DISTRIBUTED_EXECUTION_PLAN.md)
+[Contents](README.md) · [Operations](OPERATIONS.md) · [Distributed execution plan](DISTRIBUTED_EXECUTION_PLAN.md)
 
-Шаблоны в `deploy/` разделяют backend на три узла. Это проверенная основа запуска, а не завершённая production-приёмка. Публичный продукт LogoPanel и его объединённая административная оболочка собираются своим проектом. Runtime-образ ниже содержит API, scheduler, workers и миграции UAI; браузерная админка и demo в него не входят.
+The templates in `deploy/` split the backend across three nodes. They are a validated startup foundation, not completed production acceptance. The public LogoPanel product and its combined admin shell are built by their own project. The runtime image below contains the UAI API, scheduler, workers and migrations; the browser admin and demo are not included.
 
-## Роли
+## Roles
 
-| Узел | Шаблон | Процессы |
+| Node | Template | Processes |
 |---|---|---|
-| Данные | `deploy/compose.data.yaml` | PostgreSQL 17, Redis 7.4 с AOF и noeviction |
-| Приложение | `deploy/compose.app.yaml` | API, scheduler; отдельная ручная команда миграций |
-| Исполнение | `deploy/compose.workers.yaml` | generation, observation, maintenance |
+| Data | `deploy/compose.data.yaml` | PostgreSQL 17, Redis 7.4 with AOF and noeviction |
+| Application | `deploy/compose.app.yaml` | API, scheduler; a separate manual migration command |
+| Execution | `deploy/compose.workers.yaml` | generation, observation, maintenance |
 
-API слушает только loopback хоста на порту 4310. Внешний HTTPS и доступ продуктовой админки организует reverse proxy проекта. PostgreSQL/Redis требуют явного `UAI_DATA_BIND_IP`, адреса частной сети или VPN. Откройте их порты только для нужных серверов через firewall. Пароли не заменяют шифрование связи; шаблон рассчитан на защищённую частную сеть/VPN, TLS в нём не настраивается.
+The API listens only on the host loopback interface at port 4310. The project's reverse proxy provides external HTTPS and product admin access. PostgreSQL/Redis require an explicit `UAI_DATA_BIND_IP`, a private-network or VPN address. Use a firewall to open their ports only to the required servers. Passwords do not replace transport encryption; the template assumes a protected private network/VPN and does not configure TLS.
 
-## Образ и конфигурация
+## Image and configuration
 
-Соберите образ из корня репозитория:
+Build the image from the repository root:
 
 ```sh
 docker build -f Dockerfile.runtime -t uai-runtime:release .
 ```
 
-Установка использует pnpm 9.15.0 и `--frozen-lockfile`. Runtime запускает TypeScript через tsx без dev/watch server. Пользователь контейнера `node`; Compose включает read-only filesystem, tmpfs, удаление capabilities и запрет повышения привилегий. Контекст сборки допускает только нужные исходники и manifests, исключая `.data`, `.env`, keys и node_modules. Для воспроизводимого релиза закрепите базовый образ и опубликованный runtime-образ по digest в своей release-процедуре. Публикация образа в registry здесь не выполняется.
+The installation uses pnpm 9.15.0 and `--frozen-lockfile`. The runtime executes TypeScript through tsx without a dev/watch server. The container user is `node`; Compose enables a read-only filesystem, tmpfs, capability removal and privilege-escalation prevention. The build context admits only required source files and manifests, excluding `.data`, `.env`, keys and node_modules. For reproducible releases, pin the base image and published runtime image by digest in your release process. Publishing the image to a registry is not performed here.
 
-На application и worker узлах задайте `UAI_IMAGE` и абсолютный `UAI_RUNTIME_ENV_FILE`. Файл содержит:
+On application and worker nodes, set `UAI_IMAGE` and an absolute `UAI_RUNTIME_ENV_FILE`. The file contains:
 
-- `DATABASE_URL` и `REDIS_URL` с адресом узла данных и отдельными паролями.
-- Одинаковый `UAI_INSTALLATION_ID` для API, scheduler и всех workers данной установки.
-- Действующий `UAI_VAULT_KEY` этой установки. Не создавайте новый ключ вместо существующего при обновлении, иначе зашифрованные credentials останутся недоступны.
-- S3 bucket, region, endpoint при необходимости, credentials и одинаковый `UAI_S3_PREFIX`. Compose принудительно выбирает `UAI_BLOB_BACKEND=s3`, поскольку локальные файлы разных серверов не общие. Нужен private bucket без versioning/ObjectLock согласно ограничениям BlobStore.
-- `UAI_ALLOW_REAL_PROVIDERS=false` до отдельной проверки настроек и разрешения платных вызовов.
-- Настройки пулов PostgreSQL и таймаута Redis из [операционной инструкции](OPERATIONS.md).
+- `DATABASE_URL` and `REDIS_URL` with the data-node address and separate passwords.
+- The same `UAI_INSTALLATION_ID` for the API, scheduler and all workers in this installation.
+- This installation's existing `UAI_VAULT_KEY`. Do not generate a replacement key during an update, or encrypted credentials will become inaccessible.
+- S3 bucket, region, endpoint if required, credentials and the same `UAI_S3_PREFIX`. Compose enforces `UAI_BLOB_BACKEND=s3` because local files are not shared between servers. A private bucket without versioning/ObjectLock is required under the BlobStore limitations.
+- `UAI_ALLOW_REAL_PROVIDERS=false` until settings are separately verified and paid calls are authorized.
+- PostgreSQL pool and Redis timeout settings from the [operations guide](OPERATIONS.md).
 
-Env-файлы хранятся вне Git с ограниченными правами доступа. На узле данных отдельно задаются `UAI_POSTGRES_PASSWORD`, `UAI_REDIS_PASSWORD`, `UAI_DATA_BIND_IP`. Compose требует непустые значения. Не публикуйте вывод `docker compose config`, он может содержать подставленные секреты; для проверки используйте `config --quiet`.
+Store env files outside Git with restricted permissions. On the data node, also set `UAI_POSTGRES_PASSWORD`, `UAI_REDIS_PASSWORD` and `UAI_DATA_BIND_IP`. Compose requires nonempty values. Do not publish `docker compose config` output: it can contain interpolated secrets; use `config --quiet` for validation.
 
-## Порядок запуска
+## Startup order
 
-На узле данных:
+On the data node:
 
 ```sh
 docker compose -f deploy/compose.data.yaml up -d
 ```
 
-После проверки соединений и резервной копии существующей БД, на узле приложения:
+After checking connectivity and backing up the existing database, on the application node:
 
 ```sh
 docker compose -f deploy/compose.app.yaml --profile ops run --rm migrate
 docker compose -f deploy/compose.app.yaml up -d api scheduler
 ```
 
-На узле исполнения:
+On the execution node:
 
 ```sh
 docker compose -f deploy/compose.workers.yaml up -d
 ```
 
-Миграции запускаются явно, а не каждым worker при старте. Scheduler публикует задания; maintenance worker выполняет обслуживание. Несколько scheduler допустимы только с тем же installation ID и БД. У generation concurrency 4 на каждую из очередей text/image/audio/tools; это не общий предел 4. Доменные ограничения account/application/queue и provider quota дополнительно ограничивают фактический запуск.
+Migrations are run explicitly, not by each worker at startup. The scheduler publishes jobs; the maintenance worker performs maintenance. Multiple schedulers are allowed only with the same installation ID and database. Generation concurrency is 4 for each text/image/audio/tools queue, not a total limit of 4. Account/application/queue domain limits and provider quotas further restrict actual execution.
 
-Для увеличения числа исполнителей используйте `--scale generation=N`. Учитывайте суммарное число соединений PostgreSQL всех реплик. Compose ждёт остановку 45 секунд, worker имеет внутренний grace period 30 секунд. Принудительная остановка не означает отмену запроса у провайдера.
+Use `--scale generation=N` to add execution replicas. Account for the total PostgreSQL connection count across all replicas. Compose waits 45 seconds for shutdown; the worker's internal grace period is 30 seconds. Forced shutdown does not mean the provider request was canceled.
 
-## Обновление и откат
+## Updates and rollback
 
-Подготовьте новый image digest, проверьте его на staging, сделайте проверяемую резервную копию PostgreSQL и убедитесь в доступности общего S3. Примените аддитивные миграции, затем обновляйте scheduler/API/workers по ролям. Не запускайте старый и новый backend на одном request без предусмотренной смены поколения. Порядок перехода backend и отката описан в [плане](DISTRIBUTED_EXECUTION_PLAN.md).
+Prepare a new image digest, validate it on staging, make a verifiable PostgreSQL backup and check access to shared S3. Apply additive migrations, then update scheduler/API/workers by role. Do not run old and new backends on the same request without the prescribed generation transition. Backend migration and rollback order are described in the [plan](DISTRIBUTED_EXECUTION_PLAN.md).
 
-Redis AOF не заменяет резервную копию PostgreSQL или S3. Нельзя восстанавливать только финансовые таблицы без согласованных operation/attempt/storage данных. Автоматизированный restore drill, правила S3 backup и полный многохостовый rollback ещё требуют приёмки. Шаблоны не делают эти операции автоматически.
+Redis AOF does not replace a PostgreSQL or S3 backup. Do not restore financial tables alone without consistent operation/attempt/storage data. Automated restore drills, S3 backup rules and full multi-host rollback still require acceptance. The templates do not perform these operations automatically.
 
-## Пробное восстановление PostgreSQL
+## PostgreSQL restore drill
 
-Для синтетической локальной базы есть `scripts/check-backup-restore.ts`. Скрипт принимает только имя `uai_load_*` и явный opt-in; production-базы не допускаются. Нужен локальный Docker-контейнер PostgreSQL, в котором `pg_dump`/`pg_restore` подключаются к той же базе, что указана в `DATABASE_URL`.
+`scripts/check-backup-restore.ts` is available for a synthetic local database. It accepts only a `uai_load_*` name and explicit opt-in; production databases are rejected. It requires a local PostgreSQL Docker container whose `pg_dump`/`pg_restore` connect to the same database as `DATABASE_URL`.
 
 ```sh
 UAI_RESTORE_TEST_ONLY=1 UAI_RESTORE_TEST_CONTAINER=uai-postgres-1 pnpm exec tsx scripts/check-backup-restore.ts
 ```
 
-Скрипт экспортирует repeatable-read snapshot и передаёт его pg_dump, поэтому сверка таблиц и dump относятся к одному состоянию даже при записях в источник. Восстановление выполняется в новую уникальную `uai_restore_*`; существующие базы не удаляются и не перезаписываются. Проверяются hashes/число строк всех public tables, баланс каждой journal transaction и соответствие lot balances проводкам. Отдельные пробы подтверждают, что восстановленные triggers запрещают изменение истории и несбалансированную запись. Все пробы откатываются.
+The script exports a repeatable-read snapshot and passes it to pg_dump, so table comparisons and the dump represent the same state even while the source receives writes. Restoration creates a new unique `uai_restore_*` database; existing databases are neither deleted nor overwritten. Checks cover hashes/row counts of all public tables, the balance of every journal transaction and agreement between lot balances and postings. Separate probes verify that restored triggers forbid history changes and unbalanced writes. All probes are rolled back.
 
-Dump и отчёт остаются в `/tmp/uai-restore-*.dump` и `.json` с правами 0600, новая база сохраняется для осмотра. Это временные артефакты проверки, не политика хранения резервных копий. Runtime на восстановленной базе не запускается, Redis и blob content не восстанавливаются. Согласованность PostgreSQL/S3 и безопасное возобновление неизвестных внешних запросов требуют отдельной проверки.
+The dump and report remain in `/tmp/uai-restore-*.dump` and `.json` with permissions 0600, and the new database is retained for inspection. These are temporary verification artifacts, not a backup retention policy. The runtime is not started against the restored database, and Redis and blob content are not restored. PostgreSQL/S3 consistency and safe resumption of unknown external requests need separate validation.
 
-## Что проверено локально
+## Locally verified behavior
 
-Проверены ARM64 build, все 39 миграций на отдельной базе, ответ API `/health` 200, публикация maintenance scheduler и исполнение production BullMQ worker. Контейнеры запускались с read-only filesystem, API и worker завершились по SIGTERM с кодом 0. `/health` сейчас означает живой HTTP-процесс, не проверяет готовность PostgreSQL, Redis или S3.
+The ARM64 build, all 39 migrations on a separate database, API `/health` response 200, maintenance publication by the scheduler and execution by the production BullMQ worker were verified. Containers ran with a read-only filesystem; API and worker exited on SIGTERM with code 0. `/health` currently indicates a live HTTP process and does not test PostgreSQL, Redis or S3 readiness.
 
-При сборке необязательный `msgpackr-extract` не собрался без native toolchain; BullMQ прошёл проверку с JS fallback. Тест не измеряет производительность fallback на VPS. Образ для AMD64, production secrets, HTTPS, отдельные VPS, private S3 и админка в этой контейнерной проверке не проверялись.
+During the build, optional `msgpackr-extract` failed to compile without a native toolchain; BullMQ passed with the JS fallback. The check does not measure fallback performance on a VPS. AMD64 images, production secrets, HTTPS, separate VPS hosts, private S3 and the admin interface were not covered by this container check.

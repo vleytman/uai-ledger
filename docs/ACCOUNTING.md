@@ -1,82 +1,82 @@
-# Учёт, кредитные пакеты и резервы
+# Accounting, credit lots, and reservations
 
-[Оглавление](README.md)
+[Contents](README.md)
 
-## Три независимых вида учёта
+## Three independent kinds of accounting
 
-1. Usage фиксирует выполненную работу поставщика. Он существует даже при ошибке приложения.
-2. Provider cost фиксирует нашу себестоимость. Расчётная сумма и подтверждение поставщика различаются.
-3. Wallet journal фиксирует права пользователя на бюджет и его расходование. Списание не равно любой затрате поставщика.
+1. Usage records work performed by the provider. It exists even when the application fails.
+2. Provider cost records our cost. The calculated amount and provider confirmation are distinct.
+3. The wallet journal records users' budget entitlements and spending. A charge does not equal every provider expense.
 
-Выручку и денежные возвраты хранит внешний платёжный сервис. Текущая сумма в кошельке не является остатком денег в OpenAI или другом аккаунте поставщика.
+Revenue and monetary refunds are stored by the external payment service. The current wallet amount is not the balance of money in OpenAI or another provider account.
 
-## Кредитная единица
+## Credit unit
 
-Для первой версии принимается ai-credit-usd-v1:
+The first version adopts ai-credit-usd-v1:
 
 ~~~text
 1 USD = 1 000 000 000 budget units
-1 кредит = 0,001 USD = 1 000 000 budget units
-0,000001 кредита = 1 budget unit
+1 credit = 0.001 USD = 1 000 000 budget units
+0.000001 credit = 1 budget unit
 ~~~
 
-Budget unit является целым числом нанодолларов учитываемого бюджета. PostgreSQL хранит суммы как bigint; API передаёт их десятичными строками, чтобы избежать потери точности JavaScript Number. В UI отображаются кредиты с подходящей точностью. Округление для отображения не изменяет журнал.
+A budget unit is an integer number of nanodollars of accounted budget. PostgreSQL stores amounts as bigint; the API transmits decimal strings to avoid JavaScript Number precision loss. The UI displays credits with appropriate precision. Display rounding does not change the journal.
 
-Пользователь оплачивает расчётную себестоимость по опубликованным применимым ставкам, включая известные скидки и кеширование. Поздняя агрегированная скидка поставщика относится к provider cost и будущим ставкам, а не к автоматическому перерасчёту всех кошельков. Ошибочное завышение нашего калькулятора является основанием для обязательной компенсирующей проводки с аудитом; оно не считается допустимой маржой.
+Users pay calculated cost at published applicable rates, including known discounts and caching. A late aggregated provider discount belongs to provider cost and future rates, rather than automatic recalculation of all wallets. Overcharging caused by our calculator is grounds for a mandatory audited compensating posting; it is not permissible margin.
 
-Ставки хранятся десятичными числами с указанной единицей, например USD за миллион токенов. Расчёт выполняется decimal arithmetic. В billable items сохраняется точный промежуточный результат. Итог попытки округляется до budget unit один раз по правилу half-up; распределение по пакетам сохраняет точную сумму округлённого итога. Для максимального резерва используется округление вверх.
+Rates are stored as decimal numbers with a stated unit, such as USD per million tokens. Calculations use decimal arithmetic. Billable items retain the exact intermediate result. The attempt total is rounded to a budget unit once, using half-up; allocation across lots preserves the exact rounded total. Maximum reservations round upward.
 
-Первый запуск может выбрать другую константу до создания любых начислений. После выпуска кредитов константа этой кредитной единицы неизменна. Если в будущем потребуется другая единица, она получает новый ID и отдельный кошелёк. Неявная конвертация существующих пакетов запрещена.
+The first launch may choose a different constant before any grants exist. Once credits have been issued, this credit unit's constant is immutable. A future different unit receives a new ID and separate wallet. Implicit conversion of existing lots is prohibited.
 
-USD является расчётной валютой первой версии. Для поставщика с иной валютой сохраняются исходная сумма, валюта и утверждённый FX snapshot. Без курса или верхней границы валютного риска такой маршрут не допускается к ограниченному бюджету. Автоматическая торговля валютой не входит в продукт.
+USD is the first version's settlement currency. For a provider using another currency, retain the original amount, currency, and approved FX snapshot. Without an exchange rate or upper bound on currency risk, that route cannot be admitted under a limited budget. Automated currency trading is outside the product.
 
-## Пакет начисления
+## Grant lot
 
-Credit lot содержит:
+A credit lot contains:
 
 - lot_id, wallet_id, credit_unit_id;
-- original_amount_units и immutable budget_per_credit_units;
+- original_amount_units and immutable budget_per_credit_units;
 - grant_source: purchase, subscription, promotion, refund, migration, internal;
-- external_reference и уникальный источник начисления;
-- terms_version и снимок условий, в том числе expires_at;
-- created_at и actor, разрешивший начисление.
+- external_reference and a unique grant source;
+- terms_version and a terms snapshot, including expires_at;
+- created_at and the actor authorizing the grant.
 
-Остаток пакета определяется проводками. Поля исходного начисления не редактируются. Purchase price не нужна для выполнения запросов и остаётся в платёжном сервисе. Ссылка на покупку нужна для аудита и отзыва.
+The lot's remainder is determined by postings. Original grant fields are not edited. Purchase price is unnecessary for executing requests and stays in the payment service. A purchase reference is needed for audit and revocation.
 
-Пример:
+Example:
 
-| Начисление | Продано пользователю | Кредитов | Закреплённый бюджет |
+| Grant | Sold to user for | Credits | Fixed budget |
 |---|---:|---:|---:|
-| Пакет A по старым условиям | $10 | 3 000 | $3 |
-| Пакет B по новым условиям | $10 | 2 000 | $2 |
+| Lot A under old terms | $10 | 3 000 | $3 |
+| Lot B under new terms | $10 | 2 000 | $2 |
 
-Общий кошелёк содержит 5 000 кредитов и $5 бюджета. Изменение розничной цены не изменяет A. Изменение provider rate card влияет на новые оценки действий, а не на исходный бюджет A.
+The combined wallet contains 5 000 credits and $5 of budget. A retail price change does not change A. A provider rate card change affects new action quotes, rather than A's original budget.
 
-Срок является явным условием каждого начисления. Команда обязана передать expires_at: timestamp либо явный null для бессрочного пакета. Для подписки без rollover платёжный сервис передаёт конец конкретного оплаченного периода. Новый месяц создаёт новый lot и не продлевает старый. Истечение переводит неиспользованную сумму в expired, а не удаляет историю. Оператор не может задним числом сократить срок уже выданного пакета обычным редактированием тарифа.
+Expiry is an explicit condition of every grant. The command must supply expires_at: a timestamp or explicit null for a non-expiring lot. For a subscription without rollover, the payment service supplies the end of the specific paid period. A new month creates a new lot and does not extend the old one. Expiry transfers unused amounts to expired rather than deleting history. An operator cannot retroactively shorten an issued lot's term by ordinarily editing a plan.
 
-Резервирование и чтение баланса проверяют expires_at по серверному времени даже при задержке scheduler. Истёкшие доступные кредиты нельзя потратить до фоновой записи expire: операция сначала материализует необходимые проводки в своей транзакции. Тариф, календарь периода и разрешение переноса остаются у платёжного сервиса; AI-платформа исполняет условия lots.
+Reservation and balance reads check expires_at against server time even when the scheduler lags. Expired available credits cannot be spent before the background expire entry: the operation first materializes required postings in its own transaction. The plan, period calendar, and rollover permission remain with the payment service; the AI platform enforces lot terms.
 
-## Проводки
+## Postings
 
-Каждая journal transaction имеет type, idempotency identity, actor, reason и ссылки на grant, operation, request или исходную транзакцию. Её postings сбалансированы в одной кредитной единице: сумма signed amounts равна нулю.
+Each journal transaction has a type, idempotency identity, actor, reason, and references to a grant, operation, request, or original transaction. Its postings balance within one credit unit: signed amounts sum to zero.
 
-Для пользовательского пакета используются состояния available, reserved, revocation_reserved, consumed, expired и revoked. Технические счета issuance и корректировок позволяют сохранять равенство проводок. Это журнал прав на использование, а не бухгалтерский журнал выручки.
+User lots use available, reserved, revocation_reserved, consumed, expired, and revoked states. Technical issuance and adjustment accounts maintain balanced postings. This is a journal of usage entitlements, not a revenue accounting ledger.
 
-| Операция | Откуда | Куда | Влияние на доступный остаток |
+| Operation | From | To | Effect on available balance |
 |---|---|---|---|
-| grant | issuance | lot.available | Увеличивает |
-| reserve | lot.available | lot.reserved | Уменьшает |
-| capture | lot.reserved | lot.consumed | Уже учтено резервом |
-| release | lot.reserved | lot.available | Увеличивает |
-| expire | lot.available | lot.expired | Уменьшает |
-| refund | lot.consumed | lot.available или refund lot | Увеличивает |
-| prepare revocation | lot.available | lot.revocation_reserved | Уменьшает |
-| commit revocation | lot.revocation_reserved | lot.revoked | Уже учтено блокировкой |
-| cancel revocation | lot.revocation_reserved | lot.available или lot.expired | Возвращает доступное, если пакет ещё действует |
+| grant | issuance | lot.available | Increases |
+| reserve | lot.available | lot.reserved | Decreases |
+| capture | lot.reserved | lot.consumed | Already reflected by reservation |
+| release | lot.reserved | lot.available | Increases |
+| expire | lot.available | lot.expired | Decreases |
+| refund | lot.consumed | lot.available or refund lot | Increases |
+| prepare revocation | lot.available | lot.revocation_reserved | Decreases |
+| commit revocation | lot.revocation_reserved | lot.revoked | Already reflected by hold |
+| cancel revocation | lot.revocation_reserved | lot.available or lot.expired | Restores availability if the lot is still valid |
 
-История append-only. Ошибочная проводка исправляется обратной или компенсирующей транзакцией со ссылкой на неё. Удаление истории для исправления остатка запрещено.
+History is append-only. An incorrect posting is corrected by a reversing or compensating transaction referencing it. Deleting history to correct a balance is prohibited.
 
-Материализованные остатки обновляются атомарно с postings и outbox event. Для каждой ревизии кошелька:
+Materialized balances are updated atomically with postings and the outbox event. For every wallet revision:
 
 ~~~text
 balance_units = available_units + reserved_units
@@ -85,146 +85,146 @@ reserved_units >= 0
 sum(postings.amount_units per journal transaction) = 0
 ~~~
 
-Reserved_units в wallet snapshot включает резервы AI-операций и revocation_reserved. API и UI могут дополнительно показывать эти две части. Конкретная AI-operation видит только свой резерв и не может использовать блокировку возврата покупки.
+Reserved_units in a wallet snapshot includes AI-operation reservations and revocation_reserved. API and UI may additionally show these two parts. A specific AI-operation sees only its own reservation and cannot use a purchase-refund hold.
 
-Consumed не входит в текущий balance. История начислений и возвратов нужна для сверки, но не должна повторно увеличивать вычисленный остаток.
+Consumed is excluded from the current balance. Grant and refund history is needed for reconciliation but must not increase the calculated balance a second time.
 
-Сводка по приложению (`GET /v1/admin/credit-summary`, [API](API.md#сводка-кредитов-приложения)) считается без записи проводок. Выдача берётся из пакетов, consumed, refund и revoked — из postings по времени journal transaction. Сгоревшее относится к `expires_at` пакета: это `lot.expired` плюс доступный остаток уже истёкшего пакета, для которого `expire` ещё не записан. Поэтому чтение `/lots` или другая операция, материализующая истечение, не меняет сводку. Резерв и блокировка отзыва в истёкшем пакете показываются отдельно, пока не закрыты.
+The application summary (`GET /v1/admin/credit-summary`, [API](API.md#application-credit-summary)) is calculated without writing postings. Issuance comes from lots; consumed, refund, and revoked come from postings by journal transaction time. Expiry is attributed to the lot's `expires_at`: it includes `lot.expired` plus the available remainder of an already expired lot whose `expire` has not yet been written. Therefore reading `/lots` or another operation that materializes expiry does not change the summary. Reservations and revocation holds in an expired lot are shown separately until closed.
 
-## Выбор пакетов и параллельные резервы
+## Lot selection and concurrent reservations
 
-Пакеты выбираются по ближайшему expires_at, затем по created_at и lot_id. Пакеты без срока идут после пакетов со сроком. Порядок детерминирован.
+Lots are selected by nearest expires_at, then created_at and lot_id. Non-expiring lots follow expiring lots. The order is deterministic.
 
-Создание операции, резерв и распределение по пакетам выполняются одной транзакцией. Проверка available и его уменьшение защищены блокировкой кошелька или эквивалентной атомарной схемой. Проверка в памяти worker недостаточна.
+Operation creation, reservation, and lot allocation occur in one transaction. Checking and reducing available is protected by a wallet lock or equivalent atomic scheme. An in-memory worker check is insufficient.
 
-Reservation allocations фиксируют, из каких пакетов взята сумма. Capture списывает из этих allocations, release возвращает туда же. Частичный результат и возврат сохраняют связь с исходными пакетами.
+Reservation allocations record the lots supplying the amount. Capture debits these allocations; release returns to the same ones. Partial results and refunds retain their connection to original lots.
 
-Истечение пакета затрагивает только доступный остаток. Уже принятый резерв можно использовать до конечного срока операции. Освобождение резерва после expires_at направляет остаток в expired, а не продлевает срок пакета. Такая сумма показывается как освобождённая и истёкшая, а не как новый доступный баланс.
+Lot expiry affects only the available remainder. An accepted reservation remains usable until the operation's final deadline. Releasing a reservation after expires_at sends the remainder to expired rather than extending the lot. Such amounts appear as released and expired, not as new available balance.
 
-Возврат уже списанных кредитов в действующий пакет сохраняет его условия. Возврат в истёкший пакет создаёт новый lot с источником refund и исходной кредитной единицей. Стартовая политика компенсаций: expires_at через 30 дней от refund, с сохранённой версией правил. Это компенсация конкретного capture, а не rollover неиспользованного месячного остатка. Длительность относится к предложенным настройкам DECISIONS и закрепляется в условиях начисления до запуска. Сумма не может превышать ещё не возвращённый расход и не начисляется повторно при дубле команды.
+Refunding captured credits to a valid lot preserves its terms. Refunding to an expired lot creates a new lot with source refund and the original credit unit. Initial compensation policy: expires_at 30 days after refund, with the rules version retained. This compensates a specific capture; it is not rollover of an unused monthly remainder. The duration belongs to proposed DECISIONS settings and is fixed in grant terms before launch. The amount cannot exceed spending not yet refunded and is not granted again on a duplicate command.
 
-## Жизненный цикл резерва
+## Reservation lifecycle
 
-Непринятый quote не блокирует кредиты. Принятие создаёт operation и резерв её max_units. Обновление браузера или повтор принятия с тем же ключом возвращает ту же operation.
+An unaccepted quote does not lock credits. Acceptance creates an operation and reserves its max_units. Refreshing the browser or repeating acceptance with the same key returns the same operation.
 
-Каждый параллельный request получает внутреннюю долю неиспользованного резерва, request budget claim. Сумма captures и открытых claims не превышает максимум операции. Без этого несколько workers могли бы независимо потратить один и тот же остаток.
+Each concurrent request receives an internal share of the unused reservation, a request budget claim. Captures plus open claims do not exceed the operation maximum. Without this, multiple workers could independently spend the same remainder.
 
-В резервном пуле claim каждого вызова создаётся при его приёме. Если свободной части резерва не хватает, недостающее добавляется из свободных кредитов тем же резервом операции. При фактическом расходе `estimated_actual` выше claim превышение сначала покрывается свободной частью резерва операции, затем свободными кредитами, затем долгом. У одиночной операции свободной части нет, поэтому её поведение не меняется. См. [резерв на составную работу](QUOTING.md#резерв-на-составную-работу).
+In a reservation pool, each call's claim is created on admission. If the free reservation portion is insufficient, the shortfall is added from free credits to the same operation reservation. When `estimated_actual` spending exceeds the claim, the excess is covered first by the operation's free reservation portion, then free credits, then debt. A single operation has no free portion, so its behavior is unchanged. See [reservation for compound work](QUOTING.md#reservation-for-compound-work).
 
-Для каждой новой попытки проверяются пользовательский claim, доступный бюджет поставщика и отдельный лимит потерь платформы. Техническая повторная попытка, которую нельзя выставить пользователю, всё равно требует бюджета платформы.
+Each new attempt checks the user claim, available provider budget, and a separate platform loss limit. A technical retry that cannot be charged to the user still requires platform budget.
 
-Пользовательский резерв покрывает одну успешную доставку каждой оплачиваемой единицы, включая разрешённый дорогой fallback и отсутствие кеша. Он не умножается на четыре или шестнадцать из-за бесплатных для пользователя неудач. Перед каждой попыткой платформа также резервирует собственный риск дефекта/сбоя. Этот резерв закрывается по финансовой классификации: покрытая клиентским capture подтверждённая часть освобождается, дефект/разрешённая субсидия/бесплатная поздняя выдача относятся на platform-funded cost, неопределённая часть сохраняет exposure. Execution success сам по себе не освобождает риск. Unknown удерживает provider exposure независимо от пользовательского финансового закрытия. Лимиты потерь задаются на запрос, recovery incident и период установки; параллельные workers расходуют их атомарно. Исчерпание любого лимита останавливает новые попытки раньше численного максимума.
+The user reservation covers one successful delivery of each billable unit, including an authorized expensive fallback and no cache. It is not multiplied by four or sixteen because failures are free to the user. Before each attempt, the platform also reserves its own defect/failure risk. This reservation closes by financial classification: the confirmed portion covered by a customer capture is released; defects/authorized subsidy/free late delivery become platform-funded cost; the uncertain portion retains exposure. Execution success alone does not release risk. Unknown retains provider exposure independently of customer financial closure. Loss limits are set per request, recovery incident, and installation period; concurrent workers consume them atomically. Exhausting any limit stops new attempts before the numerical maximum.
 
-После окончательного settlement запроса выполняется capture его chargeable cost и уменьшается соответствующий claim. Неиспользованная часть может остаться в общем резерве операции до завершения остальных запросов. При завершении операции остаток освобождается.
+After final request settlement, its chargeable cost is captured and its claim reduced. The unused portion may remain in the common operation reservation until other requests finish. The remainder is released when the operation completes.
 
-| Шаг | Balance | Reserved | Available |
+| Step | Balance | Reserved | Available |
 |---|---:|---:|---:|
-| Начислено | 1 000 | 0 | 1 000 |
-| Резерв 180 | 1 000 | 180 | 820 |
+| Granted | 1 000 | 0 | 1 000 |
+| Reserve 180 | 1 000 | 180 | 820 |
 | Capture 50 | 950 | 130 | 820 |
 | Capture 70 | 880 | 60 | 820 |
 | Release 60 | 880 | 0 | 880 |
 
-Здесь суммы показаны в кредитах. Все операции в базе используют budget units.
+Amounts here are in credits. All database operations use budget units.
 
-## Usage и кеширование
+## Usage and caching
 
-Usage observation содержит provider connection, attempt, provider event identity, raw payload reference, полученное время, время поставщика при наличии и признак final/cumulative/delta. Повторное событие не увеличивает расход. Накопительный счётчик заменяет предыдущую оценку своей ревизии, а не суммируется с ней.
+A usage observation contains provider connection, attempt, provider event identity, raw payload reference, received time, provider time if available, and a final/cumulative/delta flag. A duplicate event does not increase spending. A cumulative counter replaces the previous estimate for its revision rather than being added to it.
 
-Нормализованный billable item содержит dimension, quantity, unit и условия расчёта. Примеры dimensions: input.uncached, input.cache_read, input.cache_write, output.text, output.image, audio.characters, audio.seconds, tool.search, compute.seconds.
+A normalized billable item contains dimension, quantity, unit, and rating conditions. Example dimensions: input.uncached, input.cache_read, input.cache_write, output.text, output.image, audio.characters, audio.seconds, tool.search, compute.seconds.
 
-Cache write дополнительно содержит TTL. Модальность, service tier, регион и длина контекста являются условиями применения ставок, если они влияют на тариф поставщика.
+Cache write additionally contains TTL. Modality, service tier, region, and context length are rate conditions when they affect provider pricing.
 
-Адаптер обязан определить непересекающиеся оплачиваемые категории. Если reasoning входит в output, он сохраняется для аналитики как breakdown и не добавляется второй раз. Если провайдер включает cached input в общий input, адаптер отделяет его согласно документированной семантике. Общая формула вычитания для всех поставщиков запрещена.
+The adapter must define non-overlapping billable categories. If reasoning is included in output, it is retained as an analytics breakdown and not added again. If a provider includes cached input in total input, the adapter separates it according to documented semantics. A universal subtraction formula for all providers is prohibited.
 
-Отдельно различаются кеш поставщика и возврат сохранённого результата платформы. Повторное получение уже оплаченного результата с тем же request ID не вызывает генерацию и не создаёт capture. Межпользовательский кеш готовых ответов не входит в первую версию.
+Provider caching and returning a saved platform result are distinct. Retrieving an already paid result with the same request ID does not trigger generation or create a capture. Cross-user caching of ready answers is outside the first version.
 
-Usage сохраняется до предметной валидации ответа и до необязательной обработки результата. Ошибка JSON-схемы, загрузки изображения или приложения не должна стирать уже известный расход. Если невозможно записать обязательный аудит до отправки, worker не делает платный вызов.
+Usage is saved before domain validation of the answer and before optional result processing. A JSON-schema, image-download, or application failure must not erase known spending. If mandatory audit cannot be recorded before submission, the worker does not make a paid call.
 
-## Цена и степень подтверждения
+## Price and confirmation level
 
-Cost entry содержит normalized usage, raw source, model, connection, provider rate version, priced_at, currency, exact decimal amount, rounded units и cost state.
+A cost entry contains normalized usage, raw source, model, connection, provider rate version, priced_at, currency, exact decimal amount, rounded units, and cost state.
 
-Состояния: provisional, calculated, reported, reconciled, unknown. Reported означает сумму, возвращённую поставщиком для данного вызова. Reconciled означает подтверждение на доступном уровне сверки; дневной агрегат не превращается в индивидуальный счёт для каждого запроса.
+States: provisional, calculated, reported, reconciled, unknown. Reported means an amount returned by the provider for that call. Reconciled means confirmed at the available reconciliation level; a daily aggregate does not become an individual invoice for each request.
 
-Пустой usage, нулевая величина и неуспешный вызов различаются. Ноль допустим только при подтверждённой нулевой оплачиваемой величине или документированной бесплатности операции.
+Missing usage, zero quantity, and an unsuccessful call are distinct. Zero is valid only for a confirmed zero billable quantity or documented free operation.
 
-Прайс-лист пользователя в принятом quote закрепляет предельно допустимые расчётные ставки операции. Если опубликованная применимая цена снизилась до dispatch, customer rating использует меньшую итоговую сумму на одинаковом usage по принятой и новой версиям. Provider cost отражает последнюю известную применимую ставку поставщика. Обычно эти суммы совпадают. Если поставщик повысил цену после принятия quote, разница учитывается отдельно и не увеличивает согласованный пользовательский максимум. Правила запуска в таком случае определены в QUOTING.
+The user's accepted quote pins the operation's maximum permitted calculated rates. If the published applicable price falls before dispatch, customer rating uses the lower total for identical usage under the accepted and new versions. Provider cost reflects the latest known applicable provider rate. These amounts usually coincide. If the provider raises its price after quote acceptance, the difference is recorded separately and does not increase the agreed user maximum. QUOTING defines dispatch rules in this case.
 
-Купленный lot не замораживает provider rate card навсегда. Он замораживает только величину бюджета. Следующая операция пользователя оценивается по актуальным опубликованным ставкам.
+A purchased lot does not freeze the provider rate card forever. It freezes only its budget amount. The user's next operation is quoted at current published rates.
 
-## Что оплачивает пользователь
+## What the user pays for
 
-Базовая политика actual_usage:
+Baseline actual_usage policy:
 
-| Ситуация | Provider cost | Wallet charge |
+| Situation | Provider cost | Wallet charge |
 |---|---|---|
-| Успешный запрос и доступный результат | Все попытки сохраняются | Chargeable usage успешной доставки |
-| Невалидный SVG, повреждённый файл или нарушение заданной структуры | Расход дефектной попытки сохраняется | Ноль за дефектную попытку; исправления также бесплатны до валидного результата |
-| Технический повтор после ошибки платформы | Все затраты сохраняются | Ошибочная попытка оплачивается платформой |
-| Провайдер выполнил запрос, но результат не удалось выдать по нашей ошибке | Расход сохраняется | Pending не более часа; затем release либо refund, если capture уже был |
-| Пользователь просит новую генерацию | Новый request | Новый расход |
-| Повторное скачивание готового результата | Нет нового AI-вызова | Нет нового списания |
-| Пользователь отменил до отправки | Нет расхода | Release |
-| Пользователь отменил после отправки | Может возникнуть расход | Подтверждённая выполненная работа в пределах принятой политики и максимума |
-| Частично готовый пакет изображений | Расход каждой попытки | Готовые доставленные единицы; остальные разрешаются отдельно |
+| Successful request and available result | All attempts are retained | Chargeable usage of successful delivery |
+| Invalid SVG, corrupt file, or violation of the specified structure | Defective attempt spending is retained | Zero for the defective attempt; repairs are also free until a valid result |
+| Technical retry after a platform failure | All costs are retained | Platform pays for the failed attempt |
+| Provider executed the request, but our failure prevented result delivery | Spending is retained | Pending for at most one hour; then release, or refund if already captured |
+| User requests new generation | New request | New spending |
+| Downloading a ready result again | No new AI call | No new charge |
+| User cancels before submission | No spending | Release |
+| User cancels after submission | Spending may occur | Confirmed work within the accepted policy and maximum |
+| Partially completed image batch | Each attempt's spending | Ready delivered units; others are resolved separately |
 
-Проверка технического контракта результата выполняется платформой до объявления ready. Условия задаются до вызова: JSON schema, возможность декодировать изображение, допустимый SVG и другие зарегистрированные технические проверки. Валидаторы не выполняют произвольный код приложения. Несовместимые параметры и заведомо неверная схема отклоняются до платного вызова. Субъективная оценка качества или неизвестная платформе предметная проверка не делает валидный запрос бесплатным. Доверенное приложение может запросить отдельный audited refund.
+The platform validates the result's technical contract before declaring ready. Conditions are defined before the call: JSON schema, image decodability, permitted SVG, and other registered technical checks. Validators do not execute arbitrary application code. Incompatible parameters and a known invalid schema are rejected before a paid call. Subjective quality judgments or domain validation unknown to the platform do not make a valid request free. A trusted application may request a separate audited refund.
 
-В v1 используется partial_policy=successful_parts: оплачивается каждая валидная доступная единица, даже если следующее действие или другой участник завершились ошибкой. Для четырёх картинок задаются четыре отдельно учитываемые единицы. Если adapter не может достоверно разделить cost общего ответа по успешным и дефектным результатам, пакет разбивается до отправки на одиночные запросы. Пропорциональная выдуманная стоимость запрещена. Правило all_or_nothing отложено.
+v1 uses partial_policy=successful_parts: each valid available unit is charged even if the next action or another participant fails. Four images are four separately accounted units. If an adapter cannot reliably divide a common response's cost between successful and defective results, the batch is split into individual requests before submission. Invented proportional costs are prohibited. The all_or_nothing rule is deferred.
 
-При техническом исправлении SVG оплачивается только валидная финальная попытка; стоимость предшествующих дефектных попыток несёт платформа. Валидный SVG с неподходящей композицией уже является оплачиваемым результатом, а новый вариант является новой работой. Отмена пользователем после dispatch оплачивает подтверждённый расход активной попытки, включая работу до остановки, но не переводит прежние дефектные попытки на клиента.
+For technical SVG repair, only the valid final attempt is charged; the platform bears preceding defective attempts' costs. A valid SVG with an unsuitable composition is already billable, and another variation is new work. User cancellation after dispatch charges confirmed spending of the active attempt, including work before stopping, but does not transfer earlier defective attempts to the customer.
 
-Capture за валидный готовый результат не ждёт acknowledgement приложения: возможность получить содержимое в объявленное окно является доставляемой услугой. Acknowledgement управляет удалением. Если приложение не сохранило доступный результат до expiry, бесплатная повторная генерация не возникает. Ошибка платформы, сделавшая результат недоступным, требует восстановления либо компенсации.
+Capture for a valid ready result does not wait for application acknowledgement: the ability to retrieve content within the announced window is the delivered service. Acknowledgement controls deletion. If the application fails to save an available result before expiry, no free regeneration arises. A platform failure that makes the result unavailable requires recovery or compensation.
 
-Платформа не обещает отсутствие собственных потерь. Они ограничиваются max attempts, бюджетом технических ошибок, защитой от повторных unknown и общим лимитом расходов организации.
+The platform does not promise zero losses of its own. They are bounded by max attempts, technical failure budget, protection against repeated unknown outcomes, and an overall organization spending limit.
 
-## Неизвестный исход
+## Unknown outcome
 
-Сетевой обрыв после возможной отправки создаёт attempt с outcome_unknown. Известные usage observations сохраняются. Отказ до начала работы, который адаптер помечает как неоплачиваемый (`billable: false` для отказа credential, биллинга или rate limit), неопределённости не создаёт: его стоимость равна нулю, и запрос закрывается сразу. Отсутствие подтверждения не разрешает новую генерацию. Worker использует lookup или нативную идемпотентность только при поддержке поставщика.
+A network disconnect after possible submission creates an attempt with outcome_unknown. Known usage observations are retained. A rejection before work starts that the adapter marks nonbillable (`billable: false` for a credential, billing, or rate-limit rejection) creates no uncertainty: its cost is zero and the request closes immediately. Missing confirmation does not authorize new generation. The worker uses lookup or native idempotency only when supported by the provider.
 
-Operation может иметь выполненный пользовательский workflow и одновременно settlement_pending. Финансовый статус не выводится из одного execution status.
+An operation may have a completed user workflow and simultaneously be settlement_pending. Financial status is not inferred from execution status alone.
 
-С первого unresolved_at отсчитывается один час. Повторы lookup, перезапуск worker и новые наблюдения не обнуляют таймер. Правило покрывает как неизвестный chargeable usage, так и известный расход при невозможности выдать результат по нашей ошибке. По истечении часа scheduler создаёт идемпотентное audited resolution: спорная часть резерва освобождается, а ранее ошибочно завершённый capture компенсируется. Подтверждённые успешные части операции сохраняют свои списания. По истёкшему lot release идёт в expired, а компенсация capture следует правилу refund.
+One hour is counted from the first unresolved_at. Repeated lookups, worker restarts, and new observations do not reset the timer. The rule covers both unknown chargeable usage and known spending when our failure prevents result delivery. After one hour, the scheduler creates an idempotent audited resolution: the disputed reservation portion is released, and an earlier incorrectly completed capture is compensated. Confirmed successful operation parts retain their charges. For an expired lot, release goes to expired; capture compensation follows the refund rule.
 
-Закрытые суммы позднее автоматически не списываются, в том числе по отменённой пользователем операции. Возможная себестоимость остаётся в provider exposure и журнале потерь платформы с прежней степенью неопределённости. Закрытие кошелька не является нулевой стоимостью или подтверждением отсутствия счёта. Подключение может быть приостановлено по лимиту неопределённого расхода.
+Closed amounts are not automatically charged later, including for user-cancelled operations. Possible cost remains in provider exposure and the platform loss journal at its previous uncertainty level. Wallet closure does not mean zero cost or confirmation that no invoice exists. A connection may be suspended at its uncertain-spending limit.
 
-Закрытие переводит неопределённую попытку в `abandoned`: она больше не занимает слот лимитера, а её стоимость остаётся неизвестной в exposure. Когда оператор по данным поставщика подтверждает, был ли вызов оплачен, audited resolution закрывает exposure фактической стоимостью или нулём; пользовательское списание остаётся нулевым.
+Closure moves an uncertain attempt to `abandoned`: it no longer occupies a limiter slot, while its cost remains unknown in exposure. When an operator confirms from provider data whether the call was billed, an audited resolution closes exposure with actual cost or zero; the user charge remains zero.
 
-Это осознанная политика обслуживания клиента. Она не доказывает отсутствие счёта поставщика. Порог unresolved exposure и количество неизвестных операций на аккаунт ограничивают повторное получение услуги за счёт подобных сбоев.
+This is a deliberate customer-service policy. It does not prove the absence of a provider invoice. The unresolved exposure threshold and count of unknown operations per account limit repeatedly receiving service through such failures.
 
-Освобождение после timeout не разрешает повторно запустить прежний attempt. Для аудита позднего ответа сохраняются допустимые metadata, usage и hashes без постоянной копии содержимого. Сам результат можно временно выдать без нового списания после финансового закрытия только при отсутствии tombstone и в пределах content policy. Удалённый проект не восстанавливается поздним ответом. Новая работа требует новой operation либо явно разрешённого retry по EXECUTION.
+Timeout release does not authorize restarting the old attempt. Permitted metadata, usage, and hashes are retained for auditing a late response, without a permanent content copy. The result itself may be temporarily delivered without a new charge after financial closure only if no tombstone exists and content policy permits it. A late response does not restore a deleted project. New work requires a new operation or an explicitly authorized retry under EXECUTION.
 
-## Возвраты и отзыв покупки
+## Refunds and purchase revocation
 
-Refund ссылается на capture и ограничен его невозвращённой суммой. Повтор команды с тем же ключом не создаёт вторую компенсацию.
+A refund references a capture and is bounded by its unrefunded amount. Repeating a command with the same key does not create a second compensation.
 
-Денежный возврат покупки требует отзыва доступных кредитов исходного grant. Нельзя просто уменьшить общий баланс произвольного пакета или забрать активный резерв другой операции.
+A monetary purchase refund requires revoking available credits of the original grant. The overall balance of an arbitrary lot cannot simply be reduced, nor can another operation's active reservation be taken.
 
-Для безопасного взаимодействия с платёжным сервисом используется процедура:
+Safe interaction with the payment service uses this procedure:
 
-1. prepare revocation блокирует доступную часть нужного grant и возвращает revocation_id и reconcile_after.
-2. Платёжный сервис выполняет денежный возврат со своей идемпотентностью.
-3. commit revocation переводит блокировку в revoked; cancel возвращает её в available.
-4. reconcile_after запускает сверку/инцидент, но никогда автоматически не освобождает блокировку. После падения платёжного сервиса нельзя отличить не начатый возврат от уже выполненного без сверки. Только подтверждённый commit или cancel завершает hold; cancel после истечения lot направляет сумму в expired. Часовое правило AI-расхода к отзыву покупки не применяется.
+1. prepare revocation holds the available portion of the relevant grant and returns revocation_id and reconcile_after.
+2. The payment service makes the monetary refund with its own idempotency.
+3. commit revocation transfers the hold to revoked; cancel returns it to available.
+4. reconcile_after triggers reconciliation/an incident, but never automatically releases the hold. After a payment-service crash, reconciliation is required to distinguish a refund not started from one already completed. Only confirmed commit or cancel ends the hold; cancel after lot expiry sends the amount to expired. The one-hour AI-spending rule does not apply to purchase revocation.
 
-Если кредитов уже недостаточно, prepare возвращает conflict с доступной суммой. Политику частичного денежного возврата, долга или блокировки аккаунта определяет платёжный сервис. Первая версия AI-кошелька не уходит в отрицательный баланс автоматически.
+If credits are already insufficient, prepare returns conflict with the available amount. The payment service defines partial monetary refund, debt, or account-blocking policy. The first AI-wallet version does not automatically enter a negative balance.
 
-Для исполнения решения платёжного сервиса API предоставляет отдельные spending suspend/resume. Suspend запрещает новые операции и dispatch ещё не отправленных requests, отменяет такие requests с корректным release. Уже отправленные попытки получают cancel при его поддержке и обычный settlement. Resume разрешает новую работу, но не воскрешает отменённые задачи и не снимает блокировку провайдера.
+To enforce the payment service's decision, the API provides separate spending suspend/resume. Suspend prohibits new operations and dispatch of requests not yet submitted, cancelling those requests with proper release. Already submitted attempts receive cancel where supported and normal settlement. Resume permits new work but does not resurrect cancelled jobs or remove a provider block.
 
-## Финансовые инварианты
+## Financial invariants
 
-- Один source event создаёт не более одного финансового эффекта.
-- Начисление, резерв, capture, release и refund сохраняют непрерывную историю.
-- Пользовательский расход не превышает принятый максимум операции.
-- Распределение по lot точно равно сумме проводки.
-- Операция не может тратить один reserve одновременно несколькими claims.
-- Unknown usage не становится нулевым provider cost.
-- Удаление приложения или проекта не удаляет финансовую историю.
-- Корректировка provider invoice не создаёт ретроактивный debit клиента.
-- Технический retry не исчезает из себестоимости при бесплатном для клиента результате.
-- Баланс из API соответствует зафиксированным транзакциям, а не состоянию браузера.
+- One source event creates at most one financial effect.
+- Grant, reserve, capture, release, and refund preserve continuous history.
+- User spending does not exceed the accepted operation maximum.
+- Lot allocation equals the posting amount exactly.
+- An operation cannot spend one reserve simultaneously through multiple claims.
+- Unknown usage does not become zero provider cost.
+- Deleting an application or project does not delete financial history.
+- A provider invoice adjustment does not create a retroactive customer debit.
+- A technical retry does not disappear from cost when the result is free to the customer.
+- The API balance reflects committed transactions, not browser state.
 
-## Расширение платных API
+## Paid API extension
 
-Контракт PA-I01, единицы измерения, периоды, резервы allowance и границы совместимости описаны в [контракте платных API](PAID_API_CONTRACT.md). Статус реализации и стабильные сценарии PA-A01–PA-A25 приведены в [плане](PAID_API_PLAN.md). Проект контракта не подтверждает доступность новых HTTP handlers.
+Contract PA-I01, units, periods, allowance reservations, and compatibility boundaries are described in the [paid API contract](PAID_API_CONTRACT.md). Implementation status and stable PA-A01–PA-A25 scenarios appear in the [plan](PAID_API_PLAN.md). A draft contract does not establish that new HTTP handlers are available.

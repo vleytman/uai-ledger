@@ -1,252 +1,252 @@
-# Реализация и приёмка
+# Implementation and acceptance
 
-[Оглавление](README.md)
+[Contents](README.md)
 
-## Текущий статус
+## Current status
 
-Созданы API, PostgreSQL-миграции, финансовое ядро, workers, scheduler, административный интерфейс, SDK и независимый demo. Локальные доказательства и ограничения перечислены в [матрице приёмки](ACCEPTANCE_RESULTS.md). Реальные прогоны OpenAI, Serper и Cartesia прошли. Anthropic отложен владельцем; reporting требует отдельного credential. Текущая логика Logo Panel не заменена.
+The API, PostgreSQL migrations, financial core, workers, scheduler, admin interface, SDK, and independent demo have been created. Local evidence and limitations appear in the [acceptance matrix](ACCEPTANCE_RESULTS.md). Real OpenAI, Serper, and Cartesia runs passed. The owner deferred Anthropic; reporting requires a separate credential. Current Logo Panel logic has not been replaced.
 
-Версия 0.3 учитывает обсуждение Q1–Q21 из [DECISIONS](DECISIONS.md). Основной сценарий развёртывания: отдельная установка для каждого собственного приложения, включая Logo Panel. Локальное окружение использует отдельные тестовые данные; production deployment не выполнялся.
+Version 0.3 incorporates discussion Q1–Q21 from [DECISIONS](DECISIONS.md). The main deployment scenario is a separate installation for each owner-operated application, including Logo Panel. The local environment uses separate test data; no production deployment has occurred.
 
-Этапы ниже задают объём реализации, а сценарии остаются критериями приёмки. Фактические результаты проверок ведутся отдельно в матрице и отчётах.
+The phases below define implementation scope, and the scenarios remain acceptance criteria. Actual check results are maintained separately in the matrix and reports.
 
-## Ближайший объём и подготовка
+## Immediate scope and preparation
 
-Ближайшая реализация включает этапы 1–5 полностью и этап 6а. Интеграция Logo Panel остаётся отдельным этапом 6б; её отсутствие явно отражается в отчёте. Этап 7 не считается выполненным по результатам локального demo.
+The immediate implementation includes phases 1–5 in full and phase 6a. Logo Panel integration remains separate phase 6b; its absence is explicit in the report. Phase 7 is not considered completed by a local demo.
 
-Перед параллельной работой зафиксировать общие схемы API, денежные типы, состояния, ошибки, события, границы транзакций и контракт provider adapter. Подготовить каркас пакетов, локальный PostgreSQL, миграции, CI, fake provider и управляемые часы для проверки recovery/expiry без реального ожидания.
+Before parallel work, establish common API schemas, monetary types, states, errors, events, transaction boundaries, and the provider-adapter contract. Prepare the package skeleton, local PostgreSQL, migrations, CI, fake provider, and controlled clocks for recovery/expiry checks without real waiting.
 
-В этой же подготовке создать каркас apps/admin и apps/demo на TanStack Start и packages/ui на shadcn/ui. Подготовить визуальное решение для обзора, операции и кошелька по [OPERATIONS](OPERATIONS.md). Макеты могут использовать явно тестовые данные; подключение к API и функциональная приёмка обязательны на последующих этапах.
+During the same preparation, create apps/admin and apps/demo skeletons on TanStack Start and packages/ui on shadcn/ui. Prepare visual designs for the overview, operation, and wallet according to [OPERATIONS](OPERATIONS.md). Mockups may use explicitly test data; API connection and functional acceptance are mandatory in later phases.
 
-При работе субагентами координатор владеет общими контрактами, порядком миграций и интеграцией. Первая волна разделяется на учёт, провайдеров/цены и выполнение. После проверки их контрактов параллельно развиваются оценка/API, эксплуатационные модули и SDK/demo; затем завершаются интерфейсы и сквозная проверка. Каждый модуль имеет свои тесты, общая приёмка проверяет стыки. Готовность заглушки соседнего модуля не считается сквозной проверкой.
+When using subagents, the coordinator owns shared contracts, migration ordering, and integration. The first wave splits into accounting, providers/pricing, and execution. After checking their contracts, quoting/API, operational modules, and SDK/demo proceed in parallel; interfaces and end-to-end verification follow. Each module has its own tests, while overall acceptance verifies interfaces between modules. A neighboring module's ready stub does not count as end-to-end verification.
 
-## Этап 1. Контракты и финансовое ядро
+## Phase 1. Contracts and financial core
 
-Реализовать identity scopes, credit unit registry, account/wallet, immutable lots, journal/postings, reservations, claims, grant/refund/revocation, expiry без rollover, account spending suspend/resume, idempotency и transactional outbox. Создать миграции PostgreSQL и типизированные модели ошибок/денежных величин. Разделить customer reserve, provider exposure и ограниченный бюджет потерь платформы. Учитывать уже истёкшие lots при admission и чтении баланса без зависимости от своевременности scheduler.
+Implement identity scopes, credit unit registry, account/wallet, immutable lots, journal/postings, reservations, claims, grant/refund/revocation, expiry without rollover, account spending suspend/resume, idempotency, and transactional outbox. Create PostgreSQL migrations and typed error/monetary models. Separate customer reserve, provider exposure, and a bounded platform loss budget. Account for already expired lots during admission and balance reads without depending on timely scheduler execution.
 
-Пока использовать fake provider и синтетические цены. Не выполнять реальные запросы ради проверки проводок.
+For now, use a fake provider and synthetic prices. Do not make real requests to verify postings.
 
-Выходной результат: конкурентные операции не дают отрицательный баланс или двойное начисление, история пакетов сохраняется, баланс восстанавливается из журнала. Финансовые API защищены отдельными scopes.
+Deliverable: concurrent operations cannot create negative balances or duplicate grants, lot history is preserved, and balances can be reconstructed from the journal. Financial APIs are protected by separate scopes.
 
-## Этап 2. Каталог, цены и адаптеры
+## Phase 2. Catalog, pricing, and adapters
 
-Реализовать ModelVersion, Connection, RouteVersion, RateCardVersion, нормализованный usage, cost entries и price validation. Первые интеграции должны доказать разные схемы использования, а не только разные model IDs одного API.
+Implement ModelVersion, Connection, RouteVersion, RateCardVersion, normalized usage, cost entries, and price validation. Initial integrations must demonstrate different usage schemes rather than merely different model IDs in one API.
 
-Рекомендуемая последовательность: текстовый OpenAI API, текстовый Anthropic API, изображения OpenAI, затем Cartesia и платные поисковые интеграции Logo Panel. Этот порядок не означает подтверждённую доступность ключей или коммерческих endpoint. Реальные model IDs выбираются по актуальной документации и доступу аккаунта.
+Recommended sequence: text OpenAI API, text Anthropic API, OpenAI images, then Cartesia and Logo Panel's paid search integrations. This order does not confirm key or commercial-endpoint availability. Choose real model IDs according to current documentation and account access.
 
-Каждый adapter поставляется с сохранёнными обезличенными fixtures успешного ответа, кеширования, ошибки, неполного usage, rate limit и неизвестного исхода. Ставки из документации не хардкодятся в worker.
+Each adapter ships with saved anonymized fixtures for successful responses, caching, errors, incomplete usage, rate limits, and unknown outcomes. Documentation rates are not hardcoded in workers.
 
-Выходной результат: одинаковый API приложения принимает разные providers, а расчёт отражает их собственную семантику usage. Неизвестный формат не создаёт нулевую стоимость.
+Deliverable: the same application API accepts different providers, and calculations reflect their own usage semantics. An unknown format does not create zero cost.
 
-## Этап 3. Очередь, workers и результаты
+## Phase 3. Queue, workers, and results
 
-Реализовать durable requests/attempts, leases/fencing, rate-limit groups, dispatcher, provider exposure claims, budget claims, polling native jobs, storage и SSE.
+Implement durable requests/attempts, leases/fencing, rate-limit groups, dispatcher, provider exposure claims, budget claims, native-job polling, storage, and SSE.
 
-Добавить cancellation, reconnect и техническую валидацию до ready. Применять единую принятую политику: четыре попытки по умолчанию, максимум восемь, общий deadline 300 секунд; длинное восстановление выключено по умолчанию. Дефектное содержимое не использует длинное восстановление; unknown запрещает автоматический повтор. Deadline и бюджет могут остановить попытки раньше верхней границы. Сбой worker между отправкой и сохранением ответа проверяется отдельным сценарием.
+Add cancellation, reconnect, and technical validation before ready. Apply the common accepted policy: four attempts by default, maximum eight, overall deadline 300 seconds; extended recovery is disabled by default. Defective content does not use extended recovery; unknown forbids automatic retry. Deadline and budget may stop attempts before the upper limit. A worker failure between dispatch and response persistence has a separate scenario.
 
-Добавить result manifest, acknowledgement после сохранения приложением, короткий TTL, purge queue, project tombstones и защиту от позднего восстановления удалённого контента. Финансовое закрытие неизвестного расхода или невозможности выдачи выполняется через час. Ранние incident events создаются здесь; доставка в операторские каналы добавляется на этапе 5.
+Add a result manifest, acknowledgement after application persistence, short TTL, purge queue, project tombstones, and protection against late recovery of deleted content. Financial closure of unknown cost or delivery failure occurs after one hour. Early incident events are created here; operator-channel delivery is added in phase 5.
 
-Выходной результат: перезапуск не создаёт слепой повтор платного вызова, готовые результаты доступны через GET, нет двойного capture при дублях webhook.
+Deliverable: restarts cannot cause blind retries of paid calls, ready results are available through GET, and duplicate webhooks cannot cause double capture.
 
-## Этап 4. Оценка действий
+## Phase 4. Action quoting
 
-Реализовать ограниченный формат recipe, input schemas, estimate/max, quote expiry, закрепление версий, принятие операции, amend и проверку фактических запросов по component.
+Implement a bounded recipe format, input schemas, estimate/max, quote expiry, version pinning, operation acceptance, amend, and validation of actual requests against components.
 
-Начать с actual_usage и successful_parts. По дополнению 2026-09-19 реализован режим fixed для выбранных компонентов с отдельным provider cost; all_or_nothing выключен. Для demo определить одиночные вызовы и составное действие «описание → изображение». Границы действий Logo Panel по его engine уточняются на этапе 6б. Добавить встроенные single-call recipes и атомарный POST /invocations, не требующий настройки своего recipe. Составные действия сохраняют явные quote/operation/component boundaries.
+Start with actual_usage and successful_parts. The 2026-09-19 supplement implemented fixed mode for selected components with separate provider cost; all_or_nothing is disabled. Define single calls and the composite “description → image” action for the demo. Logo Panel action boundaries based on its engine are refined in phase 6b. Add built-in single-call recipes and atomic POST /invocations without requiring a custom recipe. Composite actions retain explicit quote/operation/component boundaries.
 
-Выходной результат: приложение может получить оценку раунда, пакета изображений и зарегистрированной SVG-операции; итог не превышает согласованный максимум. Неизвестная стоимость возвращает pricing_unavailable.
+Deliverable: the application can obtain quotes for a round, image batch, and registered SVG operation; the total stays within the agreed maximum. Unknown cost returns pricing_unavailable.
 
-## Этап 5. Административный интерфейс, сверка и уведомления
+## Phase 5. Admin interface, reconciliation, and notifications
 
-Завершить оформленный apps/admin на TanStack Start и shadcn/ui, включая визуальную и браузерную приёмку из [OPERATIONS](OPERATIONS.md). Реализовать все страницы и действия, provider snapshots, reconciliation runs, incidents, notification rules и webhook delivery.
+Complete styled apps/admin on TanStack Start and shadcn/ui, including visual and browser acceptance from [OPERATIONS](OPERATIONS.md). Implement all pages and actions, provider snapshots, reconciliation runs, incidents, notification rules, and webhook delivery.
 
-Проверить read-only отчёты поставщиков с доступными правами. Отсутствие endpoint или административных credentials отражается как ограничение конкретного connection, а не скрывается за пустым отчётом.
+Check read-only provider reports with available permissions. A missing endpoint or administrative credential appears as a limitation of the specific connection rather than being hidden behind an empty report.
 
-Выходной результат: оператор может опубликовать новые цены, увидеть их влияние, проверить очередь, раскрыть себестоимость по попыткам, увидеть расхождение и низкий остаток. Уведомления не дублируются при каждом polling cycle.
+Deliverable: an operator can publish new prices, see their effect, inspect the queue, expand provider costs by attempt, and see discrepancies and low balances. Notifications do not duplicate on every polling cycle.
 
-## Этап 6а. SDK и тестовое приложение
+## Phase 6a. SDK and test application
 
-Зафиксировать OpenAPI, выпустить типизированный SDK и реализовать apps/demo на TanStack Start с shadcn/ui. Использовать отдельные клиентские данные и постоянное хранилище, все операции UAI выполнять через SDK. Сначала проверить fake providers, затем согласованные реальные подключения с ограниченным бюджетом.
+Finalize OpenAPI, release a typed SDK, and implement apps/demo on TanStack Start with shadcn/ui. Use separate client data and persistent storage; perform all UAI operations through the SDK. Check fake providers first, then agreed real connections with a limited budget.
 
-Минимальный интерфейс:
+Minimum interface:
 
-- Потоковый чат, генерация изображения и выбор опубликованного профиля модели.
-- Составное действие «подготовить описание → сгенерировать изображение» для проверки общего максимума и successful_parts.
-- Оценка и максимальный расход до запуска; карточка каждого шага со статусом, списанием и остатком после завершения.
-- Постоянный блок available/reserved и история расходов. Остаток берётся из UAI; события инициируют обновление с учётом ревизии кошелька, браузер не вычисляет авторитетный баланс самостоятельно.
-- Отдельно бюджет действия и известные лимиты провайдера с источником/свежестью. Неизвестные лимиты обозначены явно; количество оставшихся генераций не выводится как точное обещание.
-- Раскрываемые подробности: модель, attempts, usage/кеш, provider cost, customer charge, platform-funded cost и причина ожидания. Доступ ограничен тестовым аккаунтом и его правами.
-- Простая форма «Количество кредитов → Начислить себе» через настоящий grant. Ограничения backend, идемпотентность и отключение вне тестового окружения заданы в [ARCHITECTURE](ARCHITECTURE.md).
-- Отмена, reconnect, история диалогов и восстановление результата после перезагрузки без новой генерации. Сохранение перед acknowledgement и удаление содержимого проверяются через SDK.
+- Streaming chat, image generation, and published model-profile selection.
+- Composite “prepare description → generate image” action to verify the shared maximum and successful_parts.
+- Estimate and maximum spending before launch; a card per step showing status, charge, and remaining balance after completion.
+- Persistent available/reserved block and spending history. The balance comes from UAI; events trigger refresh considering wallet revision, and the browser does not compute authoritative balances itself.
+- Action budget separately from known provider limits with source/freshness. Unknown limits are explicit; remaining generation count is not presented as an exact promise.
+- Expandable details: model, attempts, usage/cache, provider cost, customer charge, platform-funded cost, and waiting reason. Access is limited to the test account and its permissions.
+- Simple “Number of credits → Grant to myself” form using a real grant. Backend limits, idempotency, and disabling outside test environments are specified in [ARCHITECTURE](ARCHITECTURE.md).
+- Cancellation, reconnect, conversation history, and result recovery after reload without new generation. Persistence before acknowledgement and content deletion are checked through the SDK.
 
-Выходной результат: независимый клиент выполняет текстовые и графические запросы, показывает изменения бюджета на каждом шаге и сохраняет результаты после удаления временных копий UAI. Начисления видны в журнале и админке. Проверка demo не заменяет тестирование Cartesia, поиска и других адаптеров этапа 2.
+Deliverable: an independent client performs text and image requests, shows budget changes at each step, and retains results after UAI's temporary copies are deleted. Grants appear in the journal and admin. Demo verification does not replace testing Cartesia, search, and other phase-2 adapters.
 
-## Этап 6б. Интеграция Logo Panel, последующий объём
+## Phase 6b. Logo Panel integration, later scope
 
-Интегрировать Logo Panel через удалённые адаптеры после этапа 6а. Сначала использовать отдельные данные и fake providers, затем согласованные реальные проверки.
+Integrate Logo Panel through remote adapters after phase 6a. Use separate data and fake providers first, then agreed real checks.
 
-Выходной результат: продуктовые сценарии Logo Panel работают с новой платформой, сохраняя историю, поток ответов, управление участниками, изображения и озвучку. Приложение сохраняет результаты в собственное хранилище, затем подтверждает передачу и при удалении проекта вызывает content deletion. Приложение не хранит provider credentials для управляемого API-режима. Второй fake client подключается к отдельной установке без изменений ядра.
+Deliverable: Logo Panel product scenarios run through the new platform while preserving history, response streaming, participant management, images, and speech. The application saves results in its own storage, then acknowledges transfer and calls content deletion when deleting a project. The application stores no provider credentials for managed API mode. A second fake client connects to a separate installation without core changes.
 
-## Этап 7. Готовность к рабочей эксплуатации
+## Phase 7. Operational readiness
 
-Проверить восстановление базы и файлов, isolation, токены интеграций, отсутствие секретов в выдаче и резервирование бюджета в нескольких workers. Зафиксировать короткий content TTL, сроки минимального финансового архива/backup, RPO/RTO, реальные price cards, ответственных за incident handling и операторские лимиты риска. Проверить отдельные ключи и консервативное распределение общей provider quota между установками. До открытия API после restore применить tombstones и expiry.
+Verify database/file recovery, isolation, integration tokens, absence of secrets in output, and budget reservations across multiple workers. Establish short content TTL, minimum financial archive/backup retention, RPO/RTO, real price cards, incident-handling owners, and operator risk limits. Check separate keys and conservative allocation of shared provider quota across installations. Apply tombstones and expiry before reopening the API after restore.
 
-Платёжный сервис остаётся отдельной интеграцией. Его отсутствие не мешает проверять платформу с административными начислениями, но такой режим не объявляется запущенной коммерческой подпиской.
+The payment service remains a separate integration. Its absence does not prevent platform checks using administrative grants, but this mode is not declared a launched commercial subscription.
 
-## Миграция Logo Panel
+## Logo Panel migration
 
-Пути к исходникам в этом разделе относятся к отдельному проекту Logo Panel. Его код не включён в UAI; эти ссылки на структуру сохранены как контекст миграции, а не как файлы данного репозитория.
+Source paths in this section refer to the separate Logo Panel project. Its code is not included in UAI; these structural references are retained as migration context rather than files in this repository.
 
-Точки интеграции подтверждены по текущему исходному коду. Старые README и IMPLEMENTATION могут описывать более ранние детали выполнения, поэтому реализация должна повторно проверять source и rendered behavior.
+Integration points were confirmed against current source code. Old README and IMPLEMENTATION files may describe earlier execution details, so implementation must recheck source and rendered behavior.
 
-| Текущее место | Действие миграции |
+| Current location | Migration action |
 |---|---|
-| `server/providers/contracts.ts` | Создать remote implementations; использовать asset IDs при передаче, сохранять результат локально перед acknowledgement |
-| `server/providers/codex.ts` и `server/providers/codex-stream.ts` | Сохранить явно отдельный local subscription режим; добавить управляемый API-режим |
-| `server/providers/images.ts` | Перенести сетевой вызов и usage capture в adapter платформы; price calculation в Pricing |
-| `server/providers/search.ts` и `server/providers/serper.ts` | Перенести платные вызовы и учёт, сохранить фильтры и представление результатов приложения |
-| `server/speech.ts` | Отделить provider synthesis от владения воспроизведением и последовательности реплик |
-| `server/engine.ts` | Оставить orchestration, prompts, role state и продуктовую проверку; заменить provider job execution |
-| `server/applications.ts` | Отправлять generation через общие operations, сохраняя версии примеров использования |
-| `server/store.ts` | Хранить ссылки на внешние операции; убрать ответственность за авторитетный кредитный баланс |
-| `server/app.ts` и `shared/types.ts` | Убрать жёстко заданные provider literals из управляемого режима, добавить profiles и quote flow |
-| `server/index.ts` | Подключить SDK/remote adapters через конфигурацию сервера |
+| `server/providers/contracts.ts` | Create remote implementations; transfer asset IDs and save results locally before acknowledgement |
+| `server/providers/codex.ts` and `server/providers/codex-stream.ts` | Preserve an explicitly separate local subscription mode; add managed API mode |
+| `server/providers/images.ts` | Move network calls and usage capture to the platform adapter; price calculation to Pricing |
+| `server/providers/search.ts` and `server/providers/serper.ts` | Move paid calls and accounting; retain application filters and result presentation |
+| `server/speech.ts` | Separate provider synthesis from playback ownership and speech sequencing |
+| `server/engine.ts` | Retain orchestration, prompts, role state, and product validation; replace provider job execution |
+| `server/applications.ts` | Send generation through common operations, preserving use-case versions |
+| `server/store.ts` | Store references to external operations; remove responsibility for the authoritative credit balance |
+| `server/app.ts` and `shared/types.ts` | Remove hardcoded provider literals from managed mode; add profiles and quote flow |
+| `server/index.ts` | Connect SDK/remote adapters through server configuration |
 
-Порядок переключения:
+Switching sequence:
 
-1. Зафиксировать исходное поведение продукта и резервную копию локальных данных.
-2. Добавить remote adapters за явным режимом конфигурации. Один вызов обслуживается только одним backend.
-3. Выполнить shadow calculation на уже полученном usage. Shadow означает сравнение расчётов, а не дублирование платных запросов.
-4. Проверить отдельный тестовый проект через новую платформу.
-5. Переключить новые операции на платформу. Старые операции сохраняют своего владельца до завершения.
-6. Убрать provider credentials из приложения для управляемого режима.
+1. Record baseline product behavior and back up local data.
+2. Add remote adapters behind an explicit configuration mode. Only one backend handles each call.
+3. Perform shadow calculation on already received usage. Shadow means comparing calculations, not duplicating paid requests.
+4. Check a separate test project through the new platform.
+5. Switch new operations to the platform. Existing operations retain their owner until completion.
+6. Remove provider credentials from the application for managed mode.
 
-Исторические jobs можно импортировать для аналитики с source=legacy и прежней точностью. Они не превращаются в новые wallet captures. Нельзя автоматически списать кредиты за старую работу или представить расчётные суммы как подтверждённые счета.
+Historical jobs may be imported for analytics with source=legacy and their original precision. They do not become new wallet captures. Do not automatically charge credits for old work or present calculated amounts as confirmed invoices.
 
-В нынешнем Store удаление проекта удаляет jobs. После миграции финансовые записи находятся в платформе и не каскадно удаляются вместе с проектом. Контент и файлы проекта по-прежнему удаляются согласно продуктовой функции удаления.
+In the current Store, deleting a project deletes its jobs. After migration, financial records reside in the platform and do not cascade-delete with the project. Project content and files still follow the product's deletion functionality.
 
-Codex subscription usage остаётся отдельной категорией, если этот режим сохраняется. Он не получает фиктивную стоимость API и не тратит управляемые купленные кредиты автоматически. Переход на платный text API является явным режимом пользователя/администратора.
+Codex subscription usage remains a separate category if that mode is retained. It receives no fictitious API cost and does not automatically spend managed purchased credits. Switching to paid text API is an explicit user/admin mode.
 
-## Матрица приёмки
+## Acceptance matrix
 
-| ID | Сценарий | Обязательный результат | Требования |
+| ID | Scenario | Required result | Requirements |
 |---|---|---|---|
-| A01 | Два одинаковых события покупки | Один lot и одно начисление | R09, R12 |
-| A02 | Один external reference с разной суммой | Conflict, без второго эффекта | R09 |
-| A03 | Две операции резервируют весь один остаток одновременно | Проходит только допустимая сумма | R10 |
-| A04 | Несколько requests используют один reserve | Сумма claims и captures не превышает max | R06, R10 |
-| A05 | Изменена цена новых пакетов | Бюджет старых lots не меняется | R12 |
-| A06 | Попытка изменить credit unit после начисления | Запрет изменения | R12 |
-| A07 | Пакет истёк во время активного резерва | Завершение допустимо; освобождённый остаток истекает | R09, R10 |
-| A08 | Refund уже истёкшего пакета | Связанный refund lot на срок компенсации, стартовая настройка 30 дней; исходный месячный остаток не продлён | R09, R12 |
-| A09 | Повторный refund | Нет превышения исходного capture | R09 |
-| A10 | Отзыв покупки одновременно с запросом | Кредиты либо заблокированы отзывом, либо зарезервированы, без двойного использования | R09, R11 |
-| A11 | Денежный возврат имеет неизвестный исход | Revocation не освобождается слепо по таймеру | R11 |
-| A12 | Суммы около границы округления | Точное сохранение units и равенство распределения | R02, R09 |
-| A13 | OpenAI-подобный inclusive cache usage и Anthropic-подобный exclusive usage | Корректные независимые формулы | R02 |
-| A14 | Cache write разных TTL и cache read | Применены соответствующие rates | R02, R05 |
-| A15 | Reasoning включён в output | Нет двойного начисления | R02 |
-| A16 | Дубли и накопительные usage events | Расход не суммируется повторно | R02 |
-| A17 | Не хватает usage или ставки | Unknown/pricing_unavailable, без вымышленного нуля | R02, R05 |
-| A18 | Ошибка схемы или сохранения файла после успешной генерации | Provider cost сохранён независимо | R02 |
-| A19 | Цена изменилась после quote | Принятый максимум защищён; новые запросы паузятся при необходимости | R05, R06 |
-| A20 | Неожиданно длинный контекст или лишний проход | Отказ/amend, без незаметного превышения | R06 |
-| A21 | Из четырёх изображений готовы три | Результаты и финансовый статус каждой единицы сохранены | R06, R09 |
-| A22 | Генерация SVG требует исправлений | Не превышен лимит проверок и затрат рецепта | R06 |
-| A23 | Временный 429 с Retry-After | Задание ждёт, worker slot свободен | R07, R08 |
-| A24 | 429 из-за billing quota | Connection блокируется, нет бесконечного retry | R04, R08 |
-| A25 | Две модели разделяют provider quota | Общий limiter учитывает обе | R08 |
-| A26 | Несколько ключей одного аккаунта | Нет искусственного умножения capacity | R08 |
-| A27 | Допустимый failover без кеша | Результат в границах capabilities и бюджета | R06, R08 |
-| A28 | Fallback не поддерживает image input/schema | Он не выбирается | R01, R08 |
-| A29 | Таймаут после возможной отправки | Outcome_unknown, без автоматической второй генерации | R02, R08 |
-| A30 | Worker упал после отправки | Lookup той же job или unknown | R07 |
-| A31 | Истёк lease, старый worker вернулся | Нет второго commit/capture | R07, R09 |
-| A32 | Пользователь переподключил SSE | Snapshot/result доступны, генерация не повторяется | R01, R02 |
-| A33 | Отмена до и после отправки | Разные корректные settlement сценарии | R09, R10 |
-| A34 | Unknown не разрешился за один час | Спорный резерв закрыт без позднего debit; exposure сохранён, release истёкшего lot направлен в expired | R02, R10 |
-| A35 | Поздний результат после финансового закрытия | Нет нового автоматического debit | R09 |
-| A36 | Provider report задерживается или имеет другую scope | Incomplete/discrepancy, без ложной точности | R03 |
-| A37 | В provider account есть внешний расход | Unattributed cost, без распределения по клиентам | R03 |
-| A38 | API баланса не поддерживается | UI отличает manual budget от provider balance | R03 |
-| A39 | Низкий остаток держится несколько polling cycles | Один incident, ограниченные повторы уведомления | R04 |
-| A40 | Provider восстановился | Recovery event, корректное открытие маршрута | R04, R08 |
-| A41 | Два администратора редактируют прайс | Revision conflict, без потери изменений | R05 |
-| A42 | Ключ приложения пытается начислить кредиты/читать чужой request | Access denied, без утечки данных | R01, R09 |
-| A43 | Удалён проект | Контент удалён, минимальный финансовый журнал сохранён | R02, R09 |
-| A44 | Восстановление из backup и повтор outbox | Баланс совпадает; события не создают двойных эффектов | R02, R09 |
-| A45 | Новое приложение использует другие рецепты | Подключение без изменения кода ядра | R01 |
-| A46 | Розничные скидки и бонусные пакеты | Не меняется себестоимость единицы; маржа считается снаружи | R11, R12 |
-| A47 | Complete конкурирует с созданием request | Запрос либо атомарно принят до закрытия, либо отклонён; освобождённый резерв не используется | R07, R10 |
-| A48 | Revocation подготовлен, но ещё не подтверждён | Сумма видна в reserved и недоступна AI-операциям | R09, R11 |
-| A49 | Модель подешевела после принятия quote, до dispatch | Меньшая применимая сумма передаёт экономию пользователю | R05, R12 |
-| A50 | Невалидный SVG/JSON или повреждённое изображение, затем валидный ответ | Дефектные attempts оплачивает платформа; пользователь оплачивает только валидную попытку | R02, R06, R09 |
-| A51 | Валидный результат не понравился пользователю | Capture сохраняется; новый вариант требует нового разрешённого расхода | R06, R09 |
-| A52 | Финальная часть обсуждения не получилась | Успешные предыдущие части оплачены согласно successful_parts | R06, R09 |
-| A53 | Ошибки модели исчерпали принятый max_attempts | Request failed; нет скрытых дополнительных циклов или отключения модели из-за одного input | R02, R08 |
-| A54 | Подтверждённая временная недоступность | Повтор ограничен общим max_attempts, deadline, backoff и явно заданными recovery delays | R07, R08 |
-| A55 | Сто задач одновременно ждут неисправный маршрут | Квоты и лимиты ограничивают отправки; каждый request сохраняет собственный общий предел попыток | R07, R08 |
-| A56 | Worker потерял lease или отменён во время повтора | Fence запрещает устаревшую запись; неизвестный исход не разрешает новую отправку | R07, R08 |
-| A57 | Исчерпан общий предел попыток | Request завершается с release; независимые запросы не блокируются из-за исчерпания одного запроса | R04, R08, R10 |
-| A58 | Неплатный health endpoint успешен после hard lock | Платные вызовы не возобновляются без ручного enable | R04, R08 |
-| A59 | Успех достигнут только на fallback | История хранит фактическую модель; успех fallback не меняет primary будущих запросов | R07, R08 |
-| A60 | Перезапуск или новый incident во время повторов | Суммарно не больше принятого max_attempts и абсолютного предела 8; счётчики не обнуляются | R07, R08 |
-| A61 | Короткий deadline либо недостаточный бюджет потерь | Восстановление завершается раньше максимума; резерв клиента не умножается на retries | R06, R08, R10 |
-| A62 | Повторы ниже статистического порога массовой аварии | Конечный retry и failover не создают дополнительные скрытые recovery-циклы | R04 |
-| A63 | Стоимость известна, результат не удаётся выдать по нашей ошибке | Через час release либо refund; известный provider cost сохранён | R02, R09, R10 |
-| A64 | Lookup/worker restart около часового срока | unresolved_at не сдвигается; финансовое закрытие идемпотентно | R02, R09, R10 |
-| A65 | Месячный пакет истёк, scheduler задержался | Баланс и reserve сразу исключают истёкшую доступную сумму; новый период не переносит остаток | R09, R12 |
-| A66 | Приложение сохранило весь результат и подтвердило manifest | Контент больше недоступен; purge завершается; сумма и metadata остаются | R01, R02 |
-| A67 | Подтверждение не пришло до content expiry | Содержимое удалено; доступный ранее валидный результат остаётся оплачиваемым; новой генерации нет | R01, R09 |
-| A68 | Повторный acknowledgement или другая версия результата | Повтор безопасен; несовпадение возвращает conflict и не удаляет другую версию | R01 |
-| A69 | Проект удалён во время native job, позднего webhook или restore | Tombstone предотвращает восстановление содержимого; финансовый settlement продолжается | R01, R02, R09 |
-| A70 | Outbox/idempotency replay после удаления контента | Не возвращает старые prompts/results; сохраняет resource ID и текущий delivery status | R01, R02 |
-| A71 | Single-call invocation повторён или упал SDK | Один reserve, operation и request; нет резерва без принятой работы | R01, R06, R10 |
-| A72 | Встроенная оценка выше client max_credits | Budget conflict до dispatch; нет списания и provider cost | R06, R10 |
-| A73 | SDK не смог сохранить результат | Нет acknowledgement; доступно восстановление до expiry без повторной генерации | R01 |
-| A74 | Refund покупки prepared; истёк reconcile_after | Создан инцидент, hold не освобождён без commit/cancel | R09, R11 |
-| A75 | Платёжный сервис suspend во время работы | Нет нового admission/dispatch; неотправленные отменены, активные учитываются; resume не воскрешает задачи | R09, R11 |
-| A76 | Завышен калькулятор либо получена поздняя скидка | Ошибка калькулятора компенсируется один раз; скидка не переписывает закрытые captures | R02, R03, R05, R09 |
-| A77 | Requote_required и пользователь выбрал finish-partial | Неотправленные requests отменены; готовое сохранено до TTL; активные проходят settlement | R06, R07, R10 |
-| A78 | Две отдельные установки используют один provider account | Разные ключи и локальные бюджеты; общий snapshot не выдан за локальный баланс, квота не умножена | R01, R03, R08 |
-| A79 | Из общего image batch невозможно выделить cost повреждённого результата | До отправки выбран режим одиночных единиц; нет произвольного пропорционального списания | R02, R06, R09 |
-| A80 | Новая задача принята при ограниченной доступности маршрута | Начальное ожидание и общий неизменный deadline ограничивают очередь; quota wait не создаёт отправку | R07, R08 |
-| A81 | Дефект пришёл на последней разрешённой попытке | Новая отправка запрещена общим пределом; история и стоимость сохраняются | R02, R08 |
-| A82 | Execution succeeded, но usage неизвестен или есть субсидия | Риск платформы закрывается по settlement; непокрытая/неизвестная часть не освобождена преждевременно | R02, R10 |
-| A83 | Output asset передан как input следующего request | Отказ до dispatch; после отдельной загрузки новый input независим от acknowledgement старого результата | R01 |
-| A84 | Админка и demo собраны на выбранном стеке | TanStack Start и shadcn/ui, общая тема; интерфейсы обращаются через API/SDK без прямой записи в БД UAI | R01 |
-| A85 | Оформление на desktop и узком экране | Навигация, таблицы, длинные значения, загрузка, пустые/ошибочные состояния и клавиатурный доступ проверены по OPERATIONS | R01, R05 |
-| A86 | Пользователь дважды отправил одно тестовое начисление | Один grant/lot, журнал и остаток обновлены; сумма, область, reason и expiry проверены backend | R09 |
-| A87 | Тестовое начисление вызвано вне тестового окружения или без прав | Отказ на сервере, нет изменения кошелька; привилегированный токен отсутствует в браузере | R01, R09 |
-| A88 | Чат и изображение проходят через demo | Оценка, максимум, резерв, списание и остаток отражают API; предварительные значения и неизвестные лимиты явно обозначены | R02, R06, R10 |
-| A89 | Описание готово, генерация изображения не удалась | successful_parts, общий максимум соблюдён, готовый текст сохранён; стоимость дефектных attempts остаётся платформе | R02, R06, R09 |
-| A90 | Demo перезагружен после сохранения результата или потерял SSE | Ожидание продолжается по прежним IDs; acknowledge только после сохранения, нет новой генерации или списания | R01, R09 |
-| A91 | Диалог demo удалён после передачи результата | Клиентский контент удалён, удаление временного контента UAI запрошено; минимальный финансовый журнал сохранён | R01, R02 |
+| A01 | Two identical purchase events | One lot and one grant | R09, R12 |
+| A02 | One external reference with different amounts | Conflict, no second effect | R09 |
+| A03 | Two operations simultaneously reserve the same entire balance | Only a permissible amount succeeds | R10 |
+| A04 | Several requests use one reserve | Claims and captures total no more than max | R06, R10 |
+| A05 | New-package price changes | Existing lots' budgets remain unchanged | R12 |
+| A06 | Attempt to change the credit unit after a grant | Change forbidden | R12 |
+| A07 | A package expires during an active reservation | Completion remains allowed; released remainder expires | R09, R10 |
+| A08 | Refund of an already expired package | Linked refund lot for the compensation term, initially 30 days; original monthly remainder is not extended | R09, R12 |
+| A09 | Repeated refund | No amount above the original capture | R09 |
+| A10 | Purchase revocation races with a request | Credits are either blocked by revocation or reserved, without double use | R09, R11 |
+| A11 | Monetary refund has an unknown outcome | Revocation is not blindly released by timer | R11 |
+| A12 | Amounts near a rounding boundary | Exact units preserved and allocations equal | R02, R09 |
+| A13 | OpenAI-style inclusive cache usage and Anthropic-style exclusive usage | Correct independent formulas | R02 |
+| A14 | Cache writes with different TTLs and cache reads | Corresponding rates applied | R02, R05 |
+| A15 | Reasoning included in output | No duplicate charge | R02 |
+| A16 | Duplicate and cumulative usage events | Consumption not summed again | R02 |
+| A17 | Missing usage or rate | Unknown/pricing_unavailable, without invented zero | R02, R05 |
+| A18 | Schema or file-persistence error after successful generation | Provider cost preserved independently | R02 |
+| A19 | Price changes after quote | Accepted maximum protected; new requests pause if necessary | R05, R06 |
+| A20 | Unexpectedly long context or extra pass | Refusal/amend, no silent overrun | R06 |
+| A21 | Three of four images ready | Results and financial status of each unit preserved | R06, R09 |
+| A22 | SVG generation requires corrections | Recipe validation and cost limits not exceeded | R06 |
+| A23 | Transient 429 with Retry-After | Job waits, worker slot free | R07, R08 |
+| A24 | 429 due to billing quota | Connection blocked, no endless retry | R04, R08 |
+| A25 | Two models share provider quota | Shared limiter accounts for both | R08 |
+| A26 | Several keys on one account | No artificial capacity multiplication | R08 |
+| A27 | Permitted failover without cache | Result within capabilities and budget | R06, R08 |
+| A28 | Fallback lacks image input/schema support | It is not selected | R01, R08 |
+| A29 | Timeout after possible dispatch | Outcome_unknown, no automatic second generation | R02, R08 |
+| A30 | Worker dies after dispatch | Lookup of the same job or unknown | R07 |
+| A31 | Lease expires and old worker returns | No second commit/capture | R07, R09 |
+| A32 | User reconnects SSE | Snapshot/result available, generation not repeated | R01, R02 |
+| A33 | Cancellation before and after dispatch | Distinct correct settlement scenarios | R09, R10 |
+| A34 | Unknown remains unresolved for one hour | Disputed reservation closes without late debit; exposure preserved, release from an expired lot goes to expired | R02, R10 |
+| A35 | Late result after financial closure | No new automatic debit | R09 |
+| A36 | Provider report delayed or uses another scope | Incomplete/discrepancy, no false precision | R03 |
+| A37 | Provider account includes external spending | Unattributed cost, no customer allocation | R03 |
+| A38 | Balance API unsupported | UI distinguishes manual budget from provider balance | R03 |
+| A39 | Low balance persists for several polling cycles | One incident, bounded notification retries | R04 |
+| A40 | Provider recovers | Recovery event, correct route reopening | R04, R08 |
+| A41 | Two administrators edit pricing | Revision conflict, no lost changes | R05 |
+| A42 | Application key attempts to grant credits/read another account's request | Access denied, no data leak | R01, R09 |
+| A43 | Project deleted | Content deleted, minimum financial journal preserved | R02, R09 |
+| A44 | Backup restore and outbox replay | Balance matches; events cause no duplicate effects | R02, R09 |
+| A45 | New application uses different recipes | Connects without core-code changes | R01 |
+| A46 | Retail discounts and bonus packages | Unit provider cost unchanged; margin calculated externally | R11, R12 |
+| A47 | Complete races with request creation | Request either atomically accepted before closure or rejected; released reservation not reused | R07, R10 |
+| A48 | Revocation prepared but not yet confirmed | Amount visible in reserved and unavailable to AI operations | R09, R11 |
+| A49 | Model becomes cheaper after quote acceptance but before dispatch | Lower applicable amount passes savings to the user | R05, R12 |
+| A50 | Invalid SVG/JSON or corrupt image, then a valid response | Platform pays for defective attempts; user pays only for the valid attempt | R02, R06, R09 |
+| A51 | User dislikes a valid result | Capture retained; a new variant needs new authorized spending | R06, R09 |
+| A52 | Final discussion part fails | Successful preceding parts charged under successful_parts | R06, R09 |
+| A53 | Model errors exhaust accepted max_attempts | Request failed; no hidden extra cycles or model disablement for one input | R02, R08 |
+| A54 | Confirmed temporary unavailability | Retry bounded by overall max_attempts, deadline, backoff, and explicit recovery delays | R07, R08 |
+| A55 | One hundred jobs wait simultaneously for a broken route | Quotas and limits bound dispatches; each request retains its own overall attempt limit | R07, R08 |
+| A56 | Worker loses lease or is canceled during retry | Fence forbids stale writes; unknown outcome does not authorize new dispatch | R07, R08 |
+| A57 | Overall attempt limit exhausted | Request ends with release; unrelated requests are not blocked by one request's exhaustion | R04, R08, R10 |
+| A58 | Free health endpoint succeeds after hard lock | Paid calls do not resume without manual enable | R04, R08 |
+| A59 | Success only on fallback | History stores actual model; fallback success does not change primary for future requests | R07, R08 |
+| A60 | Restart or new incident during retries | Total no greater than accepted max_attempts and absolute limit 8; counters do not reset | R07, R08 |
+| A61 | Short deadline or insufficient loss budget | Recovery ends before maximum; customer reservation is not multiplied by retries | R06, R08, R10 |
+| A62 | Retries below the widespread-incident statistical threshold | Finite retry and failover create no hidden extra recovery cycles | R04 |
+| A63 | Cost known, result cannot be delivered due to our error | Release or refund after one hour; known provider cost preserved | R02, R09, R10 |
+| A64 | Lookup/worker restart near the one-hour deadline | unresolved_at does not move; financial closure idempotent | R02, R09, R10 |
+| A65 | Monthly package expires, scheduler delayed | Balance and reserve immediately exclude expired available funds; new period carries no remainder | R09, R12 |
+| A66 | Application saves the entire result and acknowledges manifest | Content no longer available; purge completes; amount and metadata remain | R01, R02 |
+| A67 | No acknowledgement before content expiry | Content deleted; previously available valid result remains billable; no new generation | R01, R09 |
+| A68 | Repeated acknowledgement or different result version | Repeat safe; mismatch returns conflict and does not delete another version | R01 |
+| A69 | Project deleted during native job, late webhook, or restore | Tombstone prevents content restoration; financial settlement continues | R01, R02, R09 |
+| A70 | Outbox/idempotency replay after content deletion | Does not return old prompts/results; preserves resource ID and current delivery status | R01, R02 |
+| A71 | Single-call invocation repeated or SDK crashes | One reserve, operation, and request; no reservation without accepted work | R01, R06, R10 |
+| A72 | Built-in estimate above client max_credits | Budget conflict before dispatch; no charge or provider cost | R06, R10 |
+| A73 | SDK cannot persist result | No acknowledgement; recovery available until expiry without repeat generation | R01 |
+| A74 | Purchase refund prepared; reconcile_after elapsed | Incident created, hold not released without commit/cancel | R09, R11 |
+| A75 | Payment-service suspend during execution | No new admission/dispatch; unsent work canceled, active work accounted for; resume does not revive jobs | R09, R11 |
+| A76 | Calculator overestimates or late discount received | Calculator error compensated once; discount does not rewrite closed captures | R02, R03, R05, R09 |
+| A77 | Requote_required and user chooses finish-partial | Unsent requests canceled; completed results preserved until TTL; active work settles | R06, R07, R10 |
+| A78 | Two separate installations use one provider account | Separate keys and local budgets; shared snapshot not presented as local balance, quota not multiplied | R01, R03, R08 |
+| A79 | Corrupt result's cost cannot be isolated from a shared image batch | Single-unit mode selected before dispatch; no arbitrary proportional charge | R02, R06, R09 |
+| A80 | New job accepted while route availability is limited | Initial waiting and overall immutable deadline bound queueing; quota wait creates no dispatch | R07, R08 |
+| A81 | Defect on the last permitted attempt | Overall limit forbids a new dispatch; history and cost preserved | R02, R08 |
+| A82 | Execution succeeded but usage unknown or subsidy present | Platform risk closes through settlement; uncovered/unknown portion not released prematurely | R02, R10 |
+| A83 | Output asset passed as next request's input | Rejected before dispatch; after separate upload, new input independent of old-result acknowledgement | R01 |
+| A84 | Admin and demo built on selected stack | TanStack Start and shadcn/ui, shared theme; interfaces use API/SDK without direct UAI database writes | R01 |
+| A85 | Desktop and narrow-screen presentation | Navigation, tables, long values, loading, empty/error states, and keyboard access checked against OPERATIONS | R01, R05 |
+| A86 | User submits the same test grant twice | One grant/lot, journal and balance refreshed; backend validates amount, scope, reason, and expiry | R09 |
+| A87 | Test grant called outside test environment or without permission | Server refusal, wallet unchanged; privileged token absent from browser | R01, R09 |
+| A88 | Chat and image pass through demo | Estimate, maximum, reserve, charge, and balance reflect API; preliminary values and unknown limits explicit | R02, R06, R10 |
+| A89 | Description ready, image generation fails | successful_parts, overall maximum respected, completed text saved; platform retains cost of defective attempts | R02, R06, R09 |
+| A90 | Demo reloads after result persistence or loses SSE | Waiting continues using existing IDs; acknowledge only after persistence, no new generation or charge | R01, R09 |
+| A91 | Demo conversation deleted after result transfer | Client content deleted, UAI temporary-content deletion requested; minimum financial journal preserved | R01, R02 |
 
-## Стратегия проверки
+## Verification strategy
 
-Денежное ядро проверяется на инварианты и конкурентность на настоящем PostgreSQL. Fixtures провайдеров проверяют нормализацию и расчёт без платных вызовов. Fault injection проверяет границы durable write, external dispatch, result persistence и capture.
+The monetary core is tested for invariants and concurrency on real PostgreSQL. Provider fixtures verify normalization and calculations without paid calls. Fault injection checks durable-write, external-dispatch, result-persistence, and capture boundaries.
 
-Contract tests проверяют адаптеры, OpenAPI и SDK. UI проверяется в браузере по реальным ресурсам тестового окружения: pricing drafts, wallet history, queue states, reconnect и incidents. Наличие статических компонентов само по себе не подтверждает работоспособность.
+Contract tests verify adapters, OpenAPI, and SDK. The UI is checked in a browser against real test-environment resources: pricing drafts, wallet history, queue states, reconnect, and incidents. Static components alone do not confirm functionality.
 
-Небольшие реальные provider checks проводятся только в выбранном окружении с разрешённым бюджетом. В отчёте отдельно указываются fixture, интеграционная и реальная проверка, проверенные models/connections и ограничения доступа к отчетам.
+Small real provider checks run only in the selected environment with an authorized budget. Reports distinguish fixture, integration, and real checks, checked models/connections, and reporting-access limitations.
 
-## Критерий завершения
+## Completion criterion
 
-Для ближайшего объёма этапы 1–5 и 6а проходят соответствующие A-сценарии, включая A84–A91; отчёт явно оставляет этапы 6б и 7 незавершёнными.
+For the immediate scope, phases 1–5 and 6a pass corresponding A scenarios, including A84–A91; the report explicitly leaves phases 6b and 7 incomplete.
 
-Для завершения всей платформы все R01–R12 покрыты реализацией и соответствующими A-сценариями. Для каждого включённого adapter зафиксированы поддерживаемые возможности и реальные ограничения. Нет открытых дефектов, допускающих двойное списание, отрицательный доступный остаток, бесконтрольный платный повтор или межаккаунтный доступ.
+For the entire platform, every R01–R12 is covered by implementation and corresponding A scenarios. Each enabled adapter has recorded supported capabilities and real limitations. No open defect permits duplicate charges, negative available balances, uncontrolled paid retries, or cross-account access.
 
-Готовность одного text proxy не означает готовности платформы. Отсутствующие модели/финансовые API/операционные проверки явно перечисляются в итоговом отчёте, а не считаются завершёнными по наличию интерфейса.
+One ready text proxy does not mean the platform is ready. Missing models/financial APIs/operational checks are explicitly listed in the final report rather than considered complete because an interface exists.
 
-## Решения перед рабочим запуском
+## Decisions before operational launch
 
-Нужно выбрать инфраструктуру, реальные providers/model routes, численные бюджеты технических потерь, доступ к admin APIs поставщиков, сроки минимального финансового архива и каналы операторских уведомлений. Опубликованные пользовательские условия должны отражать уже согласованные правила отмены, дефектов, успешных частей, часового финансового закрытия, expiry пакетов и краткой передачи контента. Предложенные численные настройки content TTL и компенсационного lot перечислены в DECISIONS; их нельзя скрывать в реализации.
+Select infrastructure, real providers/model routes, numeric technical-loss budgets, access to provider admin APIs, minimum financial archive retention, and operator notification channels. Published user terms must reflect already agreed rules for cancellation, defects, successful parts, one-hour financial closure, package expiry, and brief content transfer. Proposed numeric content-TTL and compensation-lot settings appear in DECISIONS; do not hide them in implementation.
 
-Поддержка специализированного SVG provider требует выбора конкретного способа и проверки его цены. Документация не объявляет один из способов уже подключённым.
+Supporting a specialized SVG provider requires choosing a specific method and checking its price. The documentation does not declare any method already connected.
 
-На текущем этапе не требуются выбор розничных тарифов, подключение платёжного шлюза и перенос всех приложений одновременно.
+At this stage, selecting retail rates, connecting a payment gateway, and migrating all applications simultaneously are unnecessary.
 
-## Расширение платных API
+## Paid API extension
 
-Контракт PA-I01, единицы измерения, периоды, резервы allowance и границы совместимости описаны в [контракте платных API](PAID_API_CONTRACT.md). Статус реализации и стабильные сценарии PA-A01–PA-A25 приведены в [плане](PAID_API_PLAN.md). Проект контракта не подтверждает доступность новых HTTP handlers.
+The PA-I01 contract, measurement units, periods, allowance reservations, and compatibility boundaries are described in the [paid API contract](PAID_API_CONTRACT.md). Implementation status and stable PA-A01–PA-A25 scenarios appear in the [plan](PAID_API_PLAN.md). A draft contract does not confirm the availability of new HTTP handlers.

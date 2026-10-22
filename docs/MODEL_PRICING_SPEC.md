@@ -1,208 +1,208 @@
-# Задание: центральный каталог моделей и типы расчёта цены
+# Specification: central model catalog and price calculation types
 
-[Оглавление](README.md) · [Решения](DECISIONS.md) · [Quoting](QUOTING.md) · [Архитектура](ARCHITECTURE.md)
+[Contents](README.md) · [Decisions](DECISIONS.md) · [Quoting](QUOTING.md) · [Architecture](ARCHITECTURE.md)
 
-Статус: локальная реализация и приёмка single-call завершены. Доказательства и границы приведены в [матрице MPC01–MPC16](ACCEPTANCE_RESULTS.md). Основание: согласованная окончательная цена конкретного запроса и настройка разных методик расчёта через админку. Названия сущностей и API ниже описывают реализованный технический контракт. Проценты запаса, наценки и численные лимиты не утверждены этим документом.
+Status: local single-call implementation and acceptance are complete. Evidence and boundaries appear in the [MPC01–MPC16 matrix](ACCEPTANCE_RESULTS.md). Basis: an agreed final price for a specific request and configuration of different calculation methods through admin. Entity and API names below describe the implemented technical contract. This document does not approve buffer percentages, markup, or numerical limits.
 
-## 1. Цель и границы
+## 1. Goal and boundaries
 
-Добавление модели на уже поддерживаемом провайдере выполняется централизованно через админку: параметры запроса, метод оценки, ставки, проверочные примеры и публикация. Клиентские приложения получают настройки из каталога и не поддерживают собственные таблицы моделей или формулы.
+Adding a model on an already supported provider is centralized through admin: request parameters, estimation method, rates, test cases, and publication. Client applications receive settings from the catalog and do not maintain their own model tables or formulas.
 
-Формула является одним из типов расчёта. Для обычной токенной модели, цены за изображение, секунду, символ или запрос ввод формулы не требуется.
+Formula is one calculation type. Ordinary token models and prices per image, second, character, or request do not require entering a formula.
 
-Оценка себестоимости, максимальная финансовая экспозиция провайдера, окончательная цена клиенту и фактический расход являются разными величинами. Окончательная цена не означает точное предсказание затрат.
+Estimated cost, maximum provider financial exposure, final customer price, and actual spending are distinct quantities. A final price does not imply exact cost prediction.
 
-В объём входят каталог, оценщик, тарифная политика, quote/API/SDK, исполнение, админка, demo, миграционная совместимость и проверки. Интеграция Logo Panel, развёртывание production и автоматическое обнаружение моделей не входят. Новый протокол провайдера или принципиально новый счётчик может потребовать код адаптера или вычислителя.
+Scope includes catalog, estimator, billing policy, quote/API/SDK, execution, admin, demo, migration compatibility, and checks. Logo Panel integration, production deployment, and automatic model discovery are excluded. A new provider protocol or fundamentally new meter may require adapter or evaluator code.
 
-## 2. Два независимых выбора
+## 2. Two independent choices
 
-### Метод оценки затрат модели
+### Model cost estimation method
 
-| Тип | Форма в админке | Использование |
+| Type | Admin form | Use |
 |---|---|---|
-| `tokens` | Токенизатор, правила входа, категории входа/выхода, политика оценки выхода | Текстовые модели; известные дополнительные категории задаются отдельно |
-| `per_unit` | Единица, источник количества, шаг и правило округления | Изображения, секунды, символы, запросы; постоянная стоимость вызова — количество 1 |
-| `lookup` | Параметры выбора, строки значений, единица результата | Размер × качество; длительность × разрешение; цена или количество токенов из таблицы |
-| `formula` | Ограниченное выражение, доступные поля, единица результата, проверочные примеры | Нестандартные зависимости, которые не выражаются готовой формой |
+| `tokens` | Tokenizer, input rules, input/output categories, output estimation policy | Text models; known additional categories are configured separately |
+| `per_unit` | Unit, quantity source, step, and rounding rule | Images, seconds, characters, requests; constant call cost is quantity 1 |
+| `lookup` | Selection parameters, value rows, result unit | Size × quality; duration × resolution; price or token quantity from a table |
+| `formula` | Restricted expression, available fields, result unit, test cases | Unusual dependencies not expressible through a predefined form |
 
-Расчёт состоит из одной или нескольких именованных составляющих. В простом режиме видна одна форма; «Add cost component» позволяет, например, объединить текстовые токены, обработку референсов и генерацию изображения. Каждая составляющая возвращает billable quantities либо явно типизированную базовую стоимость из таблицы. Смешивать деньги и количества без преобразования запрещено.
+A calculation has one or more named components. Simple mode shows one form; “Add cost component” can combine text tokens, reference processing, and image generation, for example. Each component returns billable quantities or an explicitly typed base monetary cost from a table. Mixing money and quantities without conversion is prohibited.
 
-### Обязательный сценарий: таблица выхода плюс входные токены
+### Required scenario: output table plus input tokens
 
-Администратор может настроить у одной модели одновременно три независимые составляющие:
+An administrator can configure three independent components for one model simultaneously:
 
-| Составляющая | Тип | Результат |
+| Component | Type | Result |
 |---|---|---|
-| Выходное изображение | `lookup` | Базовая стоимость одного результата по размеру и качеству, умноженная на разрешённое число результатов |
-| Входной текст | `tokens` | Количество входных текстовых токенов по выбранным правилам, умноженное на ставку текста |
-| Входные референсы | `formula`, `lookup` или зарегистрированный счётчик | Суммарные входные image-токены подготовленных файлов, умноженные на ставку image input |
+| Output image | `lookup` | Base cost per result by size and quality, multiplied by the permitted result count |
+| Input text | `tokens` | Input text token quantity under selected rules, multiplied by the text rate |
+| Input references | `formula`, `lookup`, or registered meter | Total input image tokens of prepared files, multiplied by the image input rate |
 
-Итоговая себестоимость равна сумме денежных результатов этих составляющих в одной расчётной валюте. Запас и наценка модели применяются один раз к общей сумме, затем выполняется итоговое округление. Таблица с денежной стоимостью не умножается повторно на токенную ставку. Правила обязательного округления провайдера, если они есть, задаются отдельно от розничного округления.
+Total cost equals the sum of these components' monetary results in one settlement currency. Model buffer and markup apply once to the total, followed by final rounding. A table containing monetary cost is not multiplied again by a token rate. Mandatory provider rounding rules, where present, are configured separately from retail rounding.
 
-В форме «Add cost component» тип выбирается для каждой составляющей отдельно, а не один раз для всей модели. Preview показывает стоимость каждой строки и общую сумму. Нельзя требовать от администратора общей формулы сложения: суммирование выполняет система.
+In “Add cost component,” each component selects its own type, rather than selecting one type for the whole model. Preview shows every row's cost and the total. An administrator must not be required to write a summation formula: the system performs the sum.
 
-Каждая составляющая объявляет категории расходов, которые покрывает: например, text input, image input или image output. Если ставка таблицы уже включает текст или референсы, это явно отмечается в её покрытии; отдельные строки тех же расходов запрещены. Пересечение покрытий блокирует публикацию. Для тарифов с включённым ограниченным объёмом входа и оплатой превышения нужна явная поддержанная схема разбиения объёма; произвольное пересечение не разрешается.
+Each component declares the expense categories it covers, such as text input, image input, or image output. If a table rate already includes text or references, this is explicit in its coverage; separate rows for the same expenses are prohibited. Overlapping coverage blocks publication. Rates with a limited included input quantity and paid excess require an explicitly supported quantity-splitting scheme; arbitrary overlap is forbidden.
 
-Если вложений нет, составляющая image input даёт нулевую стоимость. Если вложения разрешены, но методика или ставка для них отсутствует и они не покрыты другой строкой, публикация блокируется. Стоимость входа не умножается автоматически на число результатов: множитель определяется фактическим контрактом провайдера.
+Without attachments, the image input component costs zero. If attachments are permitted but have no method or rate and are not covered by another row, publication is blocked. Input cost is not automatically multiplied by result count: the multiplier follows the actual provider contract.
 
-### Режим оплаты клиентом
+### Customer charging mode
 
-- `quoted_final`: окончательная цена вычисляется до запуска; успешный результат списывает именно её.
-- `actual_usage`: существующая оплата фактического разрешённого расхода остаётся для старых или специально выбранных тарифов.
-- Существующие фиксированные таблицы сохраняются для совместимости; их не заменяют автоматически.
+- `quoted_final`: final price is calculated before launch; a successful result charges exactly that amount.
+- `actual_usage`: existing actual authorized spending charges remain for older or explicitly selected rate cards.
+- Existing fixed tables remain for compatibility; they are not automatically replaced.
 
-Метод `tokens` не требует оплаты по факту. Он может быть источником оценки для `quoted_final`. Режим оплаты принадлежит тарифу/рецепту, а не типу модели.
+The `tokens` method does not require actual-usage charging. It may supply estimates for `quoted_final`. Charging mode belongs to the rate card/recipe, not the model type.
 
-## 3. Текстовые модели без пользовательских формул
+## 3. Text models without user formulas
 
-Обычный случай настраивается полями: версия токенизатора, правила учёта сообщения/роли/instructions/schema, ставка входа и ставка выхода. Учитывается весь реально передаваемый контекст, а не только последний prompt. У разных API служебное оформление различается; экспериментальные константы GPT Image нельзя переносить в чат.
+The ordinary case uses fields for tokenizer version, message/role/instructions/schema accounting rules, input rate, and output rate. All transmitted context is counted, not only the latest prompt. Protocol overhead differs across APIs; experimental GPT Image constants cannot be transferred to chat.
 
-Будущая длина ответа заранее неизвестна. Для окончательной цены администратор обязан выбрать политику выхода:
+Future answer length is unknown. For final pricing, an administrator must select an output policy:
 
-- `configured_expected`: заданный прогноз длины для профиля с явным исполняемым максимумом;
-- `requested_maximum`: оценка по разрешённому лимиту выхода, понятная, но обычно более дорогая клиенту.
+- `configured_expected`: a configured profile-length forecast with an explicit enforced maximum;
+- `requested_maximum`: estimation from the permitted output limit, understandable but usually more expensive for the customer.
 
-Прогноз не выдаётся за точное количество будущих токенов. При коротком ответе окончательная цена не уменьшается; при длинном допустимом ответе не увеличивается. Модель исполняется с тем же максимальным лимитом, который прошёл оценку риска.
+The forecast is not presented as an exact future token count. A short answer does not reduce the final price; a long permitted answer does not increase it. The model executes with the same maximum limit that passed risk estimation.
 
-Кешированный вход, reasoning-токены, платные инструменты и дополнительные модальности подключаются как отдельные категории только если их действительно тарифицирует провайдер. Исключить двойной учёт, например reasoning, уже входящих в output. Не предполагать кеш-хит в окончательной цене без гарантированного основания. Если профиль разрешает платный инструмент без правила оценки и границ, публикация запрещена.
+Cached input, reasoning tokens, paid tools, and additional modalities are separate categories only if the provider actually bills them. Avoid double counting, such as reasoning already included in output. Do not assume a cache hit in the final price without a guaranteed basis. Publication is prohibited if a profile permits a paid tool without estimation rules and bounds.
 
-## 4. Центральная модель хранения
+## 4. Central storage model
 
-Использовать существующую PostgreSQL и инфраструктуру версий каталога. Не создавать второй независимый список моделей. Рекомендуемая форма: реляционные идентификаторы и внешние ссылки плюс валидируемый JSONB для вариативной конфигурации.
+Use existing PostgreSQL and catalog versioning infrastructure. Do not create a second independent model list. Recommended shape: relational identifiers and foreign references plus validated JSONB for variable configuration.
 
-| Сущность | Содержание |
+| Entity | Contents |
 |---|---|
-| Версия модели | Провайдер, точный model ID/snapshot, capability, adapter, схема разрешённых параметров, defaults и ограничения |
-| Версия методики | Типизированные составляющие расчёта, версия языка/вычислителя, подготовка входа, токенизатор, границы, источник правил, степень подтверждения |
-| Версия ставок | Категория расхода, валюта, единица и размер единицы, ставка, условия применения и даты действия |
-| Настройки цены модели | Отдельные коэффициент запаса, процент наценки и округление для каждой модели; версионируются с каталогом |
-| Версия рецепта | Режим оплаты и ссылка на опубликованную модель |
-| Проверочные примеры | Входные параметры/метаданные, ожидаемые количества и стоимость, источник ожиданий и допустимое отклонение |
+| Model version | Provider, exact model ID/snapshot, capability, adapter, permitted parameter schema, defaults, and limits |
+| Method version | Typed calculation components, language/evaluator version, input preparation, tokenizer, bounds, rule source, confirmation level |
+| Rate version | Expense category, currency, unit and unit size, rate, applicability conditions, and effective dates |
+| Model pricing settings | Separate buffer factor, markup percentage, and rounding for each model; versioned with the catalog |
+| Recipe version | Charging mode and reference to a published model |
+| Test cases | Input parameters/metadata, expected quantities and cost, expectation source, and tolerance |
 
-В `samples` обязательны ожидаемые значения всех составляющих в `expected`. Необязательные `tolerance` задают абсолютное отклонение для отдельных составляющих; без них сравнение точное. `expected_cost_usd` проверяет общую себестоимость по выбранной версии ставок, `cost_tolerance_usd` задаёт её абсолютное допустимое отклонение. Без ожидаемой стоимости допуск к ней запрещён. `expected_price_units` проверяет окончательную округлённую цену точно, включая запас и наценку. Поле `source` задаёт происхождение конкретного ожидания; общее происхождение методики хранится отдельно. Ошибка любого заданного ожидания блокирует публикацию.
+`samples` require expected values for all components in `expected`. Optional `tolerance` specifies absolute deviation for individual components; without it, comparison is exact. `expected_cost_usd` checks total cost under the selected rate version; `cost_tolerance_usd` specifies its absolute tolerance. A cost tolerance is prohibited without expected cost. `expected_price_units` checks the final rounded price exactly, including buffer and markup. `source` specifies the origin of a particular expectation; general method provenance is stored separately. Failure of any specified expectation blocks publication.
 
-Десятичные значения и допуски передаются строками. Операция `half_up` округляет половину от нуля: 2.5 → 3, −2.5 → −3. Отрицательные итоговые количества запрещены независимо от промежуточного округления.
-| Снимок quote | Версии всех зависимостей, конкретный вход, рассчитанные количества, оценка затрат, предел экспозиции, коэффициенты и окончательная цена |
+Decimal values and tolerances are strings. `half_up` rounds halves away from zero: 2.5 → 3, −2.5 → −3. Negative final quantities are prohibited regardless of intermediate rounding.
+| Quote snapshot | Versions of all dependencies, specific input, calculated quantities, estimated cost, exposure limit, coefficients, and final price |
 
-Методика может переиспользоваться несколькими моделями. Копирование создаёт независимый draft; редактирование общего draft не меняет опубликованные версии. Все опубликованные зависимости должны разрешаться по точной версии, включая модель провайдера там, где доступны snapshots. Для плавающего alias явно показывать риск изменения поведения.
+Several models may reuse a method. Copying creates an independent draft; editing a shared draft does not change published versions. All published dependencies resolve by exact version, including the provider model where snapshots exist. Floating aliases explicitly display behavior-change risk.
 
-Ставки поставщика не содержат нашу наценку. По последнему уточнению владельца запас и наценка задаются отдельно для каждой модели. В каталоге методика хранится вместе с отдельным блоком pricing, содержащим safety_factor, markup_percent и rounding_units. Публикация версии каталога фиксирует оба блока. Режим оплаты задаётся в рецепте.
+Provider rates do not contain our markup. Following the owner's latest clarification, buffer and markup are configured separately for each model. The catalog stores the method together with a separate pricing block containing safety_factor, markup_percent, and rounding_units. Publishing a catalog version pins both blocks. The recipe specifies charging mode.
 
-Денежные значения и денежные коэффициенты передавать строками; считать через целые единицы/точные десятичные или рациональные числа, без float для денег. Наценка задаётся как markup на себестоимость, не как gross margin; интерфейс должен различать эти понятия. Округление применяется в документированном порядке, результат воспроизводим.
+Transmit monetary values and monetary coefficients as strings; calculate with integer units/exact decimals or rational numbers, without money floats. Markup is markup on cost, not gross margin; the interface must distinguish them. Rounding follows a documented order and produces reproducible results.
 
-## 5. Расширенный тип formula
+## 5. Advanced formula type
 
-Хранить нормализованное типизированное AST в JSONB, а не исполняемый JS/Python/SQL. Если админка даёт текстовый редактор, он компилирует выражение в то же AST. JSON остаётся дополнительным режимом.
+Store normalized typed AST in JSONB, not executable JS/Python/SQL. If admin provides a text editor, it compiles expressions into the same AST. JSON remains an additional mode.
 
-Минимальный набор операций:
+Minimum operations:
 
-- числовые константы, ссылки на разрешённые параметры и результаты предыдущих составляющих;
-- `add`, `subtract`, `multiply`, `divide`, `min`, `max`, `ceil`, `floor`, округление к шагу;
-- сравнения и `if`, поиск в версионированной таблице;
-- ограниченное суммирование по входным файлам;
-- вызов зарегистрированных операций токенизации и чтения проверенных метаданных.
+- numeric constants, references to permitted parameters and earlier component results;
+- `add`, `subtract`, `multiply`, `divide`, `min`, `max`, `ceil`, `floor`, rounding to a step;
+- comparisons and `if`, lookup in a versioned table;
+- bounded summation over input files;
+- calls to registered tokenization operations and verified metadata reads.
 
-Прямой доступ к сети, файлам, БД, секретам и системным функциям запрещён. Вычислитель получает только подготовленный типизированный контекст. Установить лимиты размера AST, глубины, количества операций и длины коллекций. Запретить циклические зависимости. Определить режим округления на половине, переполнение, отсутствующие значения и деление на ноль. Невалидные/отрицательные количества и неизвестная ставка дают явную ошибку, не нулевую цену.
+Direct access to network, files, database, secrets, and system functions is prohibited. The evaluator receives only prepared typed context. Set limits on AST size, depth, operation count, and collection length. Prohibit circular dependencies. Define half rounding, overflow, missing values, and division by zero. Invalid/negative quantities and unknown rates produce explicit errors, not zero prices.
 
-Сама формула считается детерминированно. Статус «экспериментально проверена» относится к её соответствию биллингу провайдера, а не к арифметике вычислителя.
+The formula itself is deterministic. “Empirically validated” refers to correspondence with provider billing, not evaluator arithmetic.
 
-Операция AST `lookup` хранит выбранные параметры, полную таблицу сочетаний и единицу результата внутри версии методики. Отдельного изменяемого внешнего указателя нет. Публикация проверяет покрытие конечных значений параметров и отсутствие повторов; арифметика проверяет совместимость единиц. `tokenize` вызывает только зарегистрированные o200k_base/cl100k_base с режимом prompt или messages_json. При наличии messages/instructions/schema режим prompt отклоняется, чтобы не пропустить часть контекста. Токенизация внутри суммирования файлов запрещена; одинаковый вызов внутри выражения вычисляется один раз.
+The AST `lookup` operation stores selected parameters, the full combination table, and result unit inside the method version. There is no separate mutable external pointer. Publication checks coverage of finite parameter values and absence of duplicates; arithmetic checks unit compatibility. `tokenize` calls only registered o200k_base/cl100k_base with prompt or messages_json mode. With messages/instructions/schema, prompt mode is rejected to avoid missing context. Tokenization inside file summation is prohibited; an identical call within an expression is evaluated once.
 
-Для центральных методик публикация проверяет параметры по общему с HTTP-адаптерами реестру. Неподдерживаемые tools и неизвестные параметры отклоняются до запуска. Поддержка платного инструмента требует адаптера, нормализации usage и исполняемых границ; произвольное добавление параметра в каталог этого не заменяет. Текущий OpenAI image adapter генерирует один результат, поэтому count с диапазоном больше одного не публикуется. Вычислитель таблиц при этом поддерживает множитель для адаптеров с соответствующим контрактом.
+For central methods, publication checks parameters against the registry shared with HTTP adapters. Unsupported tools and unknown parameters are rejected before launch. Paid tool support requires an adapter, usage normalization, and enforceable bounds; arbitrarily adding a catalog parameter does not replace these. The current OpenAI image adapter generates one result, so count with a range above one cannot be published. The table evaluator still supports a multiplier for adapters with a corresponding contract.
 
-В карточке модели `identity_kind` позволяет указать snapshot или alias. Администратор указывает snapshot только при подтверждённой фиксации версии поставщиком. Для alias и незаданного статуса интерфейс предупреждает, что поведение и расходы могут измениться без новой версии каталога. Статус не выводится автоматически из формы имени модели.
+In the model card, `identity_kind` specifies snapshot or alias. An administrator selects snapshot only when provider version pinning is confirmed. For alias or unspecified status, the interface warns that behavior and spending may change without a new catalog version. Status is not inferred automatically from the model name's shape.
 
-## 6. Подготовка вложений
+## 6. Attachment preparation
 
-Quote считается после проверенной подготовки файлов: разрешённый формат, реальные размеры, нормализация ориентации, правила resize и ограничения количества. Эти правила хранятся централизованно и исполняются backend.
+A quote is calculated after verified file preparation: permitted format, actual dimensions, orientation normalization, resize rules, and count limits. These rules are stored centrally and executed by the backend.
 
-Исполнение отправляет те же подготовленные байты, по которым считалась цена. Quote привязывается к immutable asset IDs и хешам содержимого, а не к изменяемому URL. Замена файла или параметров требует нового quote. Жизненный цикл и удаление временных файлов согласовать с существующими storage TTL.
+Execution sends the same prepared bytes used for pricing. The quote binds to immutable asset IDs and content hashes, not a mutable URL. Replacing a file or parameters requires a new quote. Align temporary file lifecycle and deletion with existing storage TTLs.
 
-На первом этапе GPT Image использовать ограниченный набор проверенных размеров референсов. По проведённым экспериментам формула ceil(width/16) × ceil(height/16) не подходит для произвольных больших входов. Не публиковать её как универсальную. Статусы методики: `documented`, `empirically_validated`, `approximate`; рядом хранить scope проверки, дату, примеры и ограничения.
+For the initial GPT Image phase, use a limited set of verified reference dimensions. Experiments show that ceil(width/16) × ceil(height/16) is unsuitable for arbitrary large inputs. Do not publish it as universal. Method statuses: `documented`, `empirically_validated`, `approximate`; retain validation scope, date, examples, and limitations alongside them.
 
-## 7. Расчёт окончательной цены и выполнение
+## 7. Final price calculation and execution
 
-Порядок:
+Order:
 
-1. Проверить параметры по опубликованной схеме модели и подготовить вход.
-2. Получить количества по методике и оценку себестоимости по ставкам.
-3. Независимо оценить максимальную экспозицию и доступность бюджета платформы, включая допустимые повторы/fallback. При отсутствии обоснованной границы не обозначать оценку как гарантированный максимум.
-4. Применить тариф: оценка × коэффициент запаса × коэффициент наценки; перевести в неизменную кредитную единицу и округлить по политике.
-5. Сохранить snapshot quote с окончательной ценой, TTL и условиями результата/отмены.
-6. При подтверждении атомарно блокировать ровно эту клиентскую сумму. Повторное подтверждение идемпотентно.
-7. За технически валидный доступный результат списать согласованную сумму один раз. Фактический usage и себестоимость сохранить отдельно по всем attempts.
+1. Validate parameters against the published model schema and prepare input.
+2. Obtain quantities from the method and estimated cost from rates.
+3. Independently estimate maximum exposure and platform budget availability, including permitted retries/fallback. Without a justified bound, do not label an estimate a guaranteed maximum.
+4. Apply billing: estimate × buffer factor × markup factor; convert to the immutable credit unit and round under policy.
+5. Save a quote snapshot with final price, TTL, and result/cancellation terms.
+6. On confirmation, atomically hold exactly this customer amount. Repeated confirmation is idempotent.
+7. For a technically valid available result, charge the agreed amount once. Save actual usage and cost separately for every attempt.
 
-Изменение опубликованных ставок, тарифа, токенизатора или правил не пересчитывает принятый quote. Истёкший непринятый quote требует нового расчёта. Выполнение использует принятый снимок. Отдельные ограничения риска могут остановить ещё не отправленную работу, но не позволяют незаметно увеличить цену.
+Changes to published rates, billing, tokenizer, or rules do not recalculate an accepted quote. An expired unaccepted quote requires recalculation. Execution uses the accepted snapshot. Separate risk limits may stop work not yet submitted but do not permit silently increasing the price.
 
-Технические дефекты и повторы оплачивает платформа в рамках её бюджета. Запас на погрешность не считается гарантированным покрытием всех повторов. Отмена до появления доступного валидного результата и окончательная неудача не оплачиваются в `quoted_final`; отмена уже успешного результата не создаёт автоматический refund. Исход гонки отмена/успех определяется существующей транзакционной сериализацией состояния, не порядком доставки уведомлений. Неизвестный исход следует существующему разбирательству и запрету позднего списания после финансового закрытия.
+The platform pays for technical defects and retries within its budget. The error buffer is not guaranteed coverage for all retries. Cancellation before an available valid result and final failure are not charged in `quoted_final`; cancelling an already successful result does not create an automatic refund. Cancellation/success races are resolved by existing transactional state serialization, not notification delivery order. Unknown outcomes follow existing investigation and the prohibition on late charging after financial closure.
 
-Неизвестная фактическая себестоимость не становится нулевой и не пересчитывается из прогноза. Отчёт показывает неполноту данных. При успешном результате она не мешает списать заранее согласованную цену.
+Unknown actual cost does not become zero and is not recalculated from the forecast. Reports show incomplete data. For a successful result, it does not prevent charging the agreed price.
 
-## 8. Админка и клиентские интерфейсы
+## 8. Admin and client interfaces
 
-Админка остаётся на английском, demo на русском.
+Admin remains in English, demo in Russian.
 
-Карточка модели содержит вкладки/разделы Parameters, Cost calculation, Provider rates, Test cases. Основной выбор Calculation type переключает обычные формы Tokens / Per unit / Lookup table / Formula. Не показывать формульный редактор в простых типах. Для нескольких составляющих использовать компактный список с раскрытием.
+The model card contains Parameters, Cost calculation, Provider rates, and Test cases tabs/sections. The main Calculation type selector switches ordinary Tokens / Per unit / Lookup table / Formula forms. Do not show a formula editor for simple types. Multiple components use a compact expandable list.
 
-В карточке каждой модели отдельно редактируются Safety factor, Markup и Rounding. Settlement mode задаётся в рецепте. Не просить администратора дублировать provider rates или формулы для каждого тарифа.
+Each model card separately edits Safety factor, Markup, and Rounding. Settlement mode is set in the recipe. Do not ask administrators to duplicate provider rates or formulas for each rate card.
 
-Калькулятор до публикации показывает шаги: нормализованный вход → количества → себестоимость → запас → наценка → окончательная цена. Проверка не вызывает платный API. Отдельный real-provider test допускается только как явное платное действие, с отдельным разрешением; кнопка публикации не запускает его автоматически.
+The prepublication calculator shows steps: normalized input → quantities → cost → buffer → markup → final price. Validation does not call paid APIs. A separate real-provider test is permitted only as an explicit paid action with separate authorization; publishing does not trigger it automatically.
 
-Публикация показывает ошибки покрытия, несовместимые параметры, неподдерживаемые категории и результаты тестов. Доступны copy from existing, diff версий и включение новой версии для будущих quotes. Нельзя переключением типа незаметно потерять конфигурацию другого типа.
+Publication shows coverage errors, incompatible parameters, unsupported categories, and test results. Copy from existing, version diff, and activation of a new version for future quotes are available. Switching type cannot silently lose another type's configuration.
 
-API/SDK возвращают режим расчёта оплаты и отдельную окончательную цену, например `price_units` для `quoted_final`. Поля старого контракта сохраняются на переходный период; значение окончательной цены не маскировать только названием `estimated_units`. Стоимость провайдера и внутренняя наценка не раскрываются публичному клиенту автоматически: детальная калькуляция доступна администратору. Demo показывает «Цена: X кредитов», подтверждение запуска и итоговое списание той же суммы.
+API/SDK return charging mode and a separate final price, such as `price_units` for `quoted_final`. Old contract fields remain during transition; final price must not be hidden solely under `estimated_units`. Provider cost and internal markup are not automatically exposed to public clients: detailed calculation is available to administrators. Demo displays “Price: X credits,” launch confirmation, and the same final charge.
 
-Фактическую денежную прибыль нельзя вычислять только как credits минус provider cost: реальная выручка зависит от продажи/выдачи кредитов. Админка различает разницу в учётных единицах, затраты платформы и денежную прибыль при наличии данных внешнего платёжного сервиса.
+Actual monetary profit cannot be calculated solely as credits minus provider cost: real revenue depends on credit sale/grant. Admin distinguishes differences in accounting units, platform costs, and monetary profit where external payment-service data exists.
 
-## 9. Совместимость и этапы
+## 9. Compatibility and phases
 
-1. Схема каталога и версионирования; готовые types tokens/per_unit/lookup; контрольные примеры.
-2. Ограниченный formula evaluator с тем же интерфейсом результата и валидацией.
-3. Тарифные политики, quote snapshots, использование существующего fixed settlement, API/SDK.
-4. Админка, каталог параметров для demo, подготовка референсов и adapter edits для поддерживаемого OpenAI API.
-5. Новые версии демонстрационных профилей и проверки. Старые рецепты, quotes, резервы и проводки не изменять.
+1. Catalog schema and versioning; predefined tokens/per_unit/lookup types; control cases.
+2. Restricted formula evaluator with the same result interface and validation.
+3. Billing policies, quote snapshots, existing fixed settlement, API/SDK.
+4. Admin, parameter catalog for demo, reference preparation, and adapter edits for supported OpenAI API.
+5. New demo profile versions and checks. Do not change old recipes, quotes, reservations, or postings.
 
-Существующие `components[].estimation` и `billing.mode: fixed` поддержать через совместимый путь или явную конвертацию в новые drafts. Не переводить опубликованные legacy definitions на новую семантику при чтении. Старые таблицы клиентских цен нельзя автоматически переименовать в себестоимость поставщика.
+Support existing `components[].estimation` and `billing.mode: fixed` through a compatible path or explicit conversion into new drafts. Do not translate published legacy definitions into new semantics on read. Old customer-price tables cannot automatically be renamed provider cost.
 
-Первый релиз окончательной цены охватывает single_call. Для составных операций с неизвестными входами будущих шагов существующее поведение сохранить и явно обозначить. Окончательная цена всей цепочки требует отдельного ограниченного профиля будущих данных; не заявлять её готовность в этой задаче.
+The first final-price release covers single_call. Preserve and explicitly label existing behavior for compound operations with unknown future-step inputs. Final pricing for an entire chain requires a separate bounded future-data profile; do not claim it ready in this task.
 
-При реализации обновить DECISIONS, QUOTING, каталог/API, OpenAPI, SDK и acceptance results. Устаревшие формулировки об обязательности только actual_usage и отсутствии тарифного слоя уточнить по режимам. До реализации данный документ имеет статус задания, старые разделы описывают legacy-контракт.
+Implementation must update DECISIONS, QUOTING, catalog/API, OpenAPI, SDK, and acceptance results. Qualify outdated statements requiring actual_usage exclusively and excluding a billing layer by mode. Before implementation, this document is a specification; older sections describe the legacy contract.
 
-## 10. Критерии приёмки
+## 10. Acceptance criteria
 
-Новые идентификаторы не заменяют существующие A-сценарии.
+New identifiers do not replace existing A scenarios.
 
-| ID | Проверка |
+| ID | Check |
 |---|---|
-| MPC01 | Новая текстовая модель на поддерживаемом API добавлена через админку без формулы и правок кода; вход, выход и разные ставки считаются отдельно |
-| MPC02 | Для per_unit проверены целые изображения/запросы, длительность с шагом округления и выбранная семантика символов |
-| MPC03 | Lookup покрывает все разрешённые ценовые сочетания; неценовой параметр не размножает строки; неоднозначность/пропуск блокирует публикацию |
-| MPC04 | Через админку настроены lookup стоимости выхода + tokens текста + расчёт image input; preview показывает три стоимости и сумму; запас/наценка применяются один раз. Проверены отсутствие референсов, один и несколько референсов, число результатов, включённый вход и отклонение двойного покрытия. Formula и готовые types возвращают единый типизированный результат |
-| MPC05 | Недопустимый AST, цикл, неизвестное поле, неверная единица, нулевая база деления и превышение лимита вычислений безопасно отклоняются |
-| MPC06 | Одинаковые версии/вход дают одинаковую цену, включая округление; деньги не теряют точность при сохранении и редактировании |
-| MPC07 | Текстовая политика прогноза и исполняемый output cap проверяются отдельно; неизвестный будущий ответ не помечен как точно посчитанный |
-| MPC08 | Quote связан с подготовленными файлами; изменение байтов, prompt, модели или параметров после quote не позволяет запустить другой запрос по старой цене |
-| MPC09 | Публикация новых ставок/формулы/тарифа не меняет принятые quotes; повторная отправка не дублирует списание |
-| MPC10 | Успех, дефект с повтором, fallback, отмена, гонка успех/отмена, unknown и поздний ответ после финансового закрытия сохраняют согласованную цену и финансовые инварианты |
-| MPC11 | Параллельные запросы и недостаток баланса проверяются с реальными транзакциями PostgreSQL; exposure провайдера не подменён клиентской ценой |
-| MPC12 | Actual usage, unknown cost и стоимость всех attempts сохранены отдельно; снижение себестоимости не пересчитывает окончательную цену |
-| MPC13 | Legacy actual_usage и фиксированные таблицы проходят существующие проверки без изменения прежних проводок |
-| MPC14 | В браузере проверены формы всех четырёх типов, несколько составляющих, preview, ошибки публикации, diff и demo «Цена»; обычный сценарий не требует JSON |
-| MPC15 | Сохранены контрольные примеры разных языков, размеров и числа вложений; scope экспериментальной точности виден; точность на одной выборке не объявлена гарантией провайдера |
-| MPC16 | Проверки публикации не вызывают платные модели; документация, OpenAPI и SDK согласованы; реализованные и отложенные части перечислены в acceptance report |
+| MPC01 | A new text model on a supported API is added through admin without formulas or code edits; input, output, and different rates are calculated separately |
+| MPC02 | per_unit checks integer images/requests, duration with a rounding step, and selected character semantics |
+| MPC03 | Lookup covers all permitted price combinations; non-price parameters do not multiply rows; ambiguity/missing coverage blocks publication |
+| MPC04 | Admin configures output-cost lookup + text tokens + image input calculation; preview shows three costs and their sum; buffer/markup apply once. Checks include no references, one and multiple references, result count, included input, and rejection of duplicate coverage. Formula and predefined types return one typed result |
+| MPC05 | Invalid AST, cycles, unknown fields, wrong units, zero division base, and exceeded computation limits are safely rejected |
+| MPC06 | Identical versions/input give identical price including rounding; money preserves precision through storage and editing |
+| MPC07 | Text forecast policy and enforced output cap are checked separately; unknown future answers are not labeled exactly counted |
+| MPC08 | Quote binds to prepared files; changes to bytes, prompt, model, or parameters after quoting cannot launch a different request at the old price |
+| MPC09 | Publishing new rates/formula/billing does not change accepted quotes; resubmission does not duplicate charges |
+| MPC10 | Success, defect with retry, fallback, cancellation, success/cancellation race, unknown, and late response after financial closure preserve agreed price and financial invariants |
+| MPC11 | Concurrent requests and insufficient balance are checked with real PostgreSQL transactions; provider exposure is not replaced by customer price |
+| MPC12 | Actual usage, unknown cost, and all attempt costs are retained separately; lower cost does not recalculate final price |
+| MPC13 | Legacy actual_usage and fixed tables pass existing checks without changes to earlier postings |
+| MPC14 | Browser verifies forms for all four types, multiple components, preview, publication errors, diff, and demo “Price”; ordinary scenarios do not require JSON |
+| MPC15 | Control cases for different languages, dimensions, and attachment counts are retained; empirical accuracy scope is visible; accuracy on one sample is not presented as a provider guarantee |
+| MPC16 | Publication checks do not call paid models; documentation, OpenAPI, and SDK agree; implemented and deferred parts are listed in the acceptance report |
 
-## 11. Материалы для реализации
+## 11. Implementation materials
 
-Существующие точки расширения: packages/quoting/src/estimation.ts, packages/quoting/src/fixed-pricing.ts, packages/quoting/src/index.ts, packages/execution/src/index.ts, каталог и версии ставок, structured editor админки и профили demo. Это ориентиры, не требование сохранять текущую внутреннюю структуру.
+Existing extension points: packages/quoting/src/estimation.ts, packages/quoting/src/fixed-pricing.ts, packages/quoting/src/index.ts, packages/execution/src/index.ts, catalog and rate versions, admin structured editor, and demo profiles. These are guides, not a requirement to preserve the current internal structure.
 
-Результаты 15 ручных вызовов доступны в текущей рабочей сессии вне репозитория. Перед использованием как регрессионных примеров перенести только обезличенные метаданные и usage с происхождением; не добавлять credentials, базы данных или пользовательские изображения в Git. Зафиксировать версии модели и методики, не выдавать наблюдения за официальную гарантию.
+Results of 15 manual calls are available in the current working session outside the repository. Before using them as regression cases, transfer only anonymized metadata and usage with provenance; do not add credentials, databases, or user images to Git. Record model and method versions; do not present observations as an official guarantee.
 
-## Дополнение: прогноз текста с фактическим списанием
+## Addendum: text forecasting with actual charges
 
-Новый режим рецепта `estimated_actual` использует ту же центральную методику для прогноза, но сохраняет `pricing` в принятом маршруте для окончательного расчёта по usage. Выходной компонент `estimated_parameter` берёт ожидаемую длину из `expected_output_tokens`; это не исполняемый лимит. Поддержка ограничена одиночным OpenAI text.generate. Для факта применяется наценка, без страхового множителя. Окончательная цена изображений остаётся отдельным режимом `quoted_final`.
+The new recipe mode `estimated_actual` uses the same central method for forecasting but preserves `pricing` in the accepted route for final usage-based calculation. The `estimated_parameter` output component takes expected length from `expected_output_tokens`; this is not an enforced limit. Support is limited to single OpenAI text.generate. Actual charges apply markup without the safety multiplier. Final image pricing remains separate as `quoted_final`.
 
-Отрицательный баланс разрешён владельцем только как результат расчёта уже принятого запроса. Первоначальный резерв должен быть обеспечен доступными кредитами. Долг не изменяет остатки предоплаченных лотов: отдельные проводки `debt` и `debt_consumed` сверяются с `capture_debts` отложенным ограничением PostgreSQL. Погашение связывает сумму с исходным capture и лотом пополнения, что сохраняет возможность возврата оплаченной части. Подробный продуктовый контракт: [решение](DECISIONS.md#текст-оценка-отдельно-от-ограничения-генерации).
+The owner permits negative balance only as settlement of an already accepted request. The initial reservation must be backed by available credits. Debt does not alter prepaid lot balances: separate `debt` and `debt_consumed` postings are reconciled with `capture_debts` through a deferred PostgreSQL constraint. Repayment links the amount to the original capture and top-up lot, retaining the ability to refund the paid portion. Detailed product contract: [decision](DECISIONS.md#text-estimation-separate-from-generation-limits).
 
-## Исходные изображения
+## Original images
 
-Подготовка по умолчанию сохраняет исходные байты JPEG/PNG/WebP, включая EXIF. Декодирование проверяет файл без записи нового контейнера. `preparation.mode=transform` явно включает resize и format; auto_orient разрешает применение EXIF-поворота только в этом режиме. Размеры и digest расчётного входа берутся из отправляемых байтов. Превышение max_edge или несоответствие allowed_dimensions даёт явный отказ, если размер не покрыт методикой. Табличный прогноз для 1024×1024 не разрешает скрытый resize произвольного оригинала.
+Preparation preserves original JPEG/PNG/WebP bytes by default, including EXIF. Decoding validates the file without writing a new container. `preparation.mode=transform` explicitly enables resize and format; auto_orient permits EXIF rotation only in this mode. Calculation-input dimensions and digest come from transmitted bytes. Exceeding max_edge or violating allowed_dimensions gives explicit rejection when the method does not cover that size. A 1024×1024 table forecast does not permit hidden resizing of an arbitrary original.

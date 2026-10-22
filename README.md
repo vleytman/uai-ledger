@@ -1,96 +1,96 @@
 # UAI Ledger
 
-UAI Ledger выполняет AI-запросы и вызовы платных API, учитывает расходы и управляет кредитными кошельками и очередями. Приложение передаёт работу сервису, получает предварительную оценку стоимости и следит за результатом через API или TypeScript SDK. UAI хранит финансовый журнал, управляет резервами и фиксирует каждую попытку обращения к провайдеру.
+UAI Ledger executes AI requests and paid API calls, tracks costs, and manages credit wallets and queues. An application submits work to the service, receives a cost estimate, and follows the result through the API or TypeScript SDK. UAI maintains the financial journal, manages reservations, and records every provider attempt.
 
-Сервис рассчитан на самостоятельное размещение. Основной вариант использования: отдельная установка для каждого приложения со своей PostgreSQL-базой, хранилищем, конфигурацией и ключами провайдеров.
+The service is designed for self-hosting. The primary deployment model is a separate installation per application, with its own PostgreSQL database, storage, configuration, and provider credentials.
 
-В репозитории есть работающая локальная реализация, административный интерфейс и тестовое приложение. Полная готовность к production требует отдельной проверки инфраструктуры, настроек и конкретных подключений. Публикация исходников не означает, что все адаптеры и сценарии прошли живую приёмку.
+This repository contains a working local implementation, an admin interface, and a test application. Full production readiness requires separate validation of infrastructure, settings, and individual connections. Publishing the source does not mean every adapter and scenario has passed live acceptance.
 
-## Для чего он нужен
+## What it is for
 
-Когда приложение обращается к нескольким моделям, одного HTTP-вызова недостаточно. Нужно понимать, кто оплачивает запрос, сколько денег зарезервировано, что делать после сетевого сбоя и можно ли безопасно повторить операцию.
+When an application uses several models, making an HTTP call is only part of the job. It also needs to determine who pays, how much money is reserved, what happens after a network failure, and whether an operation can be retried safely.
 
-UAI берёт на себя эту серверную работу:
+UAI handles this server-side work:
 
-- Ведёт кредитные кошельки, отдельные пакеты начислений, сроки действия, резервы, списания и возвраты.
-- Рассчитывает предварительную стоимость по опубликованным версиям моделей и тарифов.
-- Выполняет текстовые, графические, голосовые запросы, embeddings и вызовы платных инструментов через адаптеры.
-- Управляет очередями, квотами, параллельностью, таймаутами, отменой и восстановлением после сбоев.
-- Сохраняет сведения о попытках, расходе провайдера и расчёте с клиентом.
-- Передаёт события и результаты приложению, поддерживает подтверждение их сохранения.
-- Даёт администратору доступ к кошелькам, операциям, подключениям, бюджетам и состоянию очередей.
+- Maintains credit wallets, individual credit lots, expiration dates, reservations, charges, and refunds.
+- Estimates costs using published versions of models and rates.
+- Executes text, image, speech, embedding, and paid-tool requests through adapters.
+- Manages queues, quotas, concurrency, timeouts, cancellation, and recovery after failures.
+- Records attempts, provider costs, and customer settlement.
+- Delivers events and results to the application and supports acknowledgment after persistence.
+- Gives administrators access to wallets, operations, connections, budgets, and queue status.
 
-Регистрация пользователей, продуктовые роли, интерфейс приложения, приём платежей, подписки, налоги и коммерческие скидки остаются в приложении и его платёжном сервисе. UAI предоставляет серверные механизмы авторизации и учёта, которые можно встроить в эту систему.
+User registration, product roles, the application interface, payment collection, subscriptions, taxes, and commercial discounts remain the responsibility of the application and its payment service. UAI provides server-side authorization and accounting mechanisms that can be integrated with them.
 
-## Как проходит запрос
+## Request lifecycle
 
-1. Приложение выбирает опубликованный профиль модели или рецепт и передаёт входные данные.
-2. UAI возвращает предварительный расчёт `quote` с условиями оплаты, версиями конфигураций и необходимым резервом.
-3. После принятия расчёта сервис резервирует средства и создаёт операцию. Повтор той же идемпотентной команды не создаёт ещё одно списание.
-4. Worker получает допуск по очереди и квотам, записывает намерение отправки и обращается к провайдеру.
-5. UAI сохраняет результат и сведения об использовании, рассчитывает оплату и освобождает неиспользованный резерв по правилам принятой операции.
-6. Приложение получает результат, сохраняет его у себя и подтверждает передачу. UAI удаляет временный контент согласно политике хранения, сохраняя необходимую финансовую историю.
+1. The application selects a published model profile or recipe and supplies the input.
+2. UAI returns a `quote` containing the payment terms, configuration versions, and required reservation.
+3. Once the quote is accepted, the service reserves funds and creates an operation. Repeating the same idempotent command does not create another charge.
+4. A worker obtains queue and quota admission, records dispatch intent, and calls the provider.
+5. UAI persists the result and usage information, calculates the charge, and releases unused reservations according to the accepted operation's rules.
+6. The application receives the result, persists it in its own storage, and acknowledges delivery. UAI removes temporary content according to its retention policy while keeping the required financial history.
 
-Для составной работы приложение может открыть резервный пул и создавать связанные вызовы по мере выполнения. Подробности описаны в [правилах оценки и резервирования](docs/QUOTING.md).
+For composite work, an application can open a reservation pool and create associated invocations as work progresses. See the [quoting and reservation rules](docs/QUOTING.md).
 
-## Финансовые правила
+## Financial rules
 
-Стоимость провайдера, списание кредитов клиента и выручка от внешних платежей учитываются раздельно. Успешная генерация не доказывает, что известна её точная себестоимость, а ошибка выдачи результата не отменяет уже понесённый расход.
+Provider costs, customer credit charges, and external payment revenue are accounted for separately. A successful generation does not prove its exact cost is known, and a delivery error does not erase costs already incurred.
 
-| Ситуация | Что делает UAI |
+| Situation | UAI behavior |
 |---|---|
-| Клиент повторил финансовую команду | Возвращает результат прежней команды при совпадении её идемпотентного ключа и данных |
-| Средства приняты в резерв | Сохраняет условия и версии конфигураций принятой работы |
-| Провайдер мог принять запрос, но ответ потерян | Сохраняет неопределённый исход; не считает расход нулевым и не отправляет потенциально выполненную работу повторно вслепую |
-| Получен подтверждённый расход | Рассчитывает оплату по принятой политике, с защитой от повторного списания |
-| Получен технически дефектный результат | Применяет правила оплаты за счёт платформы и сохраняет сведения о её затратах |
-| Изменились тарифы | Новые версии применяются к новой работе; принятые условия существующих операций сохраняются |
+| A client repeats a financial command | Returns the previous command's result when its idempotency key and data match |
+| Funds are reserved | Preserves the accepted work's terms and configuration versions |
+| A provider may have accepted a request, but the response was lost | Preserves the unknown outcome; does not treat the cost as zero or blindly repeat potentially completed work |
+| Confirmed usage becomes available | Calculates the charge under the accepted policy, with protection against duplicate charging |
+| The result is technically defective | Applies platform-funded payment rules and records the platform's costs |
+| Rates change | New versions apply to new work; existing operations keep their accepted terms |
 
-Профили поддерживают разные правила оплаты: окончательную цену до запуска, расчёт по фактическому расходу в пределах принятого максимума и прогнозный режим `estimated_actual`. В прогнозном режиме резерв не является потолком итогового списания; разрешённая политика допускает долг. Клиентский интерфейс должен учитывать выбранный режим, а не показывать любой прогноз как гарантированную цену.
+Profiles support several payment policies: a final price agreed before execution, actual-usage settlement within an accepted maximum, and the `estimated_actual` forecast mode. In forecast mode, the reservation is not a ceiling on the final charge; an authorized policy can allow debt. The client interface must respect the selected mode instead of presenting every forecast as a guaranteed price.
 
-Денежные целочисленные значения API передаются строками. Единицы денежных бюджетов, кредитов и native allowance провайдера различаются. Их назначение и инварианты описаны в [учёте](docs/ACCOUNTING.md), [оценке](docs/QUOTING.md) и [контракте платных API](docs/PAID_API_CONTRACT.md).
+Integer monetary values are transmitted as strings in the API. Monetary budget units, credits, and provider-native allowance units are distinct. Their meaning and invariants are described in [accounting](docs/ACCOUNTING.md), [quoting](docs/QUOTING.md), and the [paid API contract](docs/PAID_API_CONTRACT.md).
 
-## Архитектура
+## Architecture
 
-Одна кодовая база разделена на процессы с разными ролями:
+One codebase is divided into processes with separate roles:
 
-| Часть | Назначение |
+| Component | Purpose |
 |---|---|
-| API | Авторизация, кошельки, предварительные расчёты, принятие операций, чтение результатов и события |
-| Workers | Выполнение запросов, обращение к адаптерам, сохранение результатов и расчёт попыток |
-| Scheduler | Восстановление, финансовые сроки, истечение кредитов, очистка и обслуживание очередей |
-| PostgreSQL | Финансовый журнал, конфигурации, операции, попытки и согласованное состояние |
-| Redis / BullMQ | Распределённая доставка заданий и координация выполнения в соответствующем режиме |
-| Blob storage | Временные входные файлы и результаты: локальная файловая система или S3-совместимое хранилище |
-| Admin | Управление установкой через серверный административный интерфейс |
-| Demo | Отдельный тестовый клиент для проверки полного пути через API и SDK |
+| API | Authorization, wallets, quotes, operation acceptance, result reads, and events |
+| Workers | Request execution, adapter calls, result persistence, and attempt settlement |
+| Scheduler | Recovery, financial deadlines, credit expiration, cleanup, and queue maintenance |
+| PostgreSQL | Financial journal, configuration, operations, attempts, and consistent state |
+| Redis / BullMQ | Distributed job delivery and execution coordination in the corresponding mode |
+| Blob storage | Temporary input files and results, using the local filesystem or S3-compatible storage |
+| Admin | Installation management through a server-backed administrative interface |
+| Demo | A separate test client for checking the complete API and SDK workflow |
 
-Backend написан на TypeScript и использует Fastify. Интерфейсы построены на TanStack Start, React и общих UI-компонентах. Схемы API и TypeScript-типы SDK хранятся в репозитории.
+The backend is written in TypeScript and uses Fastify. The interfaces use TanStack Start, React, and shared UI components. API schemas and TypeScript SDK types are included in the repository.
 
-Для нескольких узлов исполнения требуется общее хранилище и согласованная настройка установки. Порядок запуска, контейнерные шаблоны и границы их проверки приведены в [развёртывании](docs/DEPLOYMENT.md).
+Multiple execution nodes require shared storage and consistent installation configuration. Startup order, container templates, and their validation boundaries are documented in [deployment](docs/DEPLOYMENT.md).
 
-## Провайдеры и конфигурации
+## Providers and configuration
 
-В коде зарегистрированы адаптеры OpenAI, Anthropic, Cartesia, Serper, Firecrawl, Cerebras, Groq, Google Cloud, Quiver, Replicate, Voyage и TypeSafe. Также есть синтетические адаптеры для локальных проверок.
+The code registers adapters for OpenAI, Anthropic, Cartesia, Serper, Firecrawl, Cerebras, Groq, Google Cloud, Quiver, Replicate, Voyage, and TypeSafe. Synthetic adapters are also available for local checks.
 
-Наличие адаптера не означает доступность любой модели или операции поставщика. Поддерживаемые возможности, параметры, ограничения usage и состояние проверок нужно сверять с конкретным контрактом интеграции. Реальные цены и лимиты также требуют проверки перед использованием.
+An adapter does not imply support for every model or operation a provider offers. Check the specific integration contract for supported capabilities, parameters, usage limitations, and validation status. Real prices and limits must also be verified before use.
 
-Модели, тарифы, маршруты, рецепты и определения API находятся в [configurations/](configurations/). Изменения проходят проверку и публикацию неизменяемой версии. Секреты в эти файлы не входят. Админка показывает файловые определения и позволяет управлять предусмотренными оперативными настройками.
+Models, rates, routes, recipes, and API definitions live in [configurations/](configurations/). Changes are validated and published as immutable versions. These files contain no credentials. The admin interface displays file-owned definitions and exposes the supported operational settings.
 
-См. [файловую конфигурацию](docs/FILE_CONFIGURATION.md), [универсальные вызовы](docs/UNIVERSAL_INVOCATION_INTEGRATION.md) и [ограничения реальных проверок](docs/REAL_PROVIDER_CHECKS.md).
+See [file configuration](docs/FILE_CONFIGURATION.md), [universal invocations](docs/UNIVERSAL_INVOCATION_INTEGRATION.md), and [live-validation limitations](docs/REAL_PROVIDER_CHECKS.md).
 
-## Быстрый старт
+## Quick start
 
-Этот сценарий создаёт новую локальную тестовую установку с синтетическими моделями. Ключи провайдеров для него не нужны; реальные платные вызовы по умолчанию выключены.
+This workflow creates a new local test installation with synthetic models. It needs no provider credentials; real paid calls are disabled by default.
 
-### Требования
+### Requirements
 
-- Node.js 22.12 или новее.
-- pnpm 9.15, версия проекта закреплена в `package.json`.
-- Docker с Docker Compose для PostgreSQL 17 и Redis.
-- Свободные локальные порты `55432`, `56379`, `4310`, `4311` и `4312`.
+- Node.js 22.12 or newer.
+- pnpm 9.15; the project version is pinned in `package.json`.
+- Docker with Docker Compose for PostgreSQL 17 and Redis.
+- Available local ports `55432`, `56379`, `4310`, `4311`, and `4312`.
 
-### 1. Установить зависимости и подготовить данные
+### 1. Install dependencies and prepare data
 
 ```sh
 git clone https://github.com/vleytman/uai-ledger.git
@@ -100,7 +100,7 @@ docker compose up -d --wait
 cp .env.example .env
 ```
 
-Загрузите переменные окружения из корня репозитория:
+Load the environment variables from the repository root:
 
 ```sh
 set -a
@@ -111,13 +111,13 @@ pnpm db:migrate
 pnpm seed
 ```
 
-`seed` разрешён только при `UAI_ENV=test`. Он создаёт синтетические профили, тестовый аккаунт с нулевым балансом и локальные конфигурации интерфейсов. Случайные пароли, служебные токены и ключ хранилища credentials записываются в игнорируемую Git папку `.data/`.
+`seed` is allowed only when `UAI_ENV=test`. It creates synthetic profiles, a zero-balance test account, and local interface configuration. Random passwords, service tokens, and the credential-vault key are written to the Git-ignored `.data/` directory.
 
-Модели и ставки seed служат для проверки поведения. Они не представляют реальные цены или предложения провайдеров.
+The seed models and rates are behavioral fixtures. They do not represent actual provider prices or offerings.
 
-### 2. Запустить процессы
+### 2. Start the processes
 
-Откройте пять терминалов. В каждом перейдите в корень репозитория и выполните блок настройки окружения:
+Open five terminals. In each terminal, change to the repository root and run this environment setup block:
 
 ```sh
 set -a
@@ -130,54 +130,54 @@ export UAI_DEMO_ROOT="$PWD/.data/demo"
 export UAI_BLOB_ROOT="$PWD/.data/blobs"
 ```
 
-Затем запустите по одной команде в каждом терминале:
+Then run one command in each terminal:
 
-| Процесс | Команда | Адрес |
+| Process | Command | Address |
 |---|---|---|
 | API | `pnpm dev:api` | `http://127.0.0.1:4310` |
-| Worker | `pnpm dev:worker` | Фоновый процесс |
-| Scheduler | `pnpm dev:scheduler` | Фоновый процесс |
+| Worker | `pnpm dev:worker` | Background process |
+| Scheduler | `pnpm dev:scheduler` | Background process |
 | Admin | `pnpm dev:admin` | `http://127.0.0.1:4311` |
 | Demo | `pnpm dev:demo` | `http://127.0.0.1:4312` |
 
-Базовую доступность API можно проверить так:
+Check basic API availability with:
 
 ```sh
 curl http://127.0.0.1:4310/health
 ```
 
-### 3. Проверить запрос через demo
+### 3. Test a request in the demo
 
-Откройте demo и войдите с `login_password` из `.data/demo-config.json`. У admin свой пароль в `.data/admin-config.json`.
+Open the demo and sign in with `login_password` from `.data/demo-config.json`. The admin interface has its own password in `.data/admin-config.json`.
 
-Начислите тестовые кредиты через предусмотренную форму demo. Выберите синтетический профиль, получите расчёт, подтвердите выполнение и проверьте результат, резерв и списание. Для этого пути должны работать API, worker и scheduler.
+Grant test credits through the demo's designated form. Select a synthetic profile, request a quote, confirm execution, and check the result, reservation, and charge. The API, worker, and scheduler must be running for this workflow.
 
-Подробные команды для очередей BullMQ, S3, отдельных fixtures и диагностики находятся в [инструкции локального запуска](docs/LOCAL_RUN.md). Не запускайте второй набор процессов поверх уже работающей установки с теми же портами и базой.
+Detailed commands for BullMQ queues, S3, individual fixtures, and diagnostics are in the [local run guide](docs/LOCAL_RUN.md). Do not start a second process set against an installation already using the same ports and database.
 
-## Подключение к приложению
+## Application integration
 
-Интеграция выполняется на сервере приложения. Ключи провайдеров и служебные токены UAI остаются на backend. Приложение отвечает за проверку своей пользовательской сессии и прав до передачи работы сервису.
+Integration runs on the application's server. Provider keys and UAI service tokens stay on the backend. The application must validate its user session and permissions before submitting work to the service.
 
-TypeScript SDK находится в [packages/sdk/](packages/sdk/). Он предоставляет методы для кошельков, расчётов, операций, универсальных вызовов, файлов и событий. Схемы запросов и примеры серверного взаимодействия описаны в [контракте API](docs/API.md). Локальный workspace-пакет SDK не следует считать опубликованным npm-пакетом.
+The TypeScript SDK lives in [packages/sdk/](packages/sdk/). It exposes wallets, quotes, operations, universal invocations, files, and events. Request schemas and server-side interaction examples are documented in the [API contract](docs/API.md). The local SDK workspace package should not be assumed to be a published npm package.
 
-Для внешней авторизации и команд используйте [контракт identity](docs/EXTERNAL_AUTH.md). Для встраивания административных модулей в собственную оболочку есть [контракт модульной админки](docs/MODULAR_ADMIN.md).
+For external authentication and teams, use the [identity contract](docs/EXTERNAL_AUTH.md). For embedding administrative modules in your own shell, see the [modular admin contract](docs/MODULAR_ADMIN.md).
 
-## Структура репозитория
+## Repository structure
 
-| Каталог | Содержимое |
+| Directory | Contents |
 |---|---|
-| [apps/](apps/) | API, worker, scheduler, административный интерфейс и demo |
-| [packages/](packages/) | Учёт, quoting, execution, очереди, адаптеры, SDK, общие контракты и UI |
-| [configurations/](configurations/) | Файловые определения моделей, маршрутов, тарифов и API |
-| [migrations/](migrations/) | Версионированные миграции PostgreSQL |
-| [scripts/](scripts/) | Миграции, seed, генераторы схем, fixtures и команды проверки |
-| [deploy/](deploy/) | Шаблоны раздельного размещения процессов |
-| [templates/](templates/) | Шаблон подключения административной оболочки продукта |
-| [docs/](docs/) | Спецификация, решения, инструкции и матрица приёмки |
+| [apps/](apps/) | API, worker, scheduler, admin interface, and demo |
+| [packages/](packages/) | Accounting, quoting, execution, queues, adapters, SDK, shared contracts, and UI |
+| [configurations/](configurations/) | File-based model, route, rate, and API definitions |
+| [migrations/](migrations/) | Versioned PostgreSQL migrations |
+| [scripts/](scripts/) | Migrations, seed, schema generators, fixtures, and validation commands |
+| [deploy/](deploy/) | Templates for deploying process roles separately |
+| [templates/](templates/) | Product admin-shell integration template |
+| [docs/](docs/) | Specification, decisions, guides, and acceptance matrix |
 
-## Проверки
+## Validation
 
-Основные команды из корня проекта:
+Main commands from the project root:
 
 ```sh
 pnpm check:api
@@ -188,33 +188,33 @@ pnpm docs:check
 pnpm build
 ```
 
-Для интеграционных тестов загрузите окружение отдельной тестовой базы и выполните:
+For integration tests, load the environment for a separate test database and run:
 
 ```sh
 REQUIRE_INTEGRATION_TESTS=1 pnpm test
 ```
 
-Без `DATABASE_URL` часть PostgreSQL-тестов пропускается. Такой прогон не подтверждает финансовые инварианты. Тестовой роли для изолированных сценариев требуется право `CREATEDB`; тесты нельзя направлять на production или действующую demo-базу.
+Without `DATABASE_URL`, some PostgreSQL tests are skipped. Such a run does not establish financial invariants. The test role needs `CREATEDB` for isolated scenarios; never point tests at production or the active demo database.
 
-Нагрузочные проверки, сбои процессов, Redis и контейнерные сценарии запускаются отдельно по [локальной инструкции](docs/LOCAL_RUN.md). Историческое покрытие и его ограничения приведены в [матрице приёмки](docs/ACCEPTANCE_RESULTS.md). Проверка Markdown и JSON-примеров не заменяет тесты реализации, а успешные fixtures не подтверждают работу реального провайдера.
+Load testing, process failures, Redis, and container scenarios run separately as described in the [local guide](docs/LOCAL_RUN.md). Historical coverage and its limits are recorded in the [acceptance matrix](docs/ACCEPTANCE_RESULTS.md). Markdown and JSON-example validation does not replace implementation tests, and passing fixtures does not establish real-provider behavior.
 
-## Реальные запросы и эксплуатация
+## Real requests and operations
 
-Перед использованием платного провайдера нужны собственные credentials, проверенные параметры модели и ставки, опубликованные конфигурации, бюджеты и квоты. Флаг `UAI_ALLOW_REAL_PROVIDERS=false` по умолчанию блокирует реальные обращения. Импорт финансовых отчётов и внешняя доставка webhook включаются отдельно.
+Before using a paid provider, supply your own credentials, verified model parameters and rates, published configuration, budgets, and quotas. `UAI_ALLOW_REAL_PROVIDERS=false` blocks real calls by default. Financial report imports and external webhook delivery are enabled separately.
 
-`.env`, `.data/`, ключи и локальные отчёты не входят в Git. Для рабочей установки нужны отдельные секреты, резервные копии базы и ключа шифрования, настроенное хранилище и проверенный процесс восстановления.
+`.env`, `.data/`, keys, and local reports are excluded from Git. A working deployment needs separate secrets, backups of the database and encryption key, configured storage, and a tested recovery process.
 
-Админка и demo из быстрого старта рассчитаны на локальную разработку. Перед внешним доступом проверьте авторизацию, сетевые границы и эксплуатационные требования по [инструкции развёртывания](docs/DEPLOYMENT.md).
+The quick-start admin and demo are intended for local development. Before exposing them externally, validate authorization, network boundaries, and operational requirements against the [deployment guide](docs/DEPLOYMENT.md).
 
-## Документация
+## Documentation
 
-- [Оглавление и границы сервиса](docs/README.md).
-- [Согласованные продуктовые решения](docs/DECISIONS.md).
-- [Архитектура и ответственность модулей](docs/ARCHITECTURE.md).
-- [Кредитные пакеты, проводки и финансовые инварианты](docs/ACCOUNTING.md).
-- [Предварительный расчёт, цены и резервы](docs/QUOTING.md).
-- [Выполнение, отмена, таймауты и восстановление](docs/EXECUTION.md).
-- [API и SDK](docs/API.md).
-- [Эксплуатация, бюджеты, квоты и наблюдаемость](docs/OPERATIONS.md).
-- [Локальный запуск](docs/LOCAL_RUN.md) и [развёртывание](docs/DEPLOYMENT.md).
-- [Этапы реализации](docs/IMPLEMENTATION.md) и [матрица приёмки](docs/ACCEPTANCE_RESULTS.md).
+- [Service overview and boundaries](docs/README.md).
+- [Agreed product decisions](docs/DECISIONS.md).
+- [Architecture and module ownership](docs/ARCHITECTURE.md).
+- [Credit lots, postings, and financial invariants](docs/ACCOUNTING.md).
+- [Quoting, pricing, and reservations](docs/QUOTING.md).
+- [Execution, cancellation, timeouts, and recovery](docs/EXECUTION.md).
+- [API and SDK](docs/API.md).
+- [Operations, budgets, quotas, and observability](docs/OPERATIONS.md).
+- [Local run guide](docs/LOCAL_RUN.md) and [deployment](docs/DEPLOYMENT.md).
+- [Implementation phases](docs/IMPLEMENTATION.md) and [acceptance matrix](docs/ACCEPTANCE_RESULTS.md).

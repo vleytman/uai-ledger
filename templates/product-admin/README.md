@@ -1,16 +1,16 @@
-# Административная сборка продукта
+# Product admin build
 
-Этот проект содержит только общую админку: UAI и административные страницы продукта. Пользовательский frontend разворачивается отдельно и не импортирует административный модуль или его credentials.
+This project contains only the shared admin interface: UAI and the product's administrative pages. The user-facing frontend is deployed separately and does not import the admin module or its credentials.
 
-## Подключение
+## Integration
 
-В Git-репозитории продукта добавьте общий исходный репозиторий:
+Add the shared source repository to the product's Git repository:
 
 ```sh
 git submodule add https://github.com/vleytman/uai-ledger.git vendor/uai
 ```
 
-Выберите опубликованный и проверенный commit/tag UAI, зафиксируйте gitlink в репозитории продукта. Не подключайте непроверенный HEAD к production. Сначала реализация должна быть опубликована в репозитории UAI: документационный commit без пакетов не подходит.
+Select a published, verified UAI commit/tag and commit the gitlink in the product repository. Do not connect an unverified HEAD to production. The implementation must first be published in the UAI repository: a documentation-only commit without the packages is insufficient.
 
 ```sh
 pnpm install
@@ -18,40 +18,40 @@ pnpm build
 pnpm typecheck
 ```
 
-Зафиксируйте созданный `pnpm-lock.yaml`. В CI используется только `--frozen-lockfile`. Для клонирования другим разработчиком:
+Commit the generated `pnpm-lock.yaml`. CI uses only `--frozen-lockfile`. When another developer clones the project:
 
 ```sh
 git submodule update --init --recursive
 pnpm install --frozen-lockfile
 ```
 
-Настройки бренда и клиентских модулей: `apps/admin/src/application.ts`. Обработчики настроек и платежей продукта: `apps/admin/src/server/backend.ts`. Основные примеры и контракт находятся в `vendor/uai/docs/MODULAR_ADMIN.md`.
+Branding and client module settings live in `apps/admin/src/application.ts`. Product settings and payment handlers live in `apps/admin/src/server/backend.ts`. The main examples and contract are in `vendor/uai/docs/MODULAR_ADMIN.md`.
 
-Секреты задаются серверным `UAI_ADMIN_CONFIG` либо собственным `loadConfig`; не копируются из другой установки. API UAI, worker и scheduler запускаются отдельно из того же commit UAI. Эта сборка сама их не запускает. `/api/uai-admin` обслуживает общую админку, клиентский frontend и платёжные webhook используют свои API.
+Secrets are supplied through the server-side `UAI_ADMIN_CONFIG` or a custom `loadConfig`; do not copy them from another installation. The UAI API, worker and scheduler run separately from the same UAI commit. This build does not start them. `/api/uai-admin` serves the shared admin interface; the client frontend and payment webhooks use their own APIs.
 
-`UAI_ADMIN_CONFIG` содержит абсолютный путь к JSON-файлу, а не сам JSON. Поля и требования к нему перечислены в `vendor/uai/docs/MODULAR_ADMIN.md`. После запуска отдельного UAI API запустите интерфейс из корня продукта:
+`UAI_ADMIN_CONFIG` contains an absolute path to a JSON file, not the JSON itself. Its fields and requirements are listed in `vendor/uai/docs/MODULAR_ADMIN.md`. After starting the separate UAI API, run the interface from the product root:
 
 ```sh
 UAI_ADMIN_CONFIG=/absolute/path/to/admin-config.json pnpm dev:admin
 ```
 
-По умолчанию интерфейс доступен на `http://127.0.0.1:4311`. Порт не должен быть занят standalone-админкой UAI. Текущий вход предназначен владельцу установки; существующие роли и вход пользователей продукта автоматически не подключаются.
+The default interface address is `http://127.0.0.1:4311`. The port must not be occupied by the standalone UAI admin interface. The current login is for the installation owner; existing product roles and user authentication are not connected automatically.
 
-Генератор переносит значки провайдеров и сведения об источниках в `apps/admin/public/providers`. При ручном переносе шаблона сохраните этот каталог: модуль использует URL `/providers/…`. Эти статические файлы являются снимком на момент генерации; при обновлении UAI сверяйте их с `vendor/uai/apps/admin/public/providers`. Генератор не предназначен для повторного запуска поверх уже созданного проекта.
+The generator copies provider icons and source notices into `apps/admin/public/providers`. Preserve this directory when transferring the template manually: the module uses `/providers/…` URLs. These static files are a snapshot from generation time; compare them with `vendor/uai/apps/admin/public/providers` when updating UAI. The generator is not intended to be rerun over an existing project.
 
-## Общие обновления
+## Shared updates
 
-UAI редактируется в исходном репозитории, а не копируется в продукт. Продуктовые изменения остаются за пределами `vendor/uai`. Если исправление сделано в submodule, сначала его нужно опубликовать в репозитории UAI; ссылка родительского проекта на неопубликованный commit недоступна остальным.
+UAI is edited in its source repository rather than copied into the product. Product-specific changes stay outside `vendor/uai`. If a fix is made in the submodule, publish it to the UAI repository first; other developers cannot access a parent-project reference to an unpublished commit.
 
-Dependabot подготовлен для еженедельных PR с новым commit submodule. Это обновления Git-ветки, не фильтрация по SemVer-тегам. Настройте доступ к приватному репозиторию отдельно для Dependabot и checkout CI. Автоматическое слияние и деплой не включены.
+Dependabot is configured to open weekly PRs with a new submodule commit. These are Git branch updates, not filtering by SemVer tags. Configure private-repository access separately for Dependabot and CI checkout. Automatic merging and deployment are disabled.
 
-После обновления, которое изменяет зависимости UAI, выполните `pnpm install` и включите обновлённый lockfile в тот же PR. Dependabot для git submodule сам pnpm-lock не пересчитывает. Сборка с устаревшим lockfile должна завершиться ошибкой.
+After an update that changes UAI dependencies, run `pnpm install` and include the updated lockfile in the same PR. Dependabot's Git submodule updates do not recalculate pnpm-lock. A build with a stale lockfile must fail.
 
-Приёмка обновления включает сборку админки, тесты продукта и совместимость API. Миграции БД выполняются отдельно в установленном порядке после резервного копирования. Простое переключение commit обратно не откатывает уже применённую миграцию.
+Update acceptance includes building the admin interface, running product tests and checking API compatibility. Database migrations run separately in the established order after a backup. Simply switching back to an earlier commit does not roll back an applied migration.
 
-В существующем monorepo перенесите только нужные элементы этой сборки и объедините workspace/CI-конфигурации вручную. Не заменяйте рабочие manifest, lockfile или frontend готовым шаблоном.
+In an existing monorepo, transfer only the required parts of this build and merge workspace/CI configuration manually. Do not replace working manifests, lockfiles or the frontend with the template.
 
-Для ручного обновления выберите проверенный commit или tag:
+For a manual update, select a verified commit or tag:
 
 ```sh
 git -C vendor/uai fetch origin --tags
@@ -61,12 +61,12 @@ pnpm build
 pnpm typecheck
 ```
 
-Затем включите gitlink `vendor/uai` и lockfile в изменение продукта. Перед checkout рабочее дерево submodule должно быть чистым; не используйте принудительный сброс локальных изменений.
+Then include the `vendor/uai` gitlink and lockfile in the product change. The submodule worktree must be clean before checkout; do not forcibly reset local changes.
 
-## Внешний вход
+## External login
 
-Генератор добавляет `src/server/external-auth.example.ts` с контрактом адаптера. Это незавершённый пример, а не интеграция Better Auth. Реализуйте `authenticate(Request)` через проверенную серверную сессию родителя и возвращайте `{version:1,kind:'staff',user_id,role:'admin'|'viewer'}` либо `null`. Проверяйте актуальную роль на каждом вызове. Роль администратора команды сама по себе не даёт служебного доступа. `logout(Request)` должен завершать сессию родителя и возвращать `Response` с необходимыми `Set-Cookie`.
+The generator adds `src/server/external-auth.example.ts` with the adapter contract. This is an unfinished example, not a Better Auth integration. Implement `authenticate(Request)` using the parent's verified server-side session and return `{version:1,kind:'staff',user_id,role:'admin'|'viewer'}` or `null`. Check the current role on every call. Being a team administrator does not itself grant staff access. `logout(Request)` must end the parent session and return a `Response` with the necessary `Set-Cookie` headers.
 
-Передайте `auth:externalAuth` в `createAdminBackend`. Укажите точный публичный origin и путь входа на том же origin. Во внешнем режиме пароль и секрет standalone-сессии не требуются; серверные API credentials остаются обязательны. API должен сообщать `capabilities.external_identity:1` через `/health`, а service token должен иметь `identity:assert` вместе с необходимыми scopes. Ошибка адаптера или старый API закрывают доступ.
+Pass `auth:externalAuth` to `createAdminBackend`. Specify the exact public origin and a login path on that same origin. External mode does not require a standalone password or session secret; server-side API credentials remain mandatory. The API must expose `capabilities.external_identity:1` through `/health`, and the service token must have `identity:assert` along with the required scopes. An adapter error or an old API denies access.
 
-Продуктовые обработчики по умолчанию доступны только `admin`. Для чтений явно объявляйте `permissions.reads`, например `{'app.product.settings':['admin','viewer']}`. Viewer не выполняет команды. Контекст обработчика содержит безопасные `identity` и `role`, а session UI содержит разрешённые `capabilities.readViews` и `capabilities.actions`. Не передавайте браузеру токен API или сессию провайдера авторизации.
+Product handlers are available only to `admin` by default. Explicitly declare `permissions.reads` for reads, for example `{'app.product.settings':['admin','viewer']}`. Viewer cannot execute commands. The handler context contains safe `identity` and `role` values, and the session UI contains the permitted `capabilities.readViews` and `capabilities.actions`. Do not pass the API token or authentication provider session to the browser.

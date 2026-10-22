@@ -1,14 +1,14 @@
-# Сверка, уведомления и административный интерфейс
+# Reconciliation, notifications, and administrative interface
 
-[Оглавление](README.md)
+[Contents](README.md)
 
-## Оперативный учёт и внешняя сверка
+## Operational accounting and external reconciliation
 
-Платформа обновляет собственный usage и кошелёк после зафиксированного результата каждого запроса. Получение внешнего финансового отчёта не находится на критическом пути обычного capture, если данных ответа достаточно для расчёта.
+The platform updates its own usage and wallet after each request's committed result. Fetching an external financial report is outside the normal capture critical path when response data suffices for calculation.
 
-Сверка выполняется отдельно и проверяет provider cost. Её результат не заменяет историю пользователя. Провайдерские API могут иметь другую гранулярность, задержку, область доступа и единицы.
+Reconciliation runs separately and verifies provider cost. Its result does not replace user history. Provider APIs may differ in granularity, lag, access scope, and units.
 
-Для каждого connection задаются capabilities:
+Each connection declares capabilities:
 
 ~~~json
 {
@@ -21,483 +21,483 @@
 }
 ~~~
 
-Это пример формы конфигурации, а не утверждение о конкретном поставщике. Неподдерживаемая возможность показывается в UI как недоступная. Browser scraping закрытого кабинета не используется как скрытая обязательная зависимость первой версии.
+This illustrates configuration shape, not a claim about a particular provider. Unsupported capabilities appear unavailable in the UI. Browser scraping of a private dashboard is not a hidden mandatory first-version dependency.
 
-## Снимок баланса поставщика
+## Provider balance snapshot
 
-Snapshot содержит provider account scope, source, native currency/unit, total, used, remaining, fetched_at, covered_through при наличии, точность и статус свежести. Prepaid balance, postpaid spending cap, quota и кредитный лимит являются разными видами показателя.
+A snapshot contains provider account scope, source, native currency/unit, total, used, remaining, fetched_at, covered_through where available, accuracy, and freshness status. Prepaid balance, postpaid spending cap, quota, and credit limit are different indicator types.
 
-Источник бывает provider_api, manual или derived. Вручную введённый бюджет не называется подтверждённым остатком у поставщика. Для postpaid подключения показывается доступная часть настроенного spending cap, если реального prepaid balance нет.
+Source is provider_api, manual, or derived. A manually entered budget is not called a confirmed provider balance. For postpaid connections without a real prepaid balance, show the available portion of the configured spending cap.
 
-Scheduler учитывает незавершённые запросы и внутренние provider exposure claims. Если snapshot явно покрывает известный период, из него дополнительно вычитаются только ещё не отражённые расходы и активные обязательства. Нельзя второй раз вычитать расходы, которые уже включены в total_usage.
+The scheduler accounts for unfinished requests and internal provider exposure claims. If a snapshot explicitly covers a known period, deduct only expenses not yet reflected and active commitments. Do not deduct expenses already included in total_usage again.
 
-Если covered_through неизвестен, точный остаток после поправки не утверждается. Используются консервативная оценка, safety margin и ограничение неопределённой экспозиции. fetched_at обозначает время получения ответа и не доказывает, что отчёт включает весь расход до этой секунды.
+If covered_through is unknown, do not claim an exact adjusted balance. Use conservative estimation, safety margin, and uncertain-exposure limits. fetched_at is response receipt time and does not prove that the report includes all spending through that second.
 
-Начальный интервал опроса при поддержке API: 5 минут для активного подключения и более редкий для неиспользуемого. Адаптер ограничивает частоту согласно документации. Ошибки увеличивают интервал с backoff. Недоступность отчёта не запускает платную тестовую генерацию.
+Initial polling interval where API-supported: 5 minutes for active connections, less frequently for unused ones. The adapter limits frequency according to documentation. Failures increase the interval with backoff. An unavailable report does not trigger a paid test generation.
 
-Пополнение пользовательского wallet не пополняет provider account. При исчерпании последнего платформа приостанавливает dispatch или выбирает разрешённую альтернативу. Реальное пополнение поставщика выполняет оператор либо будущая отдельная финансовая интеграция.
+Topping up a user wallet does not top up the provider account. If the latter is exhausted, the platform pauses dispatch or selects an authorized alternative. The operator or a future separate financial integration performs real provider top-ups.
 
-## Алгоритм сверки расходов
+## Cost reconciliation algorithm
 
-1. Определить scope, валюту, timezone и период, поддерживаемые API.
-2. Загрузить все страницы отчёта и сохранить raw snapshot без секретов.
-3. Сопоставить его с provider cost entries в той же области и временном интервале.
-4. Повторно проверить недавние периоды с учётом задержки и поздних корректировок.
-5. Зафиксировать matched, discrepancy, incomplete или unavailable.
-6. При расхождении создать incident и, после установленной процедуры, корректирующую cost entry.
+1. Determine API-supported scope, currency, timezone, and period.
+2. Fetch every report page and save a raw snapshot without secrets.
+3. Match it against provider cost entries in the same scope and interval.
+4. Recheck recent periods for lag and late adjustments.
+5. Record matched, discrepancy, incomplete, or unavailable.
+6. For a discrepancy, create an incident and, following the established procedure, an adjusting cost entry.
 
-Закрытие периода не зависит от времени локального создания request, если поставщик учитывает расход по времени завершения. Адаптер документирует применимую временную семантику.
+Period closure does not depend on local request creation time if the provider attributes spending by completion time. The adapter documents applicable time semantics.
 
-Причины расхождений классифицируются: reporting lag, missing local usage, wrong rate, wrong unit, account-scope mismatch, external usage, discount/fee, rounding, late invoice adjustment и unresolved. Причина не выбирается автоматически без достаточных данных.
+Discrepancy causes are classified as reporting lag, missing local usage, wrong rate, wrong unit, account-scope mismatch, external usage, discount/fee, rounding, late invoice adjustment, and unresolved. A cause is not chosen automatically without sufficient data.
 
-Если provider report агрегирован за день, платформа подтверждает дневной агрегат. Она не распределяет неизвестное расхождение пропорционально клиентам как доказанный расход каждого запроса.
+If a provider report is aggregated daily, the platform confirms the daily aggregate. It does not proportionally distribute an unknown discrepancy among customers as proven spending for each request.
 
-Расход вне платформы хранится как unattributed provider cost. Для более точной сверки рекомендуются выделенные provider projects или keys там, где отчёт позволяет их различать. Ключи могут иметь общий баланс и общий rate limit, даже если их расход виден отдельно.
+Spending outside the platform is stored as unattributed provider cost. Dedicated provider projects or keys are recommended for more precise reconciliation where reports distinguish them. Keys may share balance and rate limits even when their spending is visible separately.
 
-Корректировка provider cost не меняет закрытый wallet capture. Поздние агрегированные скидки поставщика учитываются в себестоимости и будущих ставках. Если наш калькулятор завысил пользовательский расход, требуется компенсация: correction run воспроизводит затронутые captures по сохранённым usage и правильным ставкам, создаёт идемпотентные refunds и отчёт. Клиентская недоплата задним числом автоматически не взыскивается. Пересчёт не требует хранения prompts и изображений.
+Adjusting provider cost does not change a closed wallet capture. Late aggregated provider discounts affect cost and future rates. If our calculator overstated user spending, compensation is required: a correction run reproduces affected captures from saved usage and correct rates, creates idempotent refunds, and reports results. Customer underpayment is not automatically recovered retroactively. Recalculation does not require retaining prompts or images.
 
-## Уведомления
+## Notifications
 
-Notification rule содержит scope, condition, severity, recipients, cooldown и recovery condition. Incident имеет fingerprint, first_seen, last_seen, observed_value, state и history. Повторное срабатывание обновляет incident, а не создаёт новый каждый раз.
+A notification rule contains scope, condition, severity, recipients, cooldown, and recovery condition. An incident has fingerprint, first_seen, last_seen, observed_value, state, and history. Repeated triggering updates the incident rather than creating another each time.
 
-| Сигнал | Условие | Реакция |
+| Signal | Condition | Response |
 |---|---|---|
-| provider.budget_low | Остаток ниже суммы либо прогнозного расхода на заданный период | Предупреждение оператору |
-| provider.budget_exhausted | Подтверждённое исчерпание или отказ биллинга | Блокировка соответствующего dispatch |
-| provider.auth_failed | Неверный или отозванный credential | Приостановка connection |
-| provider.degraded | Доля ошибок/latency выше порога при достаточном объёме | Circuit policy и инцидент |
-| provider.recovery_started | Исчерпан начальный цикл при подтверждённой временной недоступности | Немедленный инцидент с scope и следующей проверкой |
-| provider.recovery_exhausted | Неудачен последний разрешённый recovery cycle | Locked и сообщение о необходимом ручном включении |
-| provider.recovered | Проверка подтвердила рабочий путь до hard lock | Одно событие восстановления, постепенное возобновление очереди |
-| queue.delay_high | Время ожидания превышает порог | Диагностика capacity и маршрутов |
-| limiter.unknown_slots_held | Неизвестные исходы занимают concurrency slots лимитера больше порога | Проверка исхода у поставщика, [ручное разрешение](#слоты-лимитера-и-неизвестный-исход) |
-| reconciliation.discrepancy | Расхождение больше абсолютного и/или относительного допуска | Проверка области, usage и ставок |
-| provider.balance_stale | Не было успешного обновления дольше порога | Пометка stale и ограничение риска |
-| pricing.missing_or_stale | Неизвестная цена либо не проверялась нужный срок | Блокировка неоцениваемых новых запросов |
-| platform.exposure_high | Неизвестные и оплаченные платформой затраты выше лимита | Ограничение повторов и новых вызовов |
+| provider.budget_low | Balance below an amount or forecast spending for a defined period | Operator warning |
+| provider.budget_exhausted | Confirmed exhaustion or billing rejection | Block affected dispatch |
+| provider.auth_failed | Invalid or revoked credential | Pause connection |
+| provider.degraded | Error ratio/latency above threshold with sufficient volume | Circuit policy and incident |
+| provider.recovery_started | Initial cycle exhausted under confirmed temporary unavailability | Immediate incident with scope and next check |
+| provider.recovery_exhausted | Final permitted recovery cycle failed | Locked and notice requiring manual enable |
+| provider.recovered | Check confirmed a working path before hard lock | One recovery event; gradually resume queue |
+| queue.delay_high | Waiting time exceeds threshold | Diagnose capacity and routes |
+| limiter.unknown_slots_held | Unknown outcomes occupy limiter concurrency slots beyond threshold | Verify provider outcome, [manual resolution](#limiter-slots-and-unknown-outcomes) |
+| reconciliation.discrepancy | Discrepancy exceeds absolute and/or relative tolerance | Check scope, usage, and rates |
+| provider.balance_stale | No successful refresh beyond threshold | Mark stale and limit risk |
+| pricing.missing_or_stale | Unknown price or not checked within required period | Block new requests that cannot be estimated |
+| platform.exposure_high | Unknown and platform-funded costs exceed limit | Restrict retries and new calls |
 
-Порог по доле ошибок требует минимального числа наблюдений. Один отказ не должен автоматически объявлять массовую аварию. Прогноз времени до исчерпания не выдаётся как точный при недостатке истории.
+Error-ratio thresholds require a minimum observation count. One rejection must not automatically declare a widespread outage. Time-to-exhaustion forecasts are not presented as exact without enough history.
 
-Этот порог не задерживает точечное событие о первом fallback или начале recovery конкретного маршрута. Все циклы используют один incident fingerprint, показывают первичную причину, cycle_index, next_retry_at и оставшийся бюджет собственных потерь. Дефект ответа отдельного запроса не объявляется падением всего провайдера. Финальная блокировка требует ручного enable; resolve/acknowledge инцидента сами по себе не разрешают платные вызовы.
+This threshold does not delay a targeted event about the first fallback or recovery start of a specific route. All cycles use one incident fingerprint and show the initial cause, cycle_index, next_retry_at, and remaining platform-loss budget. A single request's defective answer does not declare the whole provider down. Final lock requires manual enable; resolving/acknowledging an incident does not itself authorize paid calls.
 
-События, incident state и outbox создаются вместе с механизмом выполнения. Административный inbox и доставка подписанных webhooks входят в этап интерфейса/эксплуатации; конкретные email и другие каналы подключаются позднее через те же события. До настройки внешнего канала система показывает delivery_not_configured и не объявляет уведомление отправленным. Секреты, prompt и полные ответы в уведомления не включаются.
+Events, incident state, and outbox are built with execution. Administrative inbox and signed webhook delivery belong to the interface/operations phase; specific email and other channels connect later through the same events. Before an external channel is configured, the system shows delivery_not_configured and does not claim a notification was sent. Notifications exclude secrets, prompts, and full answers.
 
-Повторная доставка использует event_id, backoff, ограниченное окно и dead-letter состояние. Acknowledge означает, что оператор увидел инцидент; resolve означает, что условие устранено или оформлено явное исключение. Восстановление отправляет одно recovery event.
+Redelivery uses event_id, backoff, a bounded window, and dead-letter state. Acknowledge means the operator has seen the incident; resolve means the condition is removed or an explicit exception recorded. Recovery sends one recovery event.
 
-Webhook destination задаёт администратор. Нельзя позволять обычному клиенту отправлять уведомления на произвольный внутренний URL. TLS, подпись, проверка адреса и защита от повторов являются частью контракта.
+An administrator sets webhook destinations. Ordinary clients must not send notifications to arbitrary internal URLs. TLS, signatures, address validation, and replay protection are part of the contract.
 
-## Оформление и поведение интерфейсов
+## Interface presentation and behavior
 
-Административный интерфейс apps/admin реализуется на TanStack Start с компонентами shadcn/ui. Визуальная проработка является частью результата этапа 5. Общие компоненты и тема находятся в packages/ui и используются также простым тестовым клиентом apps/demo. Границы серверных слоёв описаны в [ARCHITECTURE](ARCHITECTURE.md).
+apps/admin uses TanStack Start with shadcn/ui components. Visual design is part of phase 5's deliverable. Shared components and theme live in packages/ui, also used by the simple apps/demo test client. Server-layer boundaries are in [ARCHITECTURE](ARCHITECTURE.md).
 
-До сборки всех страниц подготовить общий каркас навигации и показательные экраны «Обзор», подробности операции и кошелёк. Зафиксировать типографику, палитру, отступы, плотность таблиц, формат сумм и визуальные состояния. Использование стандартных компонентов само по себе не подтверждает завершение дизайна.
+Before building all pages, prepare a shared navigation shell and representative Overview, operation-details, and wallet screens. Fix typography, palette, spacing, table density, amount format, and visual states. Standard components alone do not establish completed design.
 
-Требования к приёмке:
+Acceptance requirements:
 
-- Спокойное оформление с читаемой иерархией; денежные величины выровнены для сравнения, единицы и точность явно обозначены. Округление в отображении не меняет учётные значения.
-- Доступный остаток, резерв, пользовательское списание, provider cost и расходы платформы имеют разные подписи. Предварительные суммы и неизвестный расход не выглядят окончательными или нулевыми.
-- Навигация, таблицы, фильтры, формы и подтверждения используют согласованные компоненты. Опасные административные действия показывают объект, последствия и обязательную причину, если её требует API.
-- Проверены загрузка, пустые списки, ошибки, устаревшие данные, недоступные возможности и конфликт редакций. Ошибка сохраняет введённые данные, безопасный повтор не дублирует команду.
-- На узком экране действия остаются доступны; широкие таблицы прокручиваются внутри своего блока. Длинные идентификаторы, названия и крупные суммы не перекрывают управление.
-- Формы имеют подписи, ошибки связаны с полями, фокус виден, диалоги доступны с клавиатуры. Статус передаётся текстом, а не только цветом; контраст соответствует WCAG AA.
-- Браузерная проверка охватывает реалистичные объёмы данных, desktop и узкий viewport. Проверяются оформление и завершение операций через настоящий API тестового окружения.
+- Calm presentation with readable hierarchy; monetary amounts aligned for comparison, units and precision explicit. Display rounding does not change accounting values.
+- Available balance, reservation, customer charge, provider cost, and platform expenses have distinct labels. Provisional amounts and unknown spending do not look final or zero.
+- Navigation, tables, filters, forms, and confirmations use consistent components. Dangerous administrative actions show the target, consequences, and mandatory reason when required by the API.
+- Loading, empty lists, errors, stale data, unavailable capabilities, and revision conflicts are verified. Errors preserve entered data; safe retries do not duplicate commands.
+- Actions remain accessible on narrow screens; wide tables scroll within their own container. Long identifiers, names, and large amounts do not obscure controls.
+- Forms have labels, errors are linked to fields, focus is visible, and dialogs are keyboard-accessible. Status uses text as well as color; contrast meets WCAG AA.
+- Browser checks cover realistic data volumes, desktop, and narrow viewports. Presentation and operation completion are checked through the real test-environment API.
 
-## Страница «Обзор»
+## Overview page
 
-Показывает текущие расходы, пользовательские списания и platform-funded cost раздельно. Есть фильтры application, account, model, provider и период. В отдельном блоке находятся активные резервы, очередь, неопределённый расход и последние инциденты.
+Shows current costs, user charges, and platform-funded cost separately. Filters include application, account, model, provider, and period. A separate block contains active reservations, queue, uncertain spending, and recent incidents.
 
-Каждая сумма имеет обозначение точности. Предварительная оценка во время streaming не выглядит как окончательный счёт. UTC используется для хранения; выбранный часовой пояс применяется только к отображению границ периода.
+Every amount indicates precision. A provisional streaming estimate does not look like a final bill. UTC is used for storage; the selected timezone affects only displayed period boundaries.
 
-Целевой ориентир интерфейса: committed wallet update виден в течение двух секунд при здоровой инфраструктуре. Это проектная цель, а не проверенный SLA. Доступность данных поставщика может быть существенно ниже по свежести.
+Interface target: a committed wallet update is visible within two seconds on healthy infrastructure. This is a design goal, not a verified SLA. Provider data may be substantially less fresh.
 
-## Страница «Провайдеры»
+## Providers page
 
-Для connection показываются provider account scope, доступные модели/capabilities, credential status без секрета, health, rate-limit groups, баланс или spending cap, source, freshness и pending exposure.
+Each connection shows provider account scope, available models/capabilities, credential status without the secret, health, rate-limit groups, balance or spending cap, source, freshness, and pending exposure.
 
-Действия: добавить connection, сохранить или ротировать ключ, отключить, изменить лимиты и политику риска, проверить неплатным endpoint, запустить сверку. Платный health probe помечается отдельно и требует настроенного бюджета.
+Actions: add connection, save or rotate key, disable, change limits and risk policy, check through a free endpoint, start reconciliation. A paid health probe is labeled separately and requires configured budget.
 
-Для locked показываются причина, затронутые routes/capabilities, история четырёх циклов, следующее разрешённое действие и кнопка ручного enable с reason. Неплатная проверка сама не включает генерации. Настройки показывают отдельный ключ установки и назначенную ей долю общих provider limits; интерфейс не обещает независимый общий баланс из-за наличия другого ключа.
+For locked, show reason, affected routes/capabilities, four-cycle history, next permitted action, and manual enable with reason. A free check does not itself enable generation. Settings show the installation's separate key and assigned share of shared provider limits; the interface does not promise independent shared balance because another key exists.
 
-Подробности позволяют отличить модельную перегрузку от общей финансовой блокировки. Ручное обновление бюджета сохраняет автора, причину и время; оно не переписывает provider snapshot.
+Details distinguish model overload from a shared financial block. Manual budget updates retain author, reason, and time; they do not overwrite provider snapshots.
 
-## Страница «Модели и цены»
+## Models and prices page
 
-Для каждой модели доступны provider ID, version, capability, допустимые параметры и status. Alias не подменяет фактический model ID в истории запросов.
+Each model exposes provider ID, version, capability, allowed parameters, and status. Alias does not replace actual model ID in request history.
 
-Редактор ставки содержит:
+The rate editor contains:
 
-- connection override либо общий provider rate;
-- dimension и unit, например USD за 1 000 000 токенов;
-- условия: модальность, качество, размер, tier, регион, context band, cache TTL;
+- connection override or general provider rate;
+- dimension and unit, such as USD per 1 000 000 tokens;
+- conditions: modality, quality, size, tier, region, context band, cache TTL;
 - decimal rate, currency, effective_from/effective_to;
-- источник, checked_at, автор и комментарий.
+- source, checked_at, author, and comment.
 
-Несколько применимых ставок без однозначного приоритета являются ошибкой публикации. Отсутствующий dimension не трактуется как бесплатный. Cache read и cache write отображаются отдельно.
+Several applicable rates without unambiguous precedence are a publication error. A missing dimension is not treated as free. Cache read and cache write are displayed separately.
 
-Перед publish система проверяет покрытие используемых маршрутов, пересечение периодов и пробный расчёт на сохранённых обезличенных usage. Сравнение показывает изменение будущей цены. Оно не изменяет исторические записи.
+Before publication, the system checks coverage of used routes, overlapping periods, and trial calculations on saved anonymized usage. Comparison shows future price changes. It does not change historical records.
 
-Можно импортировать предложенные ставки из официального API, если доступно. Import создаёт draft. Автоматическая публикация цен по HTML-парсингу не входит в первую версию.
+Suggested rates may be imported from an official API where available. Import creates a draft. Automatic price publication through HTML parsing is outside the first version.
 
-## Страница «Маршруты и действия»
+## Routes and actions page
 
-Route editor задаёт primary и один активный fallback, требования к capabilities, порядок, предел стоимости, retry/circuit policy и deadline. Стартовая политика: 2 + 2, затем при временной недоступности до трёх общих циклов с паузами 60/300/900 секунд. Валидатор проверяет совместимость моделей, достаточность полного deadline, допустимость технических validators и наличие бюджетов риска. Более короткий срок для устаревающего действия показывается как явное ограничение восстановления.
+The route editor sets primary and one active fallback, capability requirements, order, cost limit, retry/circuit policy, and deadline. Initial policy: 2 + 2, then, for temporary unavailability, up to three shared cycles with 60/300/900-second pauses. The validator checks model compatibility, sufficient full deadline, permitted technical validators, and risk budgets. A shorter duration for time-sensitive actions is shown as an explicit recovery limit.
 
-Recipe editor задаёт inputs, components, число вызовов и пределы. Калькулятор позволяет ввести пример параметров и увидеть estimate, maximum, влияние кеша и переключения. Для actual_usage UI прямо сообщает о возврате неиспользованного резерва.
+The recipe editor defines inputs, components, call counts, and bounds. The calculator accepts sample parameters and displays estimate, maximum, caching impact, and switching impact. For actual_usage, the UI explicitly explains release of unused reservation.
 
-Администратор видит долю случаев, когда оценка оказалась выше/ниже фактической, и операции, остановленные бюджетом. Статистика не должна автоматически ослаблять максимумы или включать более дорогие модели.
+Administrators see the proportion of estimates above/below actual spending and operations stopped by budget. Statistics must not automatically loosen maxima or enable more expensive models.
 
-## Страница «Операции и леджер»
+## Operations and ledger page
 
-Иерархия: operation -> request -> attempts -> usage items -> cost entries и wallet postings. Доступны длительность ожидания и выполнения, фактическая модель, причины retry/failover, cache breakdown, версия цены и источник точности.
+Hierarchy: operation -> request -> attempts -> usage items -> cost entries and wallet postings. Waiting/execution duration, actual model, retry/failover reasons, cache breakdown, price version, and accuracy source are available.
 
-Prompt и result показываются только при разрешении и в пределах срока хранения. Причина ошибки не раскрывает credentials. Подтверждённые и неопределённые расходы имеют разные обозначения.
+Prompt and result appear only with permission and within retention. Error reasons do not expose credentials. Confirmed and uncertain spending have distinct labels.
 
-После acknowledgement или content expiry интерфейс показывает причину удаления, время передачи и контрольные суммы без самого содержимого. Это не ошибка ledger и не приглашение повторить генерацию. В очереди видны ожидание общего recovery, очередная попытка, deadline и отмена. Раздельно показываются customer reserve, provider exposure и бюджет собственных потерь.
+After acknowledgement or content expiry, the interface shows deletion reason, delivery time, and checksums without content. This is not a ledger error or invitation to regenerate. Queue shows shared recovery waiting, next attempt, deadline, and cancellation. Customer reserve, provider exposure, and platform-loss budget are separate.
 
-Действия восстановления не запускают платный повтор одним универсальным Retry без контекста. UI различает повтор получения результата, безопасный повтор неисполненного запроса и новую попытку с риском двойной оплаты.
+Recovery actions do not launch a paid retry through one context-free Retry button. The UI distinguishes retrieving a result again, safely retrying an unexecuted request, and making a new attempt with double-billing risk.
 
-## Страница «Кошельки и пакеты»
+## Wallets and lots page
 
-Показывает balance, available и reserved, затем отдельные lots с исходным и оставшимся бюджетом, условиями, expiry и ссылкой на внешнее начисление. Розничная цена покупки доступна по ссылке платёжного сервиса, если он её предоставляет.
+Shows balance, available, and reserved, followed by individual lots with original and remaining budget, terms, expiry, and external grant reference. Purchase retail price is available through the payment-service link if provided.
 
-История позволяет раскрыть reserve/capture/release/refund до операции и исходного пакета. Административное начисление и компенсация требуют reason и ограниченной роли. Произвольное редактирование числа balance не предусмотрено.
+History expands reserve/capture/release/refund to the operation and original lot. Administrative grants and compensation require a reason and restricted role. Arbitrary balance-number editing is not provided.
 
-## Страница «Сверка и инциденты»
+## Reconciliation and incidents page
 
-Для периода показываются внутренняя сумма, сумма поставщика, native unit/currency, степень покрытия, отличие, классификация и последнее обновление. Можно раскрыть пропуски, несопоставленный внешний расход и corrections.
+For each period, show internal amount, provider amount, native unit/currency, coverage level, difference, classification, and latest update. Gaps, unmatched external spending, and corrections can be expanded.
 
-У провайдера без нужного API показывается соответствующее ограничение и путь ручного подтверждения. UI не создаёт впечатление завершённой сверки по одной зелёной проверке доступности endpoint.
+Providers lacking the required API show that limitation and a manual-confirmation path. The UI does not imply completed reconciliation from one green endpoint-availability check.
 
-## Метрики и диагностика
+## Metrics and diagnostics
 
-Обязательные метрики: запросы/ошибки по provider и capability, queue age, request latency, rate-limit wait, cache hit units, provider cost, customer charge, platform-funded cost, unresolved exposure, стоимость retry, задержка outbox и свежесть сверки.
+Required metrics: requests/errors by provider and capability, queue age, request latency, rate-limit wait, cache hit units, provider cost, customer charge, platform-funded cost, unresolved exposure, retry cost, outbox lag, and reconciliation freshness.
 
-Логи используют correlation, operation, request и attempt IDs. Логи не являются источником остатка. Секреты и полный контент по умолчанию не логируются. Профилирование стоимости требует usage, а не записи полного prompt.
+Logs use correlation, operation, request, and attempt IDs. Logs are not the balance source. Secrets and full content are not logged by default. Cost profiling requires usage, not full prompt recording.
 
-Alert по доступному бюджету работает отдельно от alert по марже: без выручки AI-платформа может показать только себестоимость и выданный/списанный бюджет. Платёжный сервис объединяет это с продажами.
+Available-budget alerts are separate from margin alerts: without revenue data, the AI platform can show only cost and issued/charged budget. The payment service combines these with sales.
 
-## Резервное копирование и восстановление
+## Backup and recovery
 
-PostgreSQL и assets требуют резервного копирования и проверяемого восстановления. До production запуска проводится восстановление на отдельном окружении с запретом внешних платных dispatch.
+PostgreSQL and assets require backups and verifiable restoration. Before production launch, perform a restore in a separate environment where external paid dispatch is prohibited.
 
-После восстановления перечитываются активные attempts и provider job IDs. Нельзя автоматически повторить все неуспешные jobs. Outbox может доставить события ещё раз, поэтому подписчики и финансовые команды должны оставаться идемпотентными.
+After restore, reread active attempts and provider job IDs. Do not automatically retry every failed job. Outbox events may be delivered again, so subscribers and financial commands must remain idempotent.
 
-Проверяется восстановление материальных остатков из postings и сравнение с сохранёнными wallet revisions. Исправление расхождения выполняется отдельной процедурой с audit trail, а не прямым SQL UPDATE баланса.
+Verify reconstruction of materialized balances from postings and comparison with saved wallet revisions. Discrepancies are corrected through a separate audited procedure, not direct SQL UPDATE of balances.
 
-Конкретные RPO/RTO, сроки хранения и стратегия резервного копирования выбираются вместе с инфраструктурой. Их отсутствие не скрывается за отметкой «production ready».
+Specific RPO/RTO, retention, and backup strategy are selected with infrastructure. Their absence is not hidden behind a “production ready” label.
 
-## Бюджет соединений PostgreSQL по процессам
+## PostgreSQL connection budget by process
 
-Каждый процесс использует один пул: API по умолчанию до 10 соединений, worker до 8, scheduler до 4. Параллельные задания worker делят его пул. Настройки `UAI_DB_POOL_MAX_API`, `UAI_DB_POOL_MAX_WORKER`, `UAI_DB_POOL_MAX_SCHEDULER` переопределяют эти значения; общий `UAI_DB_POOL_MAX` используется только при отсутствии настройки роли. CLI-утилиты и тесты имеют роль tool с пределом 10, доступен `UAI_DB_POOL_MAX_TOOL`.
+Each process uses one pool: API defaults to 10 connections, worker to 8, scheduler to 4. Concurrent worker jobs share its pool. `UAI_DB_POOL_MAX_API`, `UAI_DB_POOL_MAX_WORKER`, and `UAI_DB_POOL_MAX_SCHEDULER` override these values; common `UAI_DB_POOL_MAX` is used only without a role-specific setting. CLI tools and tests use the tool role with limit 10; `UAI_DB_POOL_MAX_TOOL` is available.
 
-Суммарный бюджет установки считается до добавления процессов. Например, 2 API, 4 worker и 2 scheduler при исходных значениях потребуют максимум `2×10 + 4×8 + 2×4 = 60` соединений. Дополнительно нужны соединения для миграций, мониторинга, обслуживания и других клиентов этой базы. Число 60 не включает эти расходы и не задаёт `max_connections` PostgreSQL. Количество одновременно генерируемых ответов и количество DB-соединений различаются: сетевой вызов провайдера не должен удерживать SQL-транзакцию.
+Calculate installation totals before adding processes. For example, 2 APIs, 4 workers, and 2 schedulers at defaults require at most `2×10 + 4×8 + 2×4 = 60` connections. Migrations, monitoring, maintenance, and other database clients need additional connections. 60 excludes these and does not define PostgreSQL `max_connections`. Concurrent generations and database connections are different quantities: provider network calls must not hold SQL transactions.
 
-`UAI_DB_CONNECT_TIMEOUT_MS`, по умолчанию 5000 мс, ограничивает ожидание свободного соединения и установление соединения. `UAI_DB_IDLE_TIMEOUT_MS`, по умолчанию 30000 мс, освобождает простаивающие соединения. Нулевые, дробные и некорректные значения не разрешены: процесс завершает запуск с ошибкой конфигурации. Эти настройки не являются timeout SQL-запроса или транзакции. В `pg_stat_activity.application_name` процессы обозначены `uai-api`, `uai-worker`, `uai-scheduler` или `uai-tool`.
+`UAI_DB_CONNECT_TIMEOUT_MS`, default 5000 ms, limits waiting for a free connection and establishing one. `UAI_DB_IDLE_TIMEOUT_MS`, default 30000 ms, releases idle connections. Zero, fractional, and invalid values are prohibited: startup fails with a configuration error. These are not SQL query or transaction timeouts. Processes appear in `pg_stat_activity.application_name` as `uai-api`, `uai-worker`, `uai-scheduler`, or `uai-tool`.
 
-Сбой простаивающего соединения фиксируется сообщением `postgres_pool_connection_error` без URL базы или реквизитов доступа. Ошибки выполняющихся запросов по-прежнему возвращаются вызывающему коду. Изменение env требует штатного перезапуска соответствующего процесса; сохранение числа в админке не меняет уже созданный пул.
+An idle connection failure logs `postgres_pool_connection_error` without database URL or credentials. Errors in executing queries still reach callers. Environment changes require normal restart of the relevant process; saving a number in admin does not change an existing pool.
 
-### Общее хранилище файлов
+### Shared file storage
 
-API, подготовка референсов, worker и scheduler выбирают хранилище через `createBlobStore`. По умолчанию `UAI_BLOB_BACKEND=local`, путь задаёт `UAI_BLOB_ROOT`. Для нескольких серверов используйте `UAI_BLOB_BACKEND=s3` и одинаковые `UAI_S3_BUCKET`, `UAI_S3_REGION`, `UAI_S3_PREFIX` во всех процессах установки. Prefix обязателен и отделяет файлы независимых установок.
+API, reference preparation, worker, and scheduler select storage through `createBlobStore`. Default is `UAI_BLOB_BACKEND=local`, with `UAI_BLOB_ROOT` as the path. For multiple servers, use `UAI_BLOB_BACKEND=s3` and identical `UAI_S3_BUCKET`, `UAI_S3_REGION`, and `UAI_S3_PREFIX` across installation processes. Prefix is mandatory and separates independent installations' files.
 
-Для S3-совместимого сервиса задайте `UAI_S3_ENDPOINT` и при необходимости `UAI_S3_FORCE_PATH_STYLE=true`. Удалённый endpoint должен использовать HTTPS. HTTP разрешён только для loopback-тестов. Credentials передаются парой `UAI_S3_ACCESS_KEY_ID`/`UAI_S3_SECRET_ACCESS_KEY`, опционально `UAI_S3_SESSION_TOKEN`, либо через стандартную цепочку credentials AWS SDK. Не записывайте их в репозиторий.
+For S3-compatible services, set `UAI_S3_ENDPOINT` and, if needed, `UAI_S3_FORCE_PATH_STYLE=true`. Remote endpoints must use HTTPS. HTTP is allowed only for loopback tests. Credentials are supplied as `UAI_S3_ACCESS_KEY_ID`/`UAI_S3_SECRET_ACCESS_KEY`, optionally `UAI_S3_SESSION_TOKEN`, or through the AWS SDK standard credential chain. Do not commit them.
 
-Нужен заранее созданный приватный bucket без versioning и Object Lock. Перед каждой записью и удалением backend читает настройки bucket; включённые или приостановленные версии, Object Lock и ошибка чтения настроек блокируют мутацию. Чтение существующих файлов остаётся доступным. Обычный DELETE в versioned bucket не удаляет старые версии, поэтому такой режим пока не поддержан. Выдайте процессам доступ к GetObject, PutObject и DeleteObject только в prefix своей установки, а также GetBucketVersioning и GetBucketObjectLockConfiguration для этого bucket. Запретите этим credentials менять настройки bucket; проверка перед запросом не защищает от конкурентного изменения настроек внешним администратором. Публичные URL не создаются; доступ к файлам остаётся через API с проверками PostgreSQL. TTL и tombstone по-прежнему управляют purge.
+A precreated private bucket without versioning or Object Lock is required. Before each write and delete, the backend reads bucket settings; enabled or suspended versioning, Object Lock, and settings-read errors block mutation. Existing files remain readable. Ordinary DELETE in a versioned bucket does not remove old versions, so this mode is unsupported for now. Grant processes GetObject, PutObject, and DeleteObject only within their installation prefix, plus GetBucketVersioning and GetBucketObjectLockConfiguration for that bucket. Prohibit these credentials from changing bucket settings; pre-request checks do not protect against concurrent changes by an external administrator. No public URLs are created; file access stays through the API with PostgreSQL checks. TTL and tombstones still control purge.
 
-Каждый вызов S3 ограничен по времени. `UAI_S3_CONNECT_TIMEOUT_MS` (по умолчанию 2000) ограничивает установку соединения, `UAI_S3_SOCKET_TIMEOUT_MS` (10000) — паузу без данных в запросе или в теле ответа, `UAI_S3_MAX_ATTEMPTS` (3, не больше 10) — число попыток SDK. `UAI_S3_OPERATION_TIMEOUT_MS` (30000) задаёт общий срок операции `put`/`get`/`delete` вместе с проверками настроек bucket, повторами и чтением тела. Endpoint, который принимает TCP-соединение и молчит, даёт `blob_store_timeout` (HTTP 503) примерно через число попыток × socket timeout, а не держит вызывающий код до общего срока. Оборванное тело ответа читается заново в пределах того же срока; если обрываются все попытки, возвращается `blob_store_unavailable` (503). Если повтор PUT получил 412, а в ключе лежат те же байты, запись считается своей: ключи уникальны, ответ первой попытки был потерян. Другое содержимое по-прежнему даёт `PreconditionFailed`. Некорректные значения переменных останавливают запуск с `invalid_s3_configuration`.
+Every S3 call is time-bounded. `UAI_S3_CONNECT_TIMEOUT_MS` (default 2000) bounds connection establishment; `UAI_S3_SOCKET_TIMEOUT_MS` (10000) bounds data inactivity in a request or response body; `UAI_S3_MAX_ATTEMPTS` (3, at most 10) bounds SDK attempts. `UAI_S3_OPERATION_TIMEOUT_MS` (30000) bounds the entire `put`/`get`/`delete`, including bucket checks, retries, and body reads. An endpoint accepting TCP then staying silent returns `blob_store_timeout` (HTTP 503) after roughly attempts × socket timeout rather than holding callers until the overall deadline. A truncated response body is reread within the same deadline; if every attempt truncates, return `blob_store_unavailable` (503). If a PUT retry receives 412 and the key contains identical bytes, treat the write as its own: keys are unique and the first response was lost. Different content still returns `PreconditionFailed`. Invalid environment values stop startup with `invalid_s3_configuration`.
 
-Запись использует `If-None-Match: *`, чтобы не перезаписывать существующий blob, как локальный `wx`. Это поведение описано в [PutObject API](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html). Совместимость условной записи и фактическое удаление нужно проверить на выбранном S3-сервисе перед переключением. Смена backend не переносит старые файлы: работающая установка пока остаётся на локальном диске.
+Writes use `If-None-Match: *` to avoid overwriting an existing blob, like local `wx`. This behavior is described in [PutObject API](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html). Verify conditional-write compatibility and actual deletion on the chosen S3 service before switching. Changing backend does not migrate old files: the running installation remains on local disk for now.
 
-### Наблюдение за native jobs через BullMQ
+### Native job observation through BullMQ
 
-При `UAI_EXECUTION_BACKEND=bullmq` scheduler публикует готовые проверки в очередь `observe`. Источник доставки находится в PostgreSQL: remote_job_id, поколение request и poll_count текущей attempt. Миграция 0027 добавляет lease публикации и время следующей сверки. Потерянное задание восстанавливается; повтор не создаёт новую генерацию. Публикация и обращения к Redis происходят после завершения SQL-транзакции.
+With `UAI_EXECUTION_BACKEND=bullmq`, the scheduler publishes ready checks to `observe`. The delivery source lives in PostgreSQL: remote_job_id, request generation, and current attempt poll_count. Migration 0027 adds publication lease and next reconciliation time. Lost jobs are recovered; retries do not create new generation. Publication and Redis calls occur after the SQL transaction completes.
 
-BullMQ worker по умолчанию слушает `text,image,audio,tools,observe,maintenance`. Для отдельного процесса наблюдения задайте `UAI_WORKER_BACKEND=bullmq` и `UAI_WORKER_QUEUES=observe`; генерационные процессы можно ограничить `text,image,audio,tools`. Все процессы одной установки используют одинаковый UAI_INSTALLATION_ID. Нативные jobs legacy backend продолжает наблюдать старый scheduler; распределённые requests он пропускает.
+A BullMQ worker listens to `text,image,audio,tools,observe,maintenance` by default. For a separate observation process, set `UAI_WORKER_BACKEND=bullmq` and `UAI_WORKER_QUEUES=observe`; generation processes may be restricted to `text,image,audio,tools`. All installation processes use the same UAI_INSTALLATION_ID. The old scheduler continues observing legacy backend native jobs and skips distributed requests.
 
-По умолчанию сверка берёт до 32 готовых attempts, повторная проверка доставки не раньше пяти секунд, lease публикации 30 секунд. Lease и poll_count защищают от конкурирующих relay и потребителей. Адресный BullMQ lookup получает отдельный допуск по строке observe в execution_dispatch_policies: account_limit, application_limit и queue_limit. Короткая блокировка этой строки сериализует только получение слота наблюдения. Активный слот определяется живым lease request и совпадающим observation_fence; освобождение или истечение lease освобождает слот. Генерационные lease не занимают эти слоты. Глобальная блокировка scheduler удалена из runtime; финансовые операции координируются по аккаунту, получение legacy capacity имеет отдельную блокировку. Основная локальная установка переключена на BullMQ; результаты проверки fairness и оставшиеся ограничения перечислены в матрице приёмки.
+By default, reconciliation takes up to 32 ready attempts, rechecks delivery no sooner than five seconds, and uses a 30-second publication lease. Lease and poll_count protect against competing relays and consumers. Targeted BullMQ lookup receives separate admission under the observe row in execution_dispatch_policies: account_limit, application_limit, and queue_limit. A short row lock serializes observation-slot acquisition only. An active slot is defined by a live request lease and matching observation_fence; lease release or expiry frees it. Generation leases do not occupy these slots. The global scheduler lock was removed from runtime; financial operations coordinate by account, and legacy capacity acquisition has a separate lock. The main local installation has switched to BullMQ; fairness verification and remaining limits are listed in the acceptance matrix.
 
-### Остановка worker
+### Worker shutdown
 
-SIGINT/SIGTERM приостанавливает локальный приём BullMQ jobs и даёт активным обработчикам завершиться. UAI_WORKER_SHUTDOWN_GRACE_MS задаёт общий срок ожидания, по умолчанию 30000 мс, допустимо 1–300000. По истечении процесс пишет worker_shutdown_grace_exceeded и выходит с кодом 1; зависшие HTTP/Redis/DB операции не продлевают этот срок. Внешний supervisor должен давать процессу больше времени, чем этот grace period.
+SIGINT/SIGTERM pauses local BullMQ job intake and allows active handlers to finish. UAI_WORKER_SHUTDOWN_GRACE_MS sets the total wait, default 30000 ms, allowed 1–300000. On expiry, the process logs worker_shutdown_grace_exceeded and exits with code 1; hung HTTP/Redis/DB operations do not extend it. The external supervisor must allow longer than this grace period.
 
-Принудительный выход не отменяет удалённую генерацию и не освобождает финансовый резерв. После истечения доменного lease восстановление использует сохранённые submission intent, remote job и usage. Нельзя считать остановленный процесс доказательством того, что провайдер не выполнил запрос. В штатном случае завершение обработчиков и закрытие соединений отменяет watchdog.
+Forced exit does not cancel remote generation or release financial reservation. After domain lease expiry, recovery uses saved submission intent, remote job, and usage. A stopped process does not prove the provider did not execute the request. Normally, handlers finish and connections close, cancelling the watchdog.
 
-### Maintenance через BullMQ
+### Maintenance through BullMQ
 
-Для клиента квот `UAI_REDIS_COMMAND_TIMEOUT_MS` ограничивает ожидание одной команды Redis. По умолчанию 2000 мс, допустимо 50–30000 мс. Это не срок выполнения BullMQ job и не суммарный срок восстановления группы квот. Timeout не доказывает, что Redis не выполнил команду: повтор допуска использует тот же durable admission ID. Нельзя создавать новый ID только из-за потерянного ответа или считать квоту нерасходованной.
+For the quota client, `UAI_REDIS_COMMAND_TIMEOUT_MS` bounds one Redis command's wait. Default 2000 ms, allowed 50–30000 ms. It is neither BullMQ job duration nor total quota-group recovery duration. A timeout does not prove Redis did not execute the command: an admission retry uses the same durable admission ID. Do not create a new ID solely because a response was lost or treat quota as unconsumed.
 
-Admission/recovery удерживает session advisory locks групп во время Redis-команд, но выполняет их вне SQL-транзакции. Таймаут ограничивает одну команду, а не весь цикл восстановления.
+Admission/recovery holds group session advisory locks during Redis commands but executes outside a SQL transaction. The timeout limits one command, not the whole recovery cycle.
 
-В распределённом режиме scheduler публикует цикл `maintenance`, вместо непосредственного выполнения обслуживания. Для отдельного процесса задайте `UAI_WORKER_BACKEND=bullmq`, `UAI_WORKER_QUEUES=maintenance` и тот же `UAI_INSTALLATION_ID`, что у scheduler. Цикл вызывает существующие доменные процедуры deadline/recovery/settlement, purge, мониторов и outbox; в переходный период он также наблюдает оставшиеся native requests legacy backend.
+In distributed mode, the scheduler publishes a `maintenance` cycle instead of directly performing maintenance. For a separate process, set `UAI_WORKER_BACKEND=bullmq`, `UAI_WORKER_QUEUES=maintenance`, and the scheduler's `UAI_INSTALLATION_ID`. The cycle calls existing domain deadline/recovery/settlement, purge, monitor, and outbox procedures; during transition, it also observes remaining legacy backend native requests.
 
-Миграция 0029 хранит текущее поколение цикла, due_at, lease и время сверки. На установку допускается один живой цикл. Lease 30 секунд продлевается каждые 5 секунд. Успешный цикл назначает следующий через секунду; ошибка оставляет то же поколение и откладывает повтор на 5 секунд. Потеря BullMQ job восстанавливается из этой строки. Для этой установки и БД нельзя запускать maintenance с другим installation ID: это создаст независимый цикл.
+Migration 0029 stores the current cycle generation, due_at, lease, and reconciliation time. One live cycle is allowed per installation. A 30-second lease renews every 5 seconds. Success schedules the next cycle after one second; failure retains the generation and defers retry by 5 seconds. A lost BullMQ job is recovered from this row. Do not run maintenance with another installation ID for this installation and database: that creates an independent cycle.
 
-Lease цикла не заменяет доменные финансовые блокировки и идемпотентность отдельных действий. После потери lease уже начатый сетевой вызов может завершиться; право выполнить проводку или завершить purge по-прежнему проверяет соответствующая доменная процедура. Старый владелец не может подтвердить завершение перехваченного цикла.
+The cycle lease does not replace domain financial locks or individual-action idempotency. After lease loss, an in-progress network call may finish; the corresponding domain procedure still checks permission to post or complete purge. An old owner cannot confirm completion of a taken-over cycle.
 
-### Снимок состояния очередей приложения
+### Application queue state snapshot
 
-`GET /v1/admin/execution-metrics` требует operations:admin и токен без account_ids restriction. Область определяется organization/application токена; данные соседних приложений не включаются. Ответ содержит sampled_at, window_start и по одной строке для text/image/audio/tools. Это чтение PostgreSQL, без Redis-вызовов и прав на изменение настроек.
+`GET /v1/admin/execution-metrics` requires operations:admin and a token without account_ids restriction. Scope derives from token organization/application; other applications' data is excluded. The response contains sampled_at, window_start, and one row per text/image/audio/tools. This is a PostgreSQL read without Redis calls or settings-write permissions.
 
-Текущие показатели: waiting, active_leases, running, remote_pending, paused, unknown, waiting_rate_limit, oldest_wait_seconds, oldest_unknown_seconds, unsettled_terminal. Последний счётчик показывает завершённое выполнение с ещё незавершённым расчётом; он не объявляет каждый такой случай ошибкой. Старые unknown и незавершённые расчёты остаются видимыми за пределами окна 24 часа.
+Current metrics: waiting, active_leases, running, remote_pending, paused, unknown, waiting_rate_limit, oldest_wait_seconds, oldest_unknown_seconds, unsettled_terminal. The last counts completed execution with unfinished settlement; it does not declare every such case an error. Old unknown and unsettled cases stay visible beyond the 24-hour window.
 
-unpublished_due и oldest_unpublished_seconds учитывают только текущую dispatch generation, уже наступивший due_at и ожидающие BullMQ requests. Старые поколения и будущие retries не увеличивают эту задержку. first_dispatch_wait_p95_ms и dispatch_samples_24h относятся к запросам с первым запуском за последние 24 часа; при отсутствии выборки percentile=null. Эта задержка включает квоты и ожидание слотов, а не только накладные расходы платформы. failed_24h считает failed requests с финансовым закрытием в этом окне, не число HTTP ошибок провайдера.
+unpublished_due and oldest_unpublished_seconds count only current dispatch generation, due_at already reached, and waiting BullMQ requests. Old generations and future retries do not increase this delay. first_dispatch_wait_p95_ms and dispatch_samples_24h cover requests first dispatched within the last 24 hours; without samples, percentile=null. This delay includes quotas and slot waiting, not platform overhead alone. failed_24h counts failed requests financially closed in this window, not provider HTTP errors.
 
-Счётчики описывают текущее доменное состояние, а не число BullMQ jobs. active_leases не равно числу оплачиваемых внешних вызовов, поскольку lease может принадлежать наблюдателю native job. Endpoint пока не заменяет метрики latency самого PostgreSQL/Redis, историю 429 и графики наблюдения; В разделе Queue есть компактный снимок этих показателей с обновлением каждые 15 секунд и вручную. Ошибка обновления сохраняет предыдущий снимок с предупреждением; отсутствие данных не заменяется нулями.
+Counters describe current domain state, not BullMQ job counts. active_leases does not equal paid external calls because a lease may belong to a native-job observer. The endpoint does not yet replace PostgreSQL/Redis latency metrics, 429 history, or observation charts; Queue contains a compact snapshot refreshed every 15 seconds and manually. A refresh error retains the previous snapshot with a warning; missing data is not replaced with zeros.
 
-При отказе из-за занятого provider concurrency slot следующая проверка назначается не позже чем через секунду. Это не повторный вызов провайдера: admission снова проверяет текущие слоты и квоты. Защитный `slot_expires_at` для неопределённого удалённого запроса сохраняется целиком; он не должен задерживать использование слота, уже освобождённого подтверждённым завершением.
+When admission fails because a provider concurrency slot is occupied, the next check is scheduled within one second. This is not another provider call: admission rechecks current slots and quotas. Protective `slot_expires_at` for an uncertain remote request remains intact; it must not delay reuse of a slot already released by confirmed completion.
 
-При восстановлении истёкшего request lease в состоянии `leased`, а также при отмене или истечении срока неотправленного запроса освобождаются concurrency slots текущего и предыдущих fences, для которых нет execution attempt и признака unknown. Проверка идёт под блокировкой request, поэтому старый worker не может после неё зафиксировать submission intent. Слоты с записанным submission intent и слоты неопределённых отправок сохраняются. Возврат такого request в очередь не создаёт списание. Проверка охватывает как admitted, так и intent: при потерянном подтверждении Redis мог уже учесть demand, хотя PostgreSQL ещё хранит intent. Миграция 0048 расширяет индекс для обоих состояний. Миграция 0047 сохраняет неизменяемый unused_at. Перед новым single/bundle admission группа удаляет соответствующий demand из локальных Redis-счётчиков и отмечает unused_refunded_at. Потеря ответа или SQL rollback допускают безопасный повтор. Восстановление Redis исключает такие admissions даже после уже выполненного возврата. Остаток из provider headers не увеличивается, поскольку наблюдение могло уже исключать неотправленный запрос; он остаётся консервативным до следующего наблюдения или reset. Возврат происходит при следующем admission группы, не отдельным фоновым процессом.
+Recovering an expired request lease in `leased`, or cancelling/expiring an unsubmitted request, releases current and earlier fence concurrency slots with no execution attempt or unknown marker. The check runs under the request lock, preventing an old worker from subsequently recording submission intent. Slots with recorded submission intent and uncertain-submission slots remain held. Returning such a request to the queue creates no charge. This covers admitted and intent: Redis may already have accounted demand despite PostgreSQL retaining intent after a lost acknowledgement. Migration 0048 expands the index for both states. Migration 0047 preserves immutable unused_at. Before a new single/bundle admission, the group removes corresponding demand from local Redis counters and marks unused_refunded_at. Response loss or SQL rollback permits safe retry. Redis recovery excludes these admissions even after refund. Provider-header remainder is not increased because the observation may already have excluded the unsubmitted request; it stays conservative until the next observation or reset. Refund occurs at the group's next admission, not in a separate background process.
 
 
-### Настройки групп provider quota
+### Provider quota group settings
 
-`GET /v1/admin/provider-quotas` показывает группы организации токена, их правила, привязанные connection/model, число удерживаемых слотов и паузу провайдера. Требуется `operations:admin`; токены с ограничением account_ids запрещены. `held_slots` включает защитные удержания после неопределённого исхода и не равен числу исполняющихся BullMQ jobs. Это PostgreSQL snapshot, не оценка оставшихся RPM/TPM в Redis.
+`GET /v1/admin/provider-quotas` shows token-organization groups, their rules, bound connection/model, held slot count, and provider pause. It requires `operations:admin`; account_ids-restricted tokens are prohibited. `held_slots` includes protective holds after unknown outcomes and is not the count of running BullMQ jobs. This is a PostgreSQL snapshot, not a Redis remaining RPM/TPM estimate.
 
-`PATCH /v1/admin/provider-quotas/{id}` требует также `config:write`, idempotency key, `settings_revision` и причину. Пока изменяет название, источник, дату проверки источника и concurrency limit. Миграция 0040 отделяет `settings_revision` от revision правил: переименование и параллельность не инвалидируют ранее записанный admission intent. Конфликт ревизии или имени возвращает 409, изменения аудируются. Новые допуски учитывают текущую concurrency; уже выполняющаяся работа не отменяется.
+`PATCH /v1/admin/provider-quotas/{id}` additionally requires `config:write`, idempotency key, `settings_revision`, and reason. Currently it changes name, source, source verification date, and concurrency limit. Migration 0040 separates `settings_revision` from rules revision: renaming and concurrency do not invalidate recorded admission intent. Revision or name conflicts return 409; changes are audited. New admissions use current concurrency; running work is not cancelled.
 
-В админке это вкладка Providers → Provider quotas с селектом группы, таблицей правил, моделями и компактной формой. Старый limiter остаётся в Legacy rate limits. В таблице редактируются лимит провайдера и наша доля. Пустой provider limit означает неизвестное значение; это не нулевая квота. Наша доля не может превышать известный лимит провайдера.
+Admin exposes Providers → Provider quotas with a group selector, rules table, models, and compact form. The old limiter remains under Legacy rate limits. The table edits provider limit and our share. Empty provider limit means unknown, not zero quota. Our share cannot exceed a known provider limit.
 
-`PATCH /v1/admin/provider-quotas/{id}/rules` требует `config:write`, `operations:admin`, idempotency key, `rules_revision` и причину. В теле передаётся весь существующий набор ключей правил с `capacity` и nullable `provider_capacity`, целые значения строками. Миграция 0041 сохраняет provider capacity отдельно. Команда меняет только capacity, увеличивает ревизию правил и пишет аудит. Ключи, метрики, окна, admission history и recovery epoch сохраняются. Уменьшение лимита блокирует новые допуски, пока расход не станет допустимым; ранее выданный действующий допуск сохраняет силу. Изменение не обнуляет расход, в том числе после восстановления Redis из PostgreSQL.
+`PATCH /v1/admin/provider-quotas/{id}/rules` requires `config:write`, `operations:admin`, idempotency key, `rules_revision`, and reason. Its body sends the entire existing set of rule keys with `capacity` and nullable `provider_capacity`, integers as strings. Migration 0041 stores provider capacity separately. The command changes capacity only, increments rules revision, and audits it. Keys, metrics, windows, admission history, and recovery epoch are preserved. Reducing limits blocks new admission until spending becomes permissible; a previously issued valid admission remains valid. Changes do not reset consumption, including after Redis recovery from PostgreSQL.
 
-Создание/удаление правил и групп, изменение метрик/окон, редактор привязок, Redis remainder и готовые Tier 4 templates ещё не реализованы. Lease/unknown safety hold пока доступны только для просмотра; их изменение требует сохранения параметров ранее выданных допусков.
+Creating/deleting rules and groups, changing metrics/windows, a binding editor, Redis remainder, and ready Tier 4 templates are not implemented yet. Lease/unknown safety holds are currently read-only; changing them requires preserving previously issued admission parameters.
 
-Миграция 0042 координирует изменение привязок по паре connection/model. Проверка admission proof берёт shared advisory lock этой пары до конца транзакции submission intent. Триггер PostgreSQL берёт соответствующий exclusive lock при INSERT/UPDATE/DELETE, включая прямые изменения конфигурации. При переносе привязки блокируются старая и новая пары. Изменение независимой модели не ждёт проверку чужого допуска. Это не редактор привязок: проверка совместимости групп и сохранение расхода при переносе ещё требуют отдельной реализации. Миграция должна предшествовать запуску кода, использующего quota_binding_lock_key.
+Migration 0042 coordinates binding changes by connection/model pair. Admission proof checks take that pair's shared advisory lock through the submission-intent transaction. A PostgreSQL trigger takes the corresponding exclusive lock on INSERT/UPDATE/DELETE, including direct configuration changes. Moving a binding locks old and new pairs. Changing an independent model does not wait for another admission check. This is not a binding editor: group compatibility checks and consumption preservation during moves still require separate implementation. The migration must precede code using quota_binding_lock_key.
 
-Внутренний `QuotaStore.snapshot` читает локальный остаток без создания допуска и без восстановления Redis. Проверяется recovery epoch, время берётся из Redis TIME. По каждому правилу возвращаются расход в текущем окне, остаток локального лимита и доступность с учётом консервативного ограничения провайдера и cooldown. Это диагностическая оценка, не обещание допуска следующего запроса. Ограничение провайдера уже учитывает локальные отправки после наблюдения; это не исходный raw remaining из заголовка. `observed_at` сохраняет дату последнего полученного наблюдения, участвовавшего в объединении, а не время replay. Для старой записи без даты возвращается null.
+Internal `QuotaStore.snapshot` reads local remainder without admission creation or Redis recovery. Recovery epoch is checked; time comes from Redis TIME. Each rule returns current-window consumption, local-limit remainder, and availability considering conservative provider limits and cooldown. This is a diagnostic estimate, not a promise to admit the next request. The provider limit already includes local submissions after observation; it is not raw header remaining. `observed_at` retains the date of the latest received observation participating in the merge, not replay time. Old entries without a date return null.
 
-Диагностическое чтение ограничено 10000 событиями на правило и 32 правилами на группу. При превышении возвращается `too_many_events` без численного остатка; при отсутствующем recovery epoch возвращается `not_ready`. Чтение не удаляет события и не продлевает TTL.
+Diagnostic reads are bounded by 10000 events per rule and 32 rules per group. Exceeding returns `too_many_events` without numerical remainder; missing recovery epoch returns `not_ready`. Reads neither delete events nor extend TTL.
 
-`GET /v1/admin/provider-quotas/{id}/snapshot` требует `operations:admin`, запрещает account-restricted tokens и проверяет организацию группы до обращения к Redis. Ответ не кэшируется. API не держит SQL-транзакцию при чтении Redis; после чтения повторно сверяет rules revision/recovery epoch. Конкурентное изменение возвращает `configuration_changed` без численного остатка. Пауза группы из PostgreSQL также уменьшает доступность до нуля. Без REDIS_URL/UAI_INSTALLATION_ID возвращается `not_configured`; ошибка Redis возвращает `unavailable` без деталей подключения.
+`GET /v1/admin/provider-quotas/{id}/snapshot` requires `operations:admin`, prohibits account-restricted tokens, and checks group organization before Redis access. Responses are not cached. The API holds no SQL transaction while reading Redis; afterward it rechecks rules revision/recovery epoch. Concurrent changes return `configuration_changed` without numerical remainder. A PostgreSQL group pause also reduces availability to zero. Without REDIS_URL/UAI_INSTALLATION_ID, return `not_configured`; Redis errors return `unavailable` without connection details.
 
-Блок Current availability во вкладке Provider quotas читает только выбранную группу, автоматически обновляется раз в 15 секунд и имеет ручную кнопку. Поздний ответ от прежней группы игнорируется. Ошибка обновления помечает сохранённые значения как устаревшие; несовпадение ревизии убирает числа и требует обновить настройки группы. Отдельно показываются Used, Local remaining, Available now и дата/reset действующего provider observation. Это проверено в отдельном desktop component QA; полный admin shell и mobile остаются отдельными проверками.
+Current availability under Provider quotas reads only the selected group, refreshes every 15 seconds, and has a manual button. Late responses from the previous group are ignored. Refresh errors mark retained values stale; revision mismatch removes numbers and requires refreshing group settings. Used, Local remaining, Available now, and the active provider observation date/reset are separate. This passed separate desktop component QA; full admin shell and mobile remain separate checks.
 
-### Подтверждённые счётчики исполнения
+### Confirmed execution counters
 
-Внутренний ProviderResult может содержать `limit_usage`: отдельные целые счётчики requests/input_tokens/output_tokens/tokens/images/audio_seconds. Они не выводятся из цены или нормализованных денежных позиций. OpenAI adapter переносит явно полученные input_tokens/output_tokens, проверяет безопасный диапазон и согласованность total_tokens, если тот присутствует. Отсутствие счётчика не становится нулём; неполное распределение кэша может оставить денежный usage неизвестным при известных общих токенах.
+Internal ProviderResult may contain `limit_usage`: separate integer counters requests/input_tokens/output_tokens/tokens/images/audio_seconds. They are not derived from price or normalized monetary items. The OpenAI adapter copies explicitly received input_tokens/output_tokens, checks safe range and total_tokens consistency if present. Missing counters do not become zero; incomplete cache breakdown may leave monetary usage unknown while total tokens are known.
 
-Допустимые счётчики сохраняются в quota_result_feedback без output, prompts и произвольных полей адаптера. Replay получает те же значения. Миграция 0043 фиксирует rule_metrics в новых single/bundle admissions; снимок защищён от изменения. Старые admissions сохраняют пустой снимок, их исторические метрики не угадываются из текущей конфигурации.
+Valid counters are saved in quota_result_feedback without output, prompts, or arbitrary adapter fields. Replay receives the same values. Migration 0043 pins rule_metrics in new single/bundle admissions; the snapshot is protected from changes. Old admissions retain an empty snapshot; historical metrics are not guessed from current configuration.
 
-Миграция 0044 добавляет quota_usage_adjustments. Подтверждённое превышение исходного demand записывается отдельными положительными дельтами. Повтор или уменьшение счётчика не добавляет дельту и не возвращает квоту. Увеличенный поздний счётчик добавляет только разницу сверх уже зарегистрированного максимума. Исходные demands и fingerprint остаются неизменными.
+Migration 0044 adds quota_usage_adjustments. Confirmed excess above original demand is recorded as separate positive deltas. Duplicate or lower counters add no delta and refund no quota. A higher late counter adds only the difference beyond the recorded maximum. Original demands and fingerprint remain immutable.
 
-Миграция 0045 запрещает UPDATE фактов поправки: идентификаторов, правила, подтверждённого количества, дельты, окна и observed_at. Меняться может только служебная отметка applied_at; её сброс не должен повторно учитывать расход. Это защита от изменения существующей записи, а не политика хранения или запрет DELETE. Удалять ещё действующие поправки нельзя: восстановление Redis использует их как источник расхода.
+Migration 0045 prohibits UPDATE of adjustment facts: identifiers, rule, confirmed quantity, delta, window, and observed_at. Only service marker applied_at can change; resetting it must not double-count consumption. This protects existing records, rather than defining retention or prohibiting DELETE. Still-active adjustments must not be deleted: Redis recovery uses them as a consumption source.
 
-Для single-group и bundle admission SQL-проверка и SQL-подтверждение теперь отдельные короткие транзакции. Восстановление Redis, заголовки, поправки, возвраты и acquire выполняются между ними. На это время сохраняются session advisory locks всех участвующих групп и одно соединение из существующего PostgreSQL pool, но нет открытой SQL-транзакции или удерживаемой блокировки request row. После Redis повторно проверяются lease, отмена, deadline, revision/epoch, concurrency и cooldown. Для bundle дополнительно проверяются состав и coordination domain; все группы подтверждаются одной короткой транзакцией после проверки каждой. Отказ подтверждения оставляет доказанно неотправленный intent для возврата квоты; потерянный ответ Redis сохраняет неопределённость.
+For single-group and bundle admission, SQL validation and SQL confirmation are now separate short transactions. Redis recovery, headers, adjustments, refunds, and acquire run between them. Group session advisory locks and one existing PostgreSQL pool connection remain held, but no SQL transaction or request-row lock stays open. After Redis, lease, cancellation, deadline, revision/epoch, concurrency, and cooldown are rechecked. Bundle also checks membership and coordination domain; all groups are confirmed in one short transaction after checking each. Confirmation rejection leaves a provably unsubmitted intent for quota refund; a lost Redis response preserves uncertainty.
 
-Этот путь требует прямого PostgreSQL-подключения или session pooling: transaction pooling не сохраняет принадлежность session advisory lock соединению. Пул освобождает lock в finally; при потере соединения оно удаляется из pool. Оба варианта admission по-прежнему занимают одно pool connection на время сетевого ожидания. Bundle сначала блокирует свой идентификатор, затем группы в том же порядке, что и запись intent, и освобождает блокировки в обратном порядке. Проверки с pg_terminate_backend охватывают потерю соединения при задержанном открытии recovery gate и acquire для single/bundle: новый владелец подтверждает допуск, старый не получает proof, повторное потребление не допускается. Это не полная проверка аварии PostgreSQL или одновременного рестарта Redis. Запоздалый replay сохраняет максимальную из переданной и уже записанной отметок потребления одним Lua script; старый владелец не может сдвинуть окно назад. Несовпадение fingerprint при восстановлении приводит к отказу.
+This path requires direct PostgreSQL connection or session pooling: transaction pooling does not preserve session advisory lock ownership. The pool releases locks in finally; a lost connection is removed from the pool. Both admission variants still occupy one pool connection during network waiting. Bundle locks its ID first, then groups in the same order as intent recording, releasing in reverse order. pg_terminate_backend checks cover connection loss during delayed recovery-gate opening and acquire for single/bundle: the new owner confirms admission, the old gets no proof, and duplicate consumption is prevented. This is not full PostgreSQL outage or simultaneous Redis restart testing. Late replay preserves the maximum of submitted and recorded consumption timestamps in one Lua script; an old owner cannot move the window backward. Fingerprint mismatch during recovery fails closed.
 
-Дельта относится к окну с момента durable наблюдения результата, а не с отправки запроса: долгий ответ не освобождает только что подтверждённое превышение немедленно. Это консервативная локальная политика, не утверждение о точном внутреннем алгоритме провайдера. Provider observation дополнительно уменьшается на дельту один раз. После истечения окна replay не возобновляет старое превышение.
+The delta belongs to a window starting at durable result observation, not request submission: a long response does not immediately release newly confirmed excess. This is conservative local policy, not a claim about the provider's exact internal algorithm. Provider observation is additionally reduced by the delta once. After window expiry, replay does not restore old excess.
 
-Поправка сначала фиксируется в PostgreSQL под блокировкой группы, затем применяется атомарным Redis script с отдельным идемпотентным ключом. При потере acknowledgement повтор безопасен. Каждый новый single/bundle admission применяет pending corrections до проверки остатка. При восстановлении Redis replay включает исходные demands и все недавние поправки до открытия recovery gate; затем восстанавливаются заголовки провайдера. Старые admissions с неизвестным rule_metrics не переинтерпретируются. Счётчики неизвестных метрик не угадываются из денежных usage-позиций.
+An adjustment is first committed in PostgreSQL under the group lock, then applied by an atomic Redis script with its own idempotency key. Lost acknowledgement is safely retried. Every new single/bundle admission applies pending corrections before checking remainder. During Redis recovery, replay includes original demands and recent adjustments before opening the recovery gate, then restores provider headers. Old admissions with unknown rule_metrics are not reinterpreted. Counters for unknown metrics are not guessed from monetary usage items.
 
-### Создание группы квот
+### Creating a quota group
 
-В Provider quotas кнопка New quota group создаёт группу с названием, провайдером, источником лимитов, concurrency и правилами. Каждая строка задаёт метрику, период, лимит провайдера при его наличии и наш предел. API POST /v1/admin/provider-quotas поддерживает 1–32 правила, требует административные права, причину и Idempotency-Key. Название уникально в организации; группа, правила и аудит фиксируются атомарно. checked_at остаётся пустым, если источник ещё не проверен.
+In Provider quotas, New quota group creates a group with name, provider, limit source, concurrency, and rules. Each row specifies metric, period, provider limit if known, and our limit. API POST /v1/admin/provider-quotas supports 1–32 rules and requires administrative rights, reason, and Idempotency-Key. Names are unique within the organization; group, rules, and audit commit atomically. checked_at stays empty if the source has not been verified.
 
-Создание группы не назначает модели и не изменяет действующие маршруты. Coordination domain объединяет группы для атомарной проверки одного аккаунта провайдера; это не API credential. Не передавайте секреты в название, источник или scope. Редактирование существующих ёмкостей сохраняет накопленное потребление; создание новой группы не является способом переноса текущего расхода между группами.
+Creating a group assigns no models and changes no active routes. Coordination domain groups quotas for atomic checks of one provider account; it is not an API credential. Do not put secrets in names, sources, or scopes. Editing existing capacities preserves accumulated consumption; creating a new group is not a way to transfer current consumption between groups.
 
-### Изменение привязок квот через API
+### Changing quota bindings through the API
 
-GET /v1/admin/provider-quota-bindings принимает connection_id и model и возвращает bindings_revision. PUT того же ресурса принимает эту revision, group_ids, причину и Idempotency-Key. Подключение должно принадлежать приложению токена; для изменения нужны operations:admin и config:write без ограничения на отдельные accounts. Группы принадлежат организации и провайдеру подключения, модель должна быть активной в опубликованном каталоге приложения. Несколько групп требуют общего coordination domain. Пустой набор снимает привязки и оставляет будущий admission без разрешающей группы.
+GET /v1/admin/provider-quota-bindings accepts connection_id and model and returns bindings_revision. PUT on the same resource accepts this revision, group_ids, reason, and Idempotency-Key. The connection must belong to the token's application; changes require operations:admin and config:write without individual-account restrictions. Groups belong to the connection's organization and provider; the model must be active in the application's published catalog. Multiple groups require a common coordination domain. An empty set removes bindings and leaves future admission without an authorizing group.
 
-Удаление группы из набора отклоняется с quota_binding_usage_active, пока она содержит расход в действующем окне, неопределённый intent или удерживаемые вызовы. Проверка относится ко всей группе, даже если другие модели разделяют её. Это не сброс счётчиков. Добавление группы меняет требования для последующей подготовки внешней попытки; старый proof без неё становится недействительным. Уже отправленные попытки сохраняют исходные admissions и финансовые условия. В Provider quotas кнопка Assign models открывает выбор подключения и модели, затем список групп. Save assignments сохраняет весь набор. При конфликте revision введённые данные остаются на экране; Reload assignments явно загружает актуальный набор. Смена модели отменяет применение позднего ответа от предыдущего выбора.
+Removing a group is rejected with quota_binding_usage_active while it contains consumption within an active window, uncertain intent, or held calls. The check covers the whole group even when other models share it. It is not a counter reset. Adding a group changes requirements for preparing subsequent external attempts; an old proof lacking it becomes invalid. Submitted attempts preserve their original admissions and financial terms. In Provider quotas, Assign models opens connection/model selection, then a group list. Save assignments saves the entire set. Revision conflicts preserve entered data; Reload assignments explicitly loads current assignments. Changing models discards late responses from the previous selection.
 
-### Изменение состава правил квоты
+### Changing quota rule membership
 
-`PUT /v1/admin/provider-quotas/{id}/rules` заменяет набор из 1–32 правил, включая ключ, метрику и период. Требуются `rules_revision`, `reason`, `Idempotency-Key` и права `operations:admin` + `config:write`. Все изменения и аудит `quota.rules.replaced` фиксируются одной транзакцией под блокировкой группы. Неизменная структура использует существующий путь изменения числовых лимитов и сохраняет recovery epoch.
+`PUT /v1/admin/provider-quotas/{id}/rules` replaces a set of 1–32 rules, including key, metric, and period. It requires `rules_revision`, `reason`, `Idempotency-Key`, and `operations:admin` + `config:write`. All changes and `quota.rules.replaced` audit commit in one transaction under the group lock. Unchanged structure uses the existing numerical-limit update path and preserves recovery epoch.
 
-Для структурного изменения действует консервативное ограничение текущей реализации: отсутствие расхода и наблюдений провайдера за последние 25 часов, незавершённых вызовов, неизвестных intent, недоставленных поправок/результатов/наблюдений и действующего cooldown. При нарушении API возвращает `409 quota_rules_usage_active`. Это окно соответствует истории восстановления Redis и включает возможное новое суточное правило. После безопасной замены создаётся новый recovery epoch; исходные admissions и финансовые записи не переписываются. Числовые лимиты существующих правил можно менять без этой паузы. В Provider quotas кнопка Edit rule limits открывает таблицу с выбором метрики, ключом, периодом в секундах, лимитами и удалением строк. Add rule добавляет строку. Форма выбирает PATCH для числового изменения или PUT для смены структуры, сохраняет введённые значения и ключ команды при ошибке.
+Structural changes have a conservative current-implementation restriction: no consumption or provider observations within the last 25 hours, unfinished calls, unknown intents, undelivered adjustments/results/observations, or active cooldown. Otherwise the API returns `409 quota_rules_usage_active`. This window matches Redis recovery history and includes a possible new daily rule. Safe replacement creates a new recovery epoch; original admissions and financial records are not rewritten. Existing rules' numerical limits can change without this pause. In Provider quotas, Edit rule limits opens a table with metric selection, key, period in seconds, limits, and row deletion. Add rule adds a row. The form selects PATCH for numerical changes or PUT for structural changes and preserves entered values and command key on error.
 
-### Переход от общей блокировки к блокировке аккаунта
+### Moving from a global lock to account locks
 
-Операции quoting, settlement/observation, отмена запроса, приостановка расходов и удаление контента с известным аккаунтом используют `lockExecutionAccount`. Ключ включает организацию, приложение и аккаунт в JSON и отдельное пространство advisory locks. Блокировка берётся до account/wallet/request rows. Подготовка отправки и выдача конкретного задания BullMQ берут её в shared-режиме, финансовые изменения в exclusive. Повышать shared до exclusive внутри транзакции отправки нельзя; просроченный запрос закрывается отдельной транзакцией.
+Quoting, settlement/observation, request cancellation, spending suspension, and content deletion with a known account use `lockExecutionAccount`. The key includes organization, application, and account as JSON in a separate advisory-lock namespace. The lock precedes account/wallet/request rows. Submission preparation and targeted BullMQ job leasing take it in shared mode; financial changes use exclusive mode. Upgrading shared to exclusive inside a submission transaction is prohibited; an expired request closes in a separate transaction.
 
-Подготовка попытки и обработка результата также сериализуются по организации и endpoint scope до incident/exposure budget rows. Это сохраняет единый порядок блокировок при общем бюджете провайдера и восстановлении инцидента. Разные аккаунты без конфликтующего общего ресурса могут завершать транзакции независимо.
+Attempt preparation and result processing also serialize by organization and endpoint scope before incident/exposure budget rows. This preserves one lock order for shared provider budgets and incident recovery. Different accounts without a conflicting shared resource can commit independently.
 
-Общий scheduler barrier 41827430 удалён из рабочего кода. Legacy lease и legacy native poll используют отдельную короткую блокировку `legacy-capacity` для проверки свободных мест. Она не участвует в quoting, settlement или BullMQ. Активные legacy и BullMQ задания считаются в своих транспортных лимитах; общие provider quotas и exposure budgets остаются отдельной защитой. Для смены версии с прежним global barrier нужно остановить старые процессы: одновременная работа старого и нового протокола блокировок не поддерживается.
+Global scheduler barrier 41827430 is removed from runtime code. Legacy lease and native poll use a separate short `legacy-capacity` lock to check available capacity. It does not participate in quoting, settlement, or BullMQ. Active legacy and BullMQ jobs count against their respective transport limits; shared provider quotas and exposure budgets remain separate protection. Switching from the old global-barrier version requires stopping old processes: simultaneous old/new locking protocols are unsupported.
 
-Финансовая часть scheduler теперь выбирает до 256 аккаунтов с просроченной работой и обрабатывает каждый отдельной транзакцией: инциденты удержанного отзыва кредитов, закрытие операций, deadline запросов и финансовое закрытие unknown. При наличии заданного scope обрабатывается только этот аккаунт. Exclusive account barrier берётся через try-lock; занятый аккаунт откладывается до следующего цикла. Ожидание строковых блокировок ограничено 250 ms: при lock_timeout вся транзакция этого аккаунта откатывается, проход продолжает работу с остальными. Иные ошибки не скрываются; завершённые аккаунты остаются committed, повторный цикл заново проверяет БД.
+Scheduler financial maintenance now selects up to 256 accounts with overdue work and processes each in a separate transaction: held credit-revocation incidents, operation closure, request deadlines, and unknown financial closure. With a supplied scope, only that account is processed. Exclusive account barriers use try-lock; busy accounts defer until the next cycle. Row-lock waiting is limited to 250 ms: lock_timeout rolls back the entire account transaction while the pass continues with others. Other errors are not hidden; completed accounts remain committed, and another cycle rechecks the database.
 
-Результат scheduler содержит `maintenance_accounts` и `maintenance_busy_accounts`. Очистка контента вынесена в отдельную транзакцию, без удержания финансовых блокировок. Совместимые прямые вызовы maintenance без scope перебирают доступные account locks; штатный scheduler передаёт конкретный scope каждой финансовой операции. Списки кошельков и операций в админке уже читают записи отдельными транзакциями; legacy lease использует отдельную блокировку capacity. Лимит 256 относится к числу выбранных аккаунтов за цикл, а не к количеству пользователей установки; занятые аккаунты входят в этот предел.
+Scheduler results contain `maintenance_accounts` and `maintenance_busy_accounts`. Content cleanup uses a separate transaction without holding financial locks. Compatible direct unscoped maintenance calls iterate available account locks; the normal scheduler passes a specific scope to every financial operation. Admin wallet and operation lists already read records in separate transactions; legacy lease uses a separate capacity lock. The 256 limit counts selected accounts per cycle, not installation users; busy accounts count toward it.
 
 
-Административные списки `/v1/admin/wallets` и `/v1/admin/operations` сначала проверяют права и выбирают до 100 идентификаторов в исходном порядке, затем читают каждую запись своей транзакцией. Финансовые блокировки предыдущей записи освобождаются до следующей. Каждая строка согласована сама по себе; весь список не является атомарным снимком одного момента. Обновление списка получает новые значения. Права operations:admin, запрет account-restricted token и изоляция организации/приложения сохранены. Поле spending_suspended читается под той же account row lock, что и кошелёк.
+Administrative lists `/v1/admin/wallets` and `/v1/admin/operations` first authorize and select up to 100 IDs in original order, then read each record in its own transaction. The previous record's financial locks release before the next. Each row is internally consistent; the whole list is not one atomic point-in-time snapshot. Refresh obtains new values. operations:admin, prohibition of account-restricted tokens, and organization/application isolation are preserved. spending_suspended is read under the same account-row lock as the wallet.
 
-Ручное возобновление recovery incident использует блокировку его endpoint scope до изменения incident row. Оно не берёт общий exclusive scheduler barrier; посторонние endpoint могут возобновляться независимо, одна и та же область сериализуется с dispatch и обработкой результата.
+Manual recovery-incident resume locks its endpoint scope before modifying the incident row. It does not take a global exclusive scheduler barrier; unrelated endpoints may resume independently, while the same scope serializes with dispatch and result processing.
 
 
-### Поэтапный пересчёт больших окон квот
+### Incremental recalculation of large quota windows
 
-Одна команда допуска читает не более 4096 событий для восстановления агрегатов, частичной очистки истёкших событий и поиска времени следующего допуска. Если работы больше, Redis сохраняет промежуточный пересчёт в производном агрегате; клиент выполняет следующую короткую команду. До завершения проверки всех правил ни permit, ни расход по наблюдениям провайдера не создаются. Финальная команда повторно проверяет все группы, epochs, replay, текущие суммы, cooldown и headers, затем атомарно учитывает допуск.
+One admission command reads at most 4096 events to restore aggregates, partially remove expired events, and find the next admission time. With more work, Redis saves intermediate recalculation in a derived aggregate; the client issues another short command. Until every rule is checked, neither permits nor provider-observation consumption are created. The final command rechecks all groups, epochs, replay, current totals, cooldown, and headers, then atomically accounts admission.
 
-Добавление разрешённого расхода меняет revision агрегата; восстановление, корректировка usage и возврат неотправленного допуска сбрасывают агрегат вместе с промежуточным пересчётом. Истечение событий обновляет revision и сбрасывает расчёт отказа. Поэтому другая команда между проходами не позволяет закончить допуск по устаревшему состоянию. Суммы в промежуточном JSON хранятся строками, чтобы сериализация Lua cjson не округляла большие целые значения.
+Adding authorized consumption changes aggregate revision; recovery, usage adjustment, and refunding unused admission reset the aggregate and intermediate recalculation. Event expiry updates revision and resets denial calculation. Thus another command between passes cannot complete admission from stale state. Intermediate JSON totals are strings so Lua cjson does not round large integers.
 
-Клиент ограничивает всю подготовку 20 секундами, а timeout отдельной Redis-команды остаётся штатным. Если подготовка не завершилась, возвращается not_ready, новый permit не создаётся; durable intent остаётся восстанавливаемым. Сам пересчёт может занять несколько секунд после потери агрегатов, но не должен удерживать Redis одной длинной Lua-командой. Read-only shadow preview ограничен суммарно 10 000 событиями по всем правилам; при превышении возвращает unknown / too_many_events, а не разрешение или нулевой расход.
+The client bounds total preparation to 20 seconds while individual Redis-command timeout stays standard. Unfinished preparation returns not_ready without a new permit; durable intent remains recoverable. Recalculation after aggregate loss may take seconds but must not hold Redis with one long Lua command. Read-only shadow preview is limited to 10 000 total events across all rules; exceeding returns unknown / too_many_events, not permission or zero consumption.
 
-### Восстановление квот после рестарта Redis
+### Quota recovery after Redis restart
 
-Recovery gate содержит PostgreSQL recovery_epoch и run_id текущего Redis. Lua scripts считывают run_id через `INFO server` в той же атомарной команде, которая проверяет gate. После рестарта или переключения на другой процесс прежний gate недействителен, даже если он сохранился в AOF. Перед новым допуском восстанавливаются durable admissions, поправки и наблюдения из PostgreSQL. Старый обработчик восстановления не может открыть gate или восстановить demands после смены run_id.
+The recovery gate contains PostgreSQL recovery_epoch and the current Redis run_id. Lua scripts read run_id through `INFO server` in the same atomic command that checks the gate. After restart or switching processes, the old gate is invalid even if retained in AOF. Durable admissions, adjustments, and observations are restored from PostgreSQL before new admission. An old recovery handler cannot open the gate or restore demands after run_id changes.
 
-Redis ACL для клиента квот должен разрешать `INFO` вместе с используемыми командами Lua и данных. Отказ INFO останавливает допуск, не разрешает вызов без проверки. Совместимость с managed Redis, запрещающим INFO из scripts, не подтверждена. Удаление отдельных ключей на работающем Redis с сохранением gate этим механизмом не обнаруживается; ручная частичная очистка quota namespace запрещена. При обновлении меняется формат gate, смешанный запуск старых и новых бинарников не проверен.
+The quota client's Redis ACL must allow `INFO` alongside used Lua and data commands. INFO rejection stops admission rather than permitting an unchecked call. Compatibility with managed Redis prohibiting INFO inside scripts is unconfirmed. Deleting individual keys on a running Redis while keeping the gate is not detected; manual partial quota-namespace cleanup is prohibited. An update changes gate format; mixed old/new binary operation is untested.
 
-`DATABASE_URL=… pnpm test:redis-restart` запускает Docker fault test с отдельной временной PostgreSQL database и собственным Redis 7.4 с AOF. Он проверяет обычный рестарт, откат к старому AOF и рестарт во время восстановления. Общий Redis установки не перезапускается. Для включения в полный прогон установите `UAI_TEST_REDIS_RESTART=1`; по умолчанию этот Docker test пропускается. Дополнительные сценарии проверяют восстановление ожидающих BullMQ jobs после полного удаления данных Redis и после отката AOF. В старом снимке остаётся job уже оплаченного запроса; его доставка не вызывает провайдера повторно и не меняет списание. Новые отсутствующие jobs восстанавливаются из PostgreSQL. Эти проверки используют синтетический text provider и не заменяют проверку active jobs на разных хостах.
+`DATABASE_URL=… pnpm test:redis-restart` runs a Docker fault test with a separate temporary PostgreSQL database and its own Redis 7.4 with AOF. It verifies normal restart, rollback to old AOF, and restart during recovery. Shared installation Redis is not restarted. Set `UAI_TEST_REDIS_RESTART=1` to include it in the full run; this Docker test is skipped by default. Additional scenarios verify waiting BullMQ job recovery after complete Redis data loss and AOF rollback. An old snapshot retains a job for an already charged request; delivery neither calls the provider again nor changes the charge. New missing jobs recover from PostgreSQL. These checks use a synthetic text provider and do not replace active-job testing across hosts.
 
 
-В `packages/queue/test/crash.test.ts` сценарий stalled использует штатный таймер BullMQ после SIGKILL worker. Повторная доставка исходного job не даёт права на повторный вызов, если PostgreSQL уже хранит submission intent и outcome_unknown. Проверка длится около минуты; она не добавляет duplicate job вручную и не меняет Redis lock. Durable request lease в fixture принудительно истекает, поэтому тест не измеряет полный эксплуатационный срок восстановления PostgreSQL lease.
+In `packages/queue/test/crash.test.ts`, the stalled scenario uses BullMQ's normal timer after worker SIGKILL. Redelivery of the original job does not authorize another call when PostgreSQL already stores submission intent and outcome_unknown. The check takes about a minute; it does not manually add a duplicate job or change the Redis lock. The fixture forcibly expires durable request lease, so it does not measure full operational PostgreSQL lease recovery time.
 
 
-### Проверка полного отказа PostgreSQL
+### Full PostgreSQL outage check
 
-`pnpm test:postgres-outage` поднимает отдельные PostgreSQL 17 и Redis 7.4 через Docker, применяет миграции в пустую тестовую БД и останавливает весь тестовый PostgreSQL после вызова синтетического провайдера. Общая БД и Redis приложения не затрагиваются. `UAI_TEST_POSTGRES_OUTAGE=1` включает сценарий в полный прогон.
+`pnpm test:postgres-outage` starts separate PostgreSQL 17 and Redis 7.4 in Docker, applies migrations to an empty test database, and stops the entire test PostgreSQL after a synthetic-provider call. Shared application database and Redis are untouched. `UAI_TEST_POSTGRES_OUTAGE=1` includes the scenario in the full run.
 
-Во время отказа новый job не вызывает провайдера, публикация не проходит, API возвращает `503 platform_unavailable` для распознанных ошибок недоступности соединения. Ответ разрешает повтор с тем же ключом идемпотентности. Исход ошибки после потери связи во время команды нельзя определять по HTTP-коду: повтор с новым ключом может создать другую операцию.
+During outage, a new job does not call the provider, publication fails, and the API returns `503 platform_unavailable` for recognized connection-unavailability errors. The response permits retry with the same idempotency key. HTTP status cannot determine a command's outcome after connection loss: retry with a new key may create another operation.
 
-После запуска PostgreSQL ранее неотправленный request восстанавливается из неудачной BullMQ delivery и завершается. Request с submission intent остаётся outcome_unknown после восстановления lease, даже если worker успел получить ответ, который не смог записать в БД. Его резерв сохраняется, списание без подтверждения не появляется, дубликат job не вызывает новую генерацию. Тест ускоряет истечение durable request lease, поэтому не измеряет эксплуатационную длительность восстановления. Проверка не заменяет failover на реплику PostgreSQL или сетевое разделение между несколькими хостами.
+After PostgreSQL restarts, the previously unsubmitted request recovers from failed BullMQ delivery and completes. A request with submission intent remains outcome_unknown after lease recovery even if the worker received a response it could not save. Its reservation remains, no unconfirmed charge appears, and a duplicate job does not create another generation. The test accelerates durable request lease expiry, so it does not measure operational recovery duration. It does not replace PostgreSQL replica failover or multi-host network partition checks.
 
 
-### Задержка готовой очереди
+### Ready queue delay
 
-Миграция 0049 добавляет execution_dispatches.first_leased_at. Успешный BullMQ lease сохраняет первую отметку в той же транзакции, что и request fencing; дубликат не меняет её. Для старых deliveries отметка остаётся NULL, историческое время не угадывается.
+Migration 0049 adds execution_dispatches.first_leased_at. A successful BullMQ lease saves its first timestamp in the same transaction as request fencing; duplicates do not change it. Old deliveries retain NULL; historical time is not guessed.
 
-`GET /v1/admin/execution-metrics` возвращает queue_wait_samples_24h и ready_queue_wait_p50_ms / ready_queue_wait_p95_ms. Это время от due_at конкретной delivery до её первого worker lease. Запланированный Retry-After до due_at не входит в показатель. Ожидание свободного worker и локальной capacity после due_at входит; время дальнейшего admission и выполнения провайдера не входит. При нескольких generations одного request каждая delivery имеет собственный sample. Это не сумма всех задержек запроса.
+`GET /v1/admin/execution-metrics` returns queue_wait_samples_24h and ready_queue_wait_p50_ms / ready_queue_wait_p95_ms. This is the time from a delivery's due_at to its first worker lease. Scheduled Retry-After before due_at is excluded. Waiting for a free worker and local capacity after due_at is included; subsequent admission and provider execution are excluded. Multiple generations of one request each have their own delivery sample. This is not the sum of all request delays.
 
-Показатели используют отметки lease за последние 24 часа и область organization/application токена. Нет samples означает nullable latency, а не нулевую задержку. First start теперь также имеет first_dispatch_wait_p50_ms в API; прежний p95 и его семантика сохранены. В Queue status отдельная колонка Ready queue показывает p50 / p95 и число deliveries рядом с First start p95. Обновление с ошибкой сохраняет прежний снимок с предупреждением.
+Metrics use leases within the past 24 hours and token organization/application scope. No samples means nullable latency, not zero delay. First start also now has first_dispatch_wait_p50_ms in the API; earlier p95 semantics remain. Queue status has a separate Ready queue column showing p50 / p95 and delivery count alongside First start p95. Refresh failures preserve the previous snapshot with a warning.
 
 
-### Сохранённые HTTP-наблюдения и восстановленные доставки
+### Persisted HTTP observations and recovered deliveries
 
-Миграция 0050 добавляет provider_http_observations. Callback HTTP adapter сохраняет только attempt_id, время отправки/получения и статус 100–599. Тела ответов, входные данные, credentials и заголовки в эту таблицу не попадают. Запись выполняется до выбора владельца quota headers; несколько групп маршрута не умножают HTTP samples. Повтор того же attempt/sent_at/received_at не создаёт вторую запись.
+Migration 0050 adds provider_http_observations. The HTTP adapter callback stores only attempt_id, sent/received time, and status 100–599. Response bodies, inputs, credentials, and headers never enter this table. Recording precedes quota-header owner selection; multiple route groups do not multiply HTTP samples. Repeating the same attempt/sent_at/received_at creates no second record.
 
-Execution metrics возвращает http_observations_24h и http_429_observations_24h по полученным наблюдениям за 24 часа. В UI это Observed HTTP 429 и число responses. Считаются подтверждённые HTTP 429, включая billing/quota ответы с таким статусом; локальное ожидание rate limit не считается ответом 429. Отсутствие наблюдений показано как No HTTP samples. Статистика не восстанавливает ответы старых версий или ответы, потерянные при недоступной БД; адаптер без HTTP callback не имеет такого покрытия. Эти счётчики нельзя считать полным отчётом провайдера.
+Execution metrics return http_observations_24h and http_429_observations_24h for observations received within 24 hours. UI labels are Observed HTTP 429 and response count. Confirmed HTTP 429 includes billing/quota responses with that status; local rate-limit waiting is not a 429 response. Missing observations display No HTTP samples. Statistics do not reconstruct old-version responses or responses lost during database outage; an adapter without HTTP callback lacks this coverage. These counters are not a complete provider report.
 
-recovered_execute_deliveries_24h считает только новые deliveries, которые execute reconciler создал после обнаружения отсутствующего/completed/failed/unknown transport job для ожидающего request. В новой delivery атомарно сохраняется recovered_at. Обычный retry generation и старые записи без этой отметки не считаются восстановлением. Native observation и maintenance jobs в этот показатель не входят. В UI число видно под Not published как restored / 24h. Обе группы метрик ограничены organization/application токена; request/attempt IDs не становятся labels метрик.
+recovered_execute_deliveries_24h counts only new deliveries created by execute reconciler after detecting a missing/completed/failed/unknown transport job for a waiting request. recovered_at is atomically saved in the new delivery. Normal retry generations and old records without this marker do not count as recovery. Native observation and maintenance jobs are excluded. UI shows the number under Not published as restored / 24h. Both metric groups are scoped to token organization/application; request/attempt IDs do not become metric labels.
 
 
-### Heartbeat процессов worker
+### Worker process heartbeat
 
-Миграция 0051 добавляет execution_worker_heartbeats. Процесс `apps/worker` с BullMQ backend отправляет heartbeat раз в 10 секунд для каждой обслуживаемой очереди: process worker_id, concurrency, active_jobs и состояние running/draining/stopped. Хосты, адреса Redis, credentials и request IDs в heartbeat не записываются. Первый heartbeat публикуется при запуске; ошибки наблюдения не дают права на отправку и не меняют финансовое состояние. На один процесс одновременно выполняется не более одного периодического heartbeat.
+Migration 0051 adds execution_worker_heartbeats. A BullMQ `apps/worker` process sends heartbeat every 10 seconds for every serviced queue: process worker_id, concurrency, active_jobs, and running/draining/stopped state. Hosts, Redis addresses, credentials, and request IDs are excluded. First heartbeat is sent at startup; observation errors neither authorize submission nor change financial state. At most one periodic heartbeat runs per process at a time.
 
-Active jobs считает выполняющиеся callback обработчиков, включая время ожидания SQL/admission; это не число отправленных провайдеру запросов. При SIGTERM/SIGINT процесс прекращает брать задания, отмечается draining и после завершения обработчиков записывает stopped. После SIGKILL отметка stopped не появляется, поэтому свежесть оценивается по последнему heartbeat. Штатный shutdown watchdog продолжает ограничивать общее время остановки.
+Active jobs count running handler callbacks, including SQL/admission waiting; this is not provider-submitted request count. On SIGTERM/SIGINT, the process stops intake, marks draining, and records stopped after handlers finish. SIGKILL leaves no stopped marker, so freshness is judged by last heartbeat. The normal shutdown watchdog still bounds total shutdown time.
 
-Execution metrics содержит nullable workers. Если UAI_INSTALLATION_ID в API не задан, workers=null. Иначе показывается только эта installation, по всем её приложениям, отдельно от application-scoped request metrics. Требуются прежние operations:admin права и отсутствие account restriction. Ответ workers имеет собственный sampled_at по часам PostgreSQL. Heartbeat timestamps и проверка свежести используют PostgreSQL, а не часы API/worker hosts.
+Execution metrics contain nullable workers. Without UAI_INSTALLATION_ID in the API, workers=null. Otherwise only this installation appears, across all its applications, separately from application-scoped request metrics. Existing operations:admin rights and no account restriction are required. workers has its own PostgreSQL-clock sampled_at. Heartbeat timestamps and freshness checks use PostgreSQL rather than API/worker host clocks.
 
-Свежий heartbeat моложе 45 секунд даёт alive_workers; draining_workers является его подмножеством. configured_concurrency суммирует только свежие running workers, active_jobs включает свежие running/draining. Записи старше 45 секунд и моложе 24 часов показываются как stale_workers. Stopped не входит в живые/stale. При старте worker очищает heartbeat записи своей installation старше 7 дней; финансовые и request данные не затрагиваются.
+Heartbeat younger than 45 seconds contributes to alive_workers; draining_workers is its subset. configured_concurrency sums only fresh running workers; active_jobs includes fresh running/draining. Records older than 45 seconds but younger than 24 hours appear as stale_workers. Stopped is excluded from alive/stale. At startup, workers clean heartbeat records for their installation older than 7 days; financial and request data are untouched.
 
-В Queue status отдельный блок Worker processes показывает шесть очередей, живые процессы, занятые обработчики, configured slots, draining/stale. Это heartbeat процесса, а не доказательство доступности Redis/провайдера или обещание дополнительной quota capacity. При недоступной БД наблюдение устаревает; работа не считается здоровой только потому, что процесс ранее существовал.
+Queue status has a Worker processes block showing six queues, live processes, busy handlers, configured slots, and draining/stale. This is process heartbeat, not proof of Redis/provider availability or a promise of extra quota capacity. With database outage, observations become stale; work is not declared healthy merely because a process previously existed.
 
 
-### Задержки admission и инфраструктурные probes
+### Admission latency and infrastructure probes
 
-Миграция 0052 добавляет telemetry к heartbeat. В worker admission обёрнут монотонным performance.now измерением: от входа в quota broker до allowed/denied/error. Время включает SQL locks, восстановление и Redis admission, но не очередь до worker lease и не провайдера. Возвращаемый результат и исключение не меняются; запись telemetry не ожидается на пути admission.
+Migration 0052 adds heartbeat telemetry. Worker admission uses monotonic performance.now measurement from entering quota broker to allowed/denied/error. Time includes SQL locks, recovery, and Redis admission, but excludes queue time before worker lease and provider execution. Return values and exceptions remain unchanged; telemetry recording is not awaited on the admission path.
 
-На каждую очередь worker хранит не более 256 последних samples моложе 15 минут. Denials и errors относятся к этой же выборке, не к числу событий за сутки. Снимок заменяется при heartbeat; crash до следующего heartbeat может потерять несколько samples. Это диагностика, не финансовый журнал. API объединяет исходные samples свежих running/draining workers одной installation и вычисляет p50/p95. Процентили отдельных workers не усредняются. Stale/stopped процессы исключены, включая случай свежей одной очереди и устаревшей другой у того же worker.
+Each worker queue retains at most 256 latest samples younger than 15 minutes. Denials and errors belong to the same sample, not daily event counts. The snapshot is replaced at heartbeat; a crash before the next heartbeat may lose samples. This is diagnostics, not a financial journal. The API combines raw samples from fresh running/draining workers of one installation and calculates p50/p95. Worker percentiles are not averaged. Stale/stopped processes are excluded, including one fresh queue and another stale queue on the same worker.
 
-Перед периодическим heartbeat выполняются два независимых probe: SELECT 1 через существующий PostgreSQL pool и Redis PING через одно дополнительное Redis соединение на worker. Redis command timeout и PostgreSQL query timeout равны 1000 ms; ожидание свободного соединения PostgreSQL отдельно ограничено UAI_DB_CONNECT_TIMEOUT_MS. Redis probe соединение имеет installation client prefix, не использует offline queue и закрывается при завершении worker. Измерение DB включает ожидание pool, поэтому это клиентский round trip, а не чистое время SQL на сервере.
+Before periodic heartbeat, two independent probes run: SELECT 1 through the existing PostgreSQL pool and Redis PING through one extra Redis connection per worker. Redis command timeout and PostgreSQL query timeout are 1000 ms; waiting for a PostgreSQL pool connection is separately bounded by UAI_DB_CONNECT_TIMEOUT_MS. The Redis probe connection has an installation client prefix, no offline queue, and closes at worker shutdown. Database measurement includes pool waiting, so it is a client round trip rather than pure server SQL time.
 
-В API admission_samples/admission_p50_ms/admission_p95_ms/admission_denied/admission_errors описывают живую выборку admission. db_probe_p95_ms/redis_probe_p95_ms считают p95 последних успешных probes свежих workers данной очереди. Это распределение текущих probes между workers, не история всех SQL/Redis команд. db_probe_failures/redis_probe_failures показывают число workers с неуспешным последним probe. Pending/failed probe имеет ms=null; отсутствие результата не становится 0 ms. При отказе PostgreSQL heartbeat не может сохраниться и устаревает целиком.
+In the API, admission_samples/admission_p50_ms/admission_p95_ms/admission_denied/admission_errors describe the live admission sample. db_probe_p95_ms/redis_probe_p95_ms calculate p95 of latest successful probes of fresh workers for that queue. This is the distribution of current probes across workers, not all SQL/Redis command history. db_probe_failures/redis_probe_failures count workers whose latest probe failed. Pending/failed probes have ms=null; missing results do not become 0 ms. During PostgreSQL outage, heartbeat cannot be saved and becomes stale in its entirety.
 
-Карточки workers показывают admission p95 и число samples, отказы/ошибки admission, probe p95 и неуспешные probes. Эти поля нельзя использовать как разрешение отправить запрос или как основание для финансового settlement.
+Worker cards show admission p95 and sample count, admission denials/errors, probe p95, and failed probes. These fields cannot authorize submission or financial settlement.
 
-### Проверка раздельных контейнеров и общего S3
+### Separate-container and shared-S3 checks
 
-`pnpm test:containers` собирает текущий `Dockerfile.runtime` и запускает отдельные PostgreSQL 17, Redis 7.4, MinIO, две реплики API, scheduler, generation worker и maintenance worker. Команда требует Docker и OpenSSL; основной `DATABASE_URL` и общий Redis не используются. Для включения в полный прогон после сборки образа задайте `UAI_TEST_CONTAINERS=1`. По умолчанию этот инфраструктурный тест пропускается.
+`pnpm test:containers` builds current `Dockerfile.runtime` and runs separate PostgreSQL 17, Redis 7.4, MinIO, two API replicas, scheduler, generation worker, and maintenance worker. It requires Docker and OpenSSL; primary `DATABASE_URL` and shared Redis are unused. To include it in a full run after image build, set `UAI_TEST_CONTAINERS=1`. This infrastructure test is skipped by default.
 
-Контейнеры runtime работают от `node` с read-only root, отдельным tmpfs и без общих каталогов контента. Они получают только публичный сертификат временного MinIO; приватный ключ доступен серверу MinIO. Соединение S3 проверяет TLS через `NODE_EXTRA_CA_CERTS`, проверка сертификатов не отключается. Все временные контейнеры, сеть и сертификаты удаляются при завершении теста.
+Runtime containers run as `node` with read-only root, separate tmpfs, and no shared content directories. They receive only temporary MinIO's public certificate; its private key is available to the MinIO server. S3 verifies TLS through `NODE_EXTRA_CA_CERTS`; certificate checks are not disabled. All temporary containers, network, and certificates are removed when the test finishes.
 
-Проверяется загрузка через API A и завершение загрузки через API B, чтение одинаковых байтов результата обеими репликами, генерация синтетическим worker, блокировка чтения и физическое удаление S3-объекта после ACK, TTL и явного удаления операции. Для TTL изменяется только время истечения тестового asset в изолированной БД. Финансовые записи и число attempts сохраняются после удаления контента. Образ также должен отдавать `/openapi.json`; спецификация входит в runtime image.
+Checks include upload through API A and upload completion through API B, identical result bytes read by both replicas, synthetic-worker generation, read blocking and physical S3-object deletion after ACK, TTL, and explicit operation deletion. TTL changes only the test asset expiry in the isolated database. Financial records and attempt counts survive content deletion. The image must also serve `/openapi.json`; the specification is included in the runtime image.
 
-Этот тест подтверждает разделение процессов, файловых систем и сетевых пространств контейнеров на одном Docker host. Он не подтверждает работу на разных VPS, сетевые разделения между хостами, отказ самого Docker host или производительность выбранного тарифа VPS. Все провайдеры в тесте синтетические.
+This test establishes process, filesystem, and network-namespace isolation of containers on one Docker host. It does not establish operation across VPSs, host network partitions, Docker-host failure, or chosen VPS-plan performance. All test providers are synthetic.
 
-### Перенос ожидающего запроса между backend
+### Moving a waiting request between backends
 
-`scripts/transition-request-backend.ts` переносит отдельный request, для которого ещё не создана ни одна внешняя attempt. По умолчанию команда только показывает backend, generation, статус и допустимость переноса:
+`scripts/transition-request-backend.ts` moves an individual request for which no external attempt has ever been created. By default, it only shows backend, generation, status, and migration eligibility:
 
 ```sh
 node --import tsx scripts/transition-request-backend.ts \
   --organization ORG_ID --application APP_ID --account ACCOUNT_ID --request REQUEST_ID
 ```
 
-Для применения добавьте `--apply --from bullmq --to legacy --generation 0 --actor OPERATOR --reason 'Причина отката'`, используя backend и generation из свежего preview. Обратный перенос использует `--from legacy --to bullmq`. Команда доступна и в runtime image; в Compose можно выполнить её через `run --rm migrate node --import tsx scripts/transition-request-backend.ts` с теми же аргументами. Неполные параметры не допускают изменение; stale generation возвращает `revision_conflict`. После потерянного ответа сначала перечитайте preview, не подставляйте новую generation автоматически.
+To apply, add `--apply --from bullmq --to legacy --generation 0 --actor OPERATOR --reason 'Rollback reason'`, using backend and generation from a fresh preview. Reverse migration uses `--from legacy --to bullmq`. The command is available in the runtime image; Compose can run it through `run --rm migrate node --import tsx scripts/transition-request-backend.ts` with the same arguments. Incomplete arguments prohibit changes; stale generation returns `revision_conflict`. After a lost response, reread preview first; do not automatically substitute a new generation.
 
-Перенос берёт account/request блокировки, повторяет проверки, увеличивает transport generation и доменный fence, отмечает доказанно неиспользованные admission intents для возврата и пишет аудит/событие в той же транзакции. Redis не вызывается в этой транзакции. При переходе на BullMQ создаётся новый durable dispatch intent. Старые Redis jobs остаются безопасными устаревшими уведомлениями. Принятые quote, маршрут, input, deadline, время следующей попытки и финансовые записи не изменяются.
+Migration takes account/request locks, repeats checks, increments transport generation and domain fence, marks proven-unused admission intents for refund, and records audit/event in the same transaction. Redis is not called within it. Moving to BullMQ creates a new durable dispatch intent. Old Redis jobs remain safe stale notifications. Accepted quote, route, input, deadline, next attempt time, and financial records remain unchanged.
 
-Leased, submitted, running, unknown, завершённые, отменяемые и просроченные requests не переносятся. Запрос после любой прошлой attempt, даже если он снова ждёт, остаётся на исходном backend. Старые workers должны завершить или восстановить такие requests. Команда не переключает приём новых запросов и не заменяет последовательность mock → shadow → demo из плана. Перед откатом остановите новые BullMQ admissions и проверьте legacy limiter/configuration; legacy backend не получает Redis quota policy автоматически. Запуск команды на основной установке в рамках описанных тестов не выполнялся.
+Leased, submitted, running, unknown, finished, cancelling, and expired requests cannot move. A request with any previous attempt stays on its original backend even if waiting again. Old workers must finish or recover those requests. The command does not switch new-request admission or replace the plan's mock → shadow → demo sequence. Before rollback, stop new BullMQ admissions and verify legacy limiter/configuration; legacy backend does not automatically receive Redis quota policy. The described tests did not run the command on the primary installation.
 
-### Shadow-прогноз допуска без второго permit
+### Shadow admission forecast without a second permit
 
-`providerAdmission(...).preview(scope, request, variant, context, adapter)` использует тот же `estimateLimitUsage` и построение вектора правил, что и настоящий admission. Он читает bindings, правила, занятые слоты и состояние восстановления. Redis выполняет ту же проверку взвешенных окон, headers и cooldown через `EVAL_RO`; режим preview не удаляет старые события, не меняет TTL, не уменьшает provider remaining и не создаёт admission keys. Совместные группы проверяются одним вызовом при общем coordination domain.
+`providerAdmission(...).preview(scope, request, variant, context, adapter)` uses the same `estimateLimitUsage` and rule-vector construction as real admission. It reads bindings, rules, occupied slots, and recovery state. Redis performs the same weighted-window, header, and cooldown checks through `EVAL_RO`; preview neither deletes old events, changes TTL, reduces provider remaining, nor creates admission keys. Joint groups are checked in one call with a shared coordination domain.
 
-Результат содержит `mode: shadow` и `would_allow`, а не `allowed`/`admission_id`. Значение `null` означает, что вывод недостоверен: не восстановлен Redis gate, меняется конфигурация/занятость, есть необработанные quota observations/adjustments/intents, недоступна инфраструктура или диагностический предел чтения превышает 10 000 событий одного правила. Preview не открывает gate и не запускает восстановление. Для разрешения отправки всегда нужен обычный durable admission.
+The result contains `mode: shadow` and `would_allow`, not `allowed`/`admission_id`. `null` means the conclusion is unreliable: Redis gate is not restored, configuration/occupancy is changing, unprocessed quota observations/adjustments/intents exist, infrastructure is unavailable, or the diagnostic read limit exceeds 10 000 events for one rule. Preview neither opens the gate nor starts recovery. Submission always requires ordinary durable admission.
 
-PostgreSQL и Redis не дают общего атомарного снимка; preview повторно читает SQL-конфигурацию после Lua, но это всё равно наблюдение, не гарантия будущего допуска. Активные слоты и cooldown проверяются дополнительно в PostgreSQL. Два параллельных preview могут показать доступность последнего места; право на него получит только один настоящий admission.
+PostgreSQL and Redis provide no shared atomic snapshot; preview rereads SQL configuration after Lua, but remains an observation, not a future admission guarantee. Active slots and cooldown are additionally checked in PostgreSQL. Two concurrent previews may show the last slot available; only one actual admission receives it.
 
-Интеграционные тесты сравнивают preview с последующим настоящим admission на синтетических запросах, включая холодный gate, исчерпание квоты и занятый слот провайдера. Они проверяют отсутствие дополнительных intents/permits/attempts и вторых вызовов. По умолчанию preview выключен; включение в BullMQ worker описано ниже. Legacy demo этим наблюдением не охвачено. Он читает журнал нового механизма и не восстанавливает неизвестное потребление legacy/внешних приложений; сам по себе этот API не закрывает этап shadow-наблюдения реального перехода.
+Integration tests compare preview with subsequent actual admission on synthetic requests, including cold gate, quota exhaustion, and occupied provider slot. They check absence of additional intents/permits/attempts and duplicate calls. Preview is disabled by default; enabling it in BullMQ worker is described below. Legacy demo is not covered by this observation. It reads the new mechanism's journal and does not reconstruct unknown legacy/external consumption; this API alone does not complete real-transition shadow observation.
 
-### Включение shadow-наблюдения в worker
+### Enabling worker shadow observation
 
-`UAI_QUOTA_SHADOW=true` включает сравнение preview с единственным настоящим admission в BullMQ worker. По умолчанию флаг `false`. Иные значения отклоняются; включение на legacy worker также отклоняется, чтобы не создавать ложного впечатления об учёте его потребления. Добавьте флаг в защищённый runtime env-файл нужного worker и перезапустите именно этот процесс по обычной процедуре drain.
+`UAI_QUOTA_SHADOW=true` compares preview with the single actual admission in BullMQ worker. The default is `false`. Other values are rejected; enabling it on a legacy worker is also rejected to avoid a false impression that legacy consumption is counted. Add the flag to the relevant worker's protected runtime env file and restart that process through normal drain procedure.
 
-Worker пишет JSON-события `quota.shadow` в stdout. Поля: request_id, worker_id, queue_kind, время, shadow/actual decision и reason, длительность preview, matches. Промпт, файлы, ключи доступа и admission_id не записываются. Для просмотра в Compose:
+Worker writes `quota.shadow` JSON events to stdout. Fields: request_id, worker_id, queue_kind, time, shadow/actual decision and reason, preview duration, matches. Prompts, files, access keys, and admission_id are excluded. To view in Compose:
 
 ```sh
 docker compose -f deploy/compose.workers.yaml logs --no-log-prefix generation \
   | jq -R 'fromjson? | select(.event == "quota.shadow")'
 ```
 
-`matches: true` означает совпадение allow/deny, `false` означает различие, `null` означает невозможность сравнить. Холодный gate сначала даёт unknown; последующий настоящий admission восстанавливает его штатным образом. Различие само по себе не доказывает ошибку: между наблюдением и допуском могли измениться остатки, правила или занятость. Разбирайте его вместе с причинами и временем. Ошибка actual admission сохраняется и не заменяется результатом preview.
+`matches: true` means allow/deny matched; `false` means a difference; `null` means comparison was impossible. Cold gate initially yields unknown; subsequent actual admission restores it normally. A difference does not itself prove a bug: remainders, rules, or occupancy may change between observation and admission. Investigate it with reasons and timestamps. Actual-admission errors are retained and not replaced by preview results.
 
-Ожидание preview ограничено 500 мс. Пока медленная проверка ещё не закончилась, новые вызовы той же очереди этого worker получают `preview_busy`; дополнительные проверки не накапливаются. Таймаут даёт `preview_timeout`, исключение даёт `preview_failed`. Сам запрос выполняет только обычный admission; shadow не меняет его ответ или исключение. Дополнительное время preview учитывается отдельно в логе, метрика admission latency продолжает измерять настоящий допуск. Эти события диагностические и best effort, не финансовый журнал и не гарантия сохранения при аварии процесса.
+Preview waiting is bounded to 500 ms. While a slow check remains unfinished, new calls on the same worker queue receive `preview_busy`; extra checks do not accumulate. Timeout returns `preview_timeout`; exceptions return `preview_failed`. The request performs only ordinary admission; shadow does not alter its response or exception. Preview time is logged separately; admission latency still measures actual admission. These diagnostic best-effort events are not a financial journal or guaranteed to survive process crashes.
 
-Для локальной процедуры перехода включите флаг сначала на синтетическом стенде, проверьте сравнимые события и отсутствие дополнительных attempts/списаний. Включение флага не переводит legacy requests и не изменяет настройку backend у API. Основной demo в этой проверке не переключался.
+For local transition, enable the flag first on a synthetic setup, check comparable events and absence of additional attempts/charges. Enabling does not migrate legacy requests or change API backend settings. The primary demo was not switched in this check.
 
-### Слоты лимитера и неизвестный исход
+### Limiter slots and unknown outcomes
 
-Лимитер legacy backend (`execution_limiters`, `concurrency_limit`) считает попытки в `submitting` и `running`. Попытка с `outcome_unknown` занимает защитный слот, пока её результат ещё может прийти: до финансового закрытия запроса и не дольше срока запроса плюс запас. Для синхронного вызова запас равен 5 минутам (`UNKNOWN_SLOT_GRACE_MS`): runtime прерывает вызов на deadline, запас покрывает работу, которую поставщик мог продолжить. Для попытки с remote job запас равен окну опроса, 1 час после deadline (`REMOTE_OBSERVATION_WINDOW_MS`). Защита из проверки аварийного завершения worker сохраняется, пока исход может прийти; бессрочного удержания больше нет. BullMQ admission по-прежнему освобождает unknown slot по `slot_expires_at` группы квот.
+The legacy backend limiter (`execution_limiters`, `concurrency_limit`) counts `submitting` and `running` attempts. An `outcome_unknown` attempt occupies a protective slot while its result may still arrive: until request financial closure and no later than request deadline plus grace. For synchronous calls, grace is 5 minutes (`UNKNOWN_SLOT_GRACE_MS`): runtime interrupts the call at deadline, while grace covers work the provider may continue. A remote-job attempt has polling-window grace, 1 hour after deadline (`REMOTE_OBSERVATION_WINDOW_MS`). Protection from worker-crash verification remains while an outcome may arrive; indefinite holding is removed. BullMQ admission still releases unknown slots according to quota-group `slot_expires_at`.
 
-Когда `closeUnresolved` закрывает запрос как `platform_absorbed`, в той же транзакции попытка `outcome_unknown` получает терминальный статус `abandoned`. Execution status запроса остаётся `outcome_unknown`. Поздний ответ поставщика по-прежнему записывается: `observeAttempt` принимает `abandoned` попытку, пока её стоимость неизвестна, и списание с клиента не создаёт. Миграция 0073 переводит в `abandoned` попытки, закрытые финансово до этого изменения, и добавляет частичный индекс открытых попыток по ключу лимитера.
+When `closeUnresolved` closes a request as `platform_absorbed`, its `outcome_unknown` attempt becomes terminal `abandoned` in the same transaction. Request execution status stays `outcome_unknown`. Late provider responses are still recorded: `observeAttempt` accepts an `abandoned` attempt while its cost is unknown and creates no customer charge. Migration 0073 moves attempts financially closed before this change to `abandoned` and adds a partial index of open attempts by limiter key.
 
-`GET /v1/admin/execution-metrics` возвращает `limiters`: по каждому лимитеру, который используют опубликованные маршруты или активные попытки приложения, `concurrency_limit`, `held_slots` (как их считает admission, включая чужие приложения на общем ключе), `unknown_held_slots` и `oldest_unknown_held_seconds`. По очередям добавлены `rate_limit_starved_24h` и `admission_timeout_24h`: запросы без единой попытки, закрытые по сроку, пока ждали лимитер или admission. `attempt_timeouts_24h` считает попытки, оборванные `attempt_timeout_seconds` (миграция 0074, `execution_attempts.timed_out_at`). Рост этого счётчика означает зависающие вызовы поставщика; повторённые после таймаута попытки без идемпотентности могли быть оплачены дважды и требуют сверки.
+`GET /v1/admin/execution-metrics` returns `limiters`: for every limiter used by published routes or active application attempts, `concurrency_limit`, `held_slots` (as counted by admission, including other applications sharing the key), `unknown_held_slots`, and `oldest_unknown_held_seconds`. Per-queue `rate_limit_starved_24h` and `admission_timeout_24h` count requests with no attempts closed at deadline while waiting for limiter or admission. `attempt_timeouts_24h` counts attempts interrupted by `attempt_timeout_seconds` (migration 0074, `execution_attempts.timed_out_at`). Growth indicates hanging provider calls; attempts retried after timeout without idempotency may have been charged twice and require reconciliation.
 
-Сигнал `limiter.unknown_slots_held` наблюдается для тех же лимитеров; значение равно `unknown_held_slots`, сравнение «больше порога». Числовой сигнал требует порога. Правило с порогом `0` и severity critical сообщает о любом удержании; incident закрывается сам, когда слоты освобождаются.
+`limiter.unknown_slots_held` observes the same limiters; its value is `unknown_held_slots`, compared as “greater than threshold.” A numerical signal requires a threshold. Threshold `0` with severity critical reports any hold; the incident closes automatically when slots release.
 
-Неизвестный исход разрешается не правкой строк, а командой с причиной и аудитом:
+Unknown outcomes are resolved through a reasoned audited command rather than row edits:
 
 ~~~json
 {
   "attempt_id": "att_123",
   "provider_charged": true,
   "cost_units": "7000000",
-  "reason": "Вызов есть в usage export поставщика"
+  "reason": "Call appears in the provider usage export"
 }
 ~~~
 
-Тело отправляется в `POST /v1/admin/requests/{id}/resolve-unknown` с `operations:admin` и `Idempotency-Key`. `cost_units` обязателен ровно при `provider_charged: true`. Встроенная установка вызывает `resolveUnknownAttempt` из `packages/execution`. Команда принимает попытку `outcome_unknown` либо `abandoned` с ещё неизвестной стоимостью. Пока запрос удерживает worker или наблюдатель, она отвечает `request_leased`. Стоимость поставщика закрывает открытую exposure; клиенту ничего не списывается. Открытый запрос закрывается финансово: `platform_absorbed`, если поставщик взял оплату, иначе `settled`. Попытка становится `abandoned` с известной стоимостью, слот освобождается, в `audit_events` пишется `attempt.unknown_resolved` с прежним статусом. Повтор с тем же телом возвращает прежний результат, другое тело даёт `observation_conflict`.
+Send this body to `POST /v1/admin/requests/{id}/resolve-unknown` with `operations:admin` and `Idempotency-Key`. `cost_units` is required exactly when `provider_charged: true`. Embedded installations call `resolveUnknownAttempt` from `packages/execution`. The command accepts an `outcome_unknown` or `abandoned` attempt whose cost is still unknown. While a worker or observer leases the request, it returns `request_leased`. Provider cost closes open exposure; the customer is not charged. An open request closes financially as `platform_absorbed` if the provider charged, otherwise `settled`. The attempt becomes `abandoned` with known cost, its slot releases, and `audit_events` records `attempt.unknown_resolved` with prior status. Repeating the same body returns the previous result; a different body gives `observation_conflict`.
 
-## Причина ожидания квоты
+## Quota wait reason
 
-Миграция 0053 добавляет `execution_requests.quota_wait`. При отказе допуска worker сохраняет группу, правило, метрику, окно, потребность, доступность, лимит и время проверки. Это снимок на момент отказа, а не текущая доступность: изменение настроек его не переписывает. Новая lease очищает снимок; следующий отказ сохраняет новую проверку. Неизвестная доступность остаётся `null`.
+Migration 0053 adds `execution_requests.quota_wait`. On admission denial, the worker saves group, rule, metric, window, demand, availability, limit, and check time. This is a denial-time snapshot, not current availability: settings changes do not rewrite it. A new lease clears it; the next denial saves a new check. Unknown availability remains `null`.
 
-Данные доступны в scoped `/v1/admin/queue`; публичный request API и SSE не раскрывают внутренние группы и правила. В колонке причины админка показывает значения с отметкой `At last check`. При инфраструктурном отказе без измерений показывается только причина.
+Data is available in scoped `/v1/admin/queue`; public request API and SSE do not expose internal groups or rules. The admin reason column displays values labeled `At last check`. Infrastructure rejection without measurements shows only the reason.
 
-## Задержка обработки outbox
+## Outbox processing delay
 
-`GET /v1/admin/execution-metrics` возвращает `notification_outbox.pending` и `oldest_pending_seconds` для текущего приложения. Это события, которые должен обработать `consumeExecutionEvents`, но которых ещё нет в `notification_event_consumption`. Список типов событий общий с consumer. Возраст учитывает весь backlog, включая события старше 24 часов; при пустой очереди оба значения равны нулю. Будущие timestamps исключены.
+`GET /v1/admin/execution-metrics` returns `notification_outbox.pending` and `oldest_pending_seconds` for the current application. These are events `consumeExecutionEvents` must process but not yet present in `notification_event_consumption`. Event types are shared with the consumer. Age covers the entire backlog, including events older than 24 hours; an empty queue returns zeros for both. Future timestamps are excluded.
 
-Эта метрика дополняет задержку публикации execution dispatches. Она не означает задержку доставки webhook: созданные notification deliveries имеют собственные состояния. У SSE нет общей отметки доставки, каждый клиент читает durable события по своему курсору. Ошибки settlement отражает отдельный счётчик ниже; `unsettled_terminal` отражает незавершённые расчёты.
+This complements execution-dispatch publication delay. It does not mean webhook delivery delay: created notification deliveries have their own states. SSE has no shared delivery marker; each client reads durable events with its own cursor. A separate counter below represents settlement errors; `unsettled_terminal` represents unfinished settlements.
 
-## Ошибки settlement
+## Settlement errors
 
-Миграция 0054 добавляет журнал `execution_settlement_errors`. Исключение внутри `settleRequest` регистрирует диагностическую запись после успешного ROLLBACK внешней транзакции. Неудачная запись диагностики не заменяет исходную ошибку. Сохраняются request/scope, время и категория domain/infrastructure, без текста исключения или входных данных. При недоступной БД запись не гарантируется; безопасный лог сообщает `postgres_rollback_diagnostic_failed` либо `postgres_rollback_failed`.
+Migration 0054 adds `execution_settlement_errors`. An exception inside `settleRequest` records diagnostics after successful ROLLBACK of the outer transaction. Failed diagnostics do not replace the original error. Request/scope, time, and domain/infrastructure category are saved without exception text or inputs. Database unavailability means recording is not guaranteed; a safe log reports `postgres_rollback_diagnostic_failed` or `postgres_rollback_failed`.
 
-`settlement_errors` в execution metrics содержит total/domain/infrastructure за 24 часа для текущего приложения. Это число зарегистрированных неудачных вызовов, не число уникальных requests и не `unsettled_terminal`. Ошибка COMMIT после успешно выполненного settlement не классифицируется этим счётчиком как ошибка самого расчёта. Удаление старых записей и мониторинг потерь диагностики требуют эксплуатационной политики.
+`settlement_errors` in execution metrics contains total/domain/infrastructure over 24 hours for the current application. It counts recorded failed calls, not unique requests or `unsettled_terminal`. A COMMIT failure after successful settlement is not classified by this counter as calculation failure. Old-record deletion and monitoring of diagnostic losses require an operational policy.
 
-## Совместимые обходы финансового обслуживания
+## Compatible financial maintenance sweeps
 
-Вызовы `closeExpiredOperations`, `expireRequests`, `closeUnresolved` и `reconcileRevocationHolds` без scope выбирают аккаунты с просроченной работой и пробуют захватить их блокировки в стабильном порядке. Занятые аккаунты пропускаются до следующего вызова; эксклюзивная блокировка всей установки больше не используется этими обходами. Для runtime предпочтителен `financialMaintenance`: отдельная транзакция на аккаунт с ограниченным ожиданием row locks. Совместимые вызовы внутри одной внешней транзакции удерживают захваченные блокировки до её конца. Shared compatibility barrier удалён; legacy lease/native observation сериализуются только между собой на отдельной capacity-блокировке.
+Unscoped `closeExpiredOperations`, `expireRequests`, `closeUnresolved`, and `reconcileRevocationHolds` select overdue accounts and try their locks in stable order. Busy accounts are skipped until the next call; these sweeps no longer use an installation-wide exclusive lock. Runtime should use `financialMaintenance`: a separate transaction per account with bounded row-lock waiting. Compatible calls inside one outer transaction hold acquired locks until it ends. The shared compatibility barrier is removed; legacy lease/native observation serialize only with each other on a separate capacity lock.
 
-## Шаблоны Tier 4
+## Tier 4 templates
 
-В форме создания группы доступны семь шаблонов OpenAI Tier 4. Публичные исходные значения и источники заданы в `packages/contracts/src/quota-templates.ts`. Шаблон заполняет поля новой группы без изменения существующих bindings. Перед привязкой проверьте account/project overrides и общие группы моделей.
+The group creation form offers seven OpenAI Tier 4 templates. Public initial values and sources live in `packages/contracts/src/quota-templates.ts`. A template populates a new group's fields without changing existing bindings. Before binding, verify account/project overrides and shared model groups.
 
-## Расширение платных API
+## Paid API extension
 
-Контракт PA-I01, единицы измерения, периоды, резервы allowance и границы совместимости описаны в [контракте платных API](PAID_API_CONTRACT.md). Статус реализации и стабильные сценарии PA-A01–PA-A25 приведены в [плане](PAID_API_PLAN.md). Проект контракта не подтверждает доступность новых HTTP handlers.
+Contract PA-I01, units, periods, allowance reservations, and compatibility boundaries are described in the [paid API contract](PAID_API_CONTRACT.md). Implementation status and stable PA-A01–PA-A25 scenarios appear in the [plan](PAID_API_PLAN.md). A draft contract does not establish that new HTTP handlers are available.

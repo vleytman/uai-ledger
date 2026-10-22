@@ -3,7 +3,7 @@
   "info": {
     "title": "UAI paid API extension",
     "version": "pa-i07",
-    "description": "Контракт локальной реализации. Полный рабочий API описан в openapi.json. Реальные интеграции проверяются отдельно."
+    "description": "Local implementation contract. The complete working API is described in openapi.json. Real integrations are verified separately."
   },
   "paths": {
     "/v1/admin/provider-accounts": {
@@ -41,7 +41,7 @@
         },
         "responses": {
           "200": {
-            "description": "Результат операции.",
+            "description": "Operation result.",
             "content": {
               "application/json": {
                 "schema": {
@@ -51,7 +51,7 @@
             }
           },
           "409": {
-            "description": "Конфликт либо исчерпание allowance",
+            "description": "Conflict or exhausted allowance",
             "content": {
               "application/json": {
                 "schema": {
@@ -115,7 +115,7 @@
         },
         "responses": {
           "200": {
-            "description": "Результат операции.",
+            "description": "Operation result.",
             "content": {
               "application/json": {
                 "schema": {
@@ -125,7 +125,7 @@
             }
           },
           "409": {
-            "description": "Конфликт либо исчерпание allowance",
+            "description": "Conflict or exhausted allowance",
             "content": {
               "application/json": {
                 "schema": {
@@ -172,7 +172,7 @@
         },
         "responses": {
           "200": {
-            "description": "Результат операции.",
+            "description": "Operation result.",
             "content": {
               "application/json": {
                 "schema": {
@@ -182,7 +182,7 @@
             }
           },
           "409": {
-            "description": "Конфликт либо исчерпание allowance",
+            "description": "Conflict or exhausted allowance",
             "content": {
               "application/json": {
                 "schema": {
@@ -218,7 +218,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Результат операции.",
+            "description": "Operation result.",
             "content": {
               "application/json": {
                 "schema": {
@@ -228,7 +228,7 @@
             }
           },
           "409": {
-            "description": "Конфликт либо исчерпание allowance",
+            "description": "Conflict or exhausted allowance",
             "content": {
               "application/json": {
                 "schema": {
@@ -275,7 +275,7 @@
         },
         "responses": {
           "200": {
-            "description": "Результат операции.",
+            "description": "Operation result.",
             "content": {
               "application/json": {
                 "schema": {
@@ -285,7 +285,7 @@
             }
           },
           "409": {
-            "description": "Конфликт либо исчерпание allowance",
+            "description": "Conflict or exhausted allowance",
             "content": {
               "application/json": {
                 "schema": {
@@ -332,7 +332,7 @@
         },
         "responses": {
           "200": {
-            "description": "Результат операции.",
+            "description": "Operation result.",
             "content": {
               "application/json": {
                 "schema": {
@@ -342,7 +342,7 @@
             }
           },
           "409": {
-            "description": "Конфликт либо исчерпание allowance",
+            "description": "Conflict or exhausted allowance",
             "content": {
               "application/json": {
                 "schema": {

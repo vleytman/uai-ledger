@@ -1,20 +1,20 @@
-# Выполнение, очередь и восстановление
+# Execution, queue, and recovery
 
-[Оглавление](README.md)
+[Contents](README.md)
 
-## Исполнение с окончательной ценой
+## Execution with a final price
 
-Рецепт `quoted_final` использует сохранённую при принятии quote цену и подготовленные вложения. Валидный доступный результат списывает ровно эту цену независимо от фактической себестоимости. Отмена без результата, технический дефект и поздний результат после финансового закрытия не создают нового списания. Эта политика относится к окончательному режиму; правила отмены и actual_usage ниже сохраняются для legacy-профилей.
+A `quoted_final` recipe uses the price and prepared attachments saved on quote acceptance. A valid available result charges exactly that price regardless of actual cost. Cancellation without a result, technical defects, and late results after financial closure create no new charge. This policy applies to final-price mode; the cancellation and actual_usage rules below remain for legacy profiles.
 
-Каждая попытка отдельно сохраняет usage и стоимость поставщика, включая технические повторы и fallback. Успешная попытка списывает клиентскую цену один раз; неуспешные попытки остаются расходами платформы. Неизвестная стоимость не заменяется нулём. Пределы расходов маршрута, повтора и платформенного риска действуют независимо от цены клиенту. Fallback должен быть совместим с согласованными параметрами и подготовкой файлов. Изменение опубликованных ставок не меняет принятый клиентский quote.
+Each attempt separately records usage and provider cost, including technical retries and fallback. A successful attempt charges the customer price once; unsuccessful attempts remain platform expenses. Unknown cost is not replaced by zero. Route spending, retry, and platform risk limits apply independently of the customer price. Fallback must support the agreed parameters and file preparation. Changes to published rates do not change an accepted customer quote.
 
-Подробности расчёта и проверки находятся в [спецификации](MODEL_PRICING_SPEC.md).
+Calculation and validation details are in the [specification](MODEL_PRICING_SPEC.md).
 
-## Уровни выполнения
+## Execution levels
 
-Operation является пользовательским действием с общим бюджетом. Request является одним логическим запросом. Attempt является одной попыткой у конкретного поставщика. Нативная provider job может переживать жизнь HTTP-соединения и worker.
+An operation is a user action with a shared budget. A request is one logical request. An attempt is one attempt at a specific provider. A native provider job may outlive the HTTP connection and worker.
 
-Необходимо хранить отдельно execution_status и settlement_status. Финансовое закрытие не выводится только из успешности генерации.
+execution_status and settlement_status must be stored separately. Financial closure cannot be inferred solely from generation success.
 
 ~~~text
 Operation execution:
@@ -32,178 +32,178 @@ open -> pending -> settled
                 -> unresolved -> platform_absorbed | settled
 ~~~
 
-Конкретный attempt не превращается в новый attempt перезаписью строки. Новая попытка имеет следующий номер и отдельные provider IDs. Outcome_unknown остаётся доступным для разрешения даже после пользовательского закрытия операции.
+An attempt does not become a new attempt by overwriting its row. A new attempt has the next number and separate provider IDs. Outcome_unknown remains available for resolution even after user-facing operation closure.
 
-Команда complete атомарно устанавливает admission_closed_at. После неё новые requests не принимаются, но уже созданные продолжают выполняться. Operation становится терминальной после завершения принятой работы; settlement может оставаться pending. Повтор существующего request key разрешён как чтение прежнего результата. Cancel закрывает приём и дополнительно запрашивает отмену. Нельзя закрыть операцию, освободить её резерв и затем принять в неё новый запрос.
+The complete command atomically sets admission_closed_at. New requests are then rejected, but existing ones continue. The operation becomes terminal after accepted work finishes; settlement may remain pending. Repeating an existing request key is allowed as a read of its prior result. Cancel closes admission and additionally requests cancellation. An operation cannot be closed, have its reservation released, and then accept a new request.
 
-Команда finish-partial закрывает приём и отменяет ещё не отправленные requests, включая paused/requote_required. Уже отправленные продолжают наблюдаться и проходят обычный settlement. Она нужна, если приложение хочет сохранить готовые части и отказаться от оставшейся работы; complete сам по себе этого не делает. Выполнение и финансовое закрытие имеют отдельные события.
+finish-partial closes admission and cancels requests not yet submitted, including paused/requote_required. Submitted requests continue to be observed and undergo normal settlement. It is needed when the application wants to retain ready parts and abandon remaining work; complete alone does not do this. Execution and financial closure have separate events.
 
-После закрытия приёма, пока принятая работа ещё выполняется, разрешено усилить отмену: complete → finish-partial → cancel. Обратный переход не возобновляет requests и не меняет причину закрытия. Повтор той же или более слабой команды возвращает текущее состояние без повторного события закрытия и финансовых эффектов. После терминального execution_status любые команды закрытия сохраняют итог, причину и время закрытия. Для этого правила проверяется завершённость requests, а не settlement_status: финансовое закрытие само по себе не завершает наблюдение за неизвестным исходом.
+After admission closes, while accepted work is still running, cancellation may be strengthened: complete → finish-partial → cancel. A reverse transition does not resume requests or change the closure reason. Repeating the same or a weaker command returns current state without another closure event or financial effects. After terminal execution_status, all closure commands preserve the outcome, reason, and closure time. This rule checks request completion, not settlement_status: financial closure alone does not end observation of an unknown outcome.
 
-После завершения принятых requests итог операции отражает их результаты. При открытом admission сохраняется accepted; явная отмена операции даёт canceled. В остальных закрытых операциях успешные requests вместе с ошибками или отменами дают partial, только успешные дают completed. Если успешных нет, наличие ошибки даёт failed, а отмена всех requests даёт canceled. Эти правила одинаковы для публичного API, списка и карточки операции, а также обзора админки. Списание определяется settlement каждого запроса, отдельно от сводного статуса.
+After accepted requests finish, the operation outcome reflects their results. Open admission retains accepted; explicit operation cancellation gives canceled. In other closed operations, successes mixed with failures or cancellations give partial; successes alone give completed. With no successes, any failure gives failed, while cancellation of all requests gives canceled. These rules are identical for the public API, operation list and details, and admin overview. Charges are determined by each request's settlement, separately from aggregate status.
 
-## Путь одного запроса
+## One request's path
 
-1. Проверить авторизацию, принятую operation, component, input hash и предел числа вызовов.
-2. Атомарно создать request и его budget claim либо вернуть существующий request по client_request_key.
-3. Сохранить задание в долговечной очереди. Опубликовать queued через outbox.
-4. Scheduler выбирает маршрут с учётом лимитов, состояния, времени ожидания и доступных бюджетов.
-5. Worker получает lease с fencing token, сохраняет attempt до возможной отправки и фиксирует submission intent.
-6. Выполнить внешний запрос, сохраняя remote IDs и доступные промежуточные usage observations.
-7. Сохранить финальный usage до обработки результата. При необходимости забрать нативный результат и файлы.
-8. Проверить технический контракт результата. Зафиксировать result и settlement согласно ACCOUNTING.
-9. В одной транзакции сохранить capture/release, новую ревизию кошелька и события.
+1. Check authorization, accepted operation, component, input hash, and call-count limit.
+2. Atomically create a request and its budget claim, or return the existing request by client_request_key.
+3. Save the job in the durable queue. Publish queued through the outbox.
+4. The scheduler selects a route considering limits, state, waiting time, and available budgets.
+5. A worker acquires a lease with a fencing token, saves an attempt before possible submission, and records submission intent.
+6. Make the external request, saving remote IDs and available intermediate usage observations.
+7. Save final usage before result processing. Retrieve native results and files if needed.
+8. Validate the technical result contract. Record result and settlement under ACCOUNTING.
+9. In one transaction, save capture/release, the new wallet revision, and events.
 
-Если worker не может подтвердить durable запись перед внешним вызовом, вызов не отправляется. Если запись после вызова не удалась, попытка становится предметом восстановления, а не новой генерацией.
+If the worker cannot confirm a durable write before the external call, it does not send the call. If the post-call write fails, the attempt requires recovery rather than new generation.
 
-## Очередь
+## Queue
 
-У задания есть priority, enqueued_at, not_before, deadline, lease_owner, lease_expires_at и attempt limit. Priority назначает сервер по политике приложения. Клиент не может самостоятельно получить максимальный приоритет.
+A job has priority, enqueued_at, not_before, deadline, lease_owner, lease_expires_at, and an attempt limit. The server assigns priority under application policy. The client cannot grant itself maximum priority.
 
-Очередь обслуживается справедливо между applications/accounts с ограничением параллелизма. Старые задания постепенно получают преимущество, чтобы непрерывный поток новых задач не блокировал их навсегда.
+The queue is served fairly across applications/accounts with concurrency limits. Older jobs gradually gain precedence so a continuous flow of new jobs cannot block them forever.
 
-Ожидание rate limit не занимает рабочий слот генерации. Задание получает not_before и возвращается в доступную очередь. UI видит waiting_rate_limit, ожидаемое время следующей попытки и возможность отмены.
+Rate-limit waiting does not occupy a generation work slot. The job receives not_before and returns to the available queue. The UI sees waiting_rate_limit, the expected next attempt time, and cancellation availability.
 
-По истечении queue deadline запрос, который ещё не отправлялся, отменяется без provider cost и освобождает свою долю бюджета. Нативная задача, уже принятая поставщиком, требует отдельного cancel/status и settlement.
+At queue deadline, a request not yet submitted is cancelled without provider cost and releases its budget share. A native job already accepted by a provider requires separate cancel/status and settlement.
 
-initial_queue_budget_seconds ограничивает ожидание до первой отправки. Общий deadline по умолчанию равен 300 секундам и включает очередь, backoff и выполнение. Он отсчитывается с принятия и не продлевается ни повтором, ни polling. Истечение срока запрещает новую отправку, но не отменяет финансовую сверку уже отправленной попытки.
+initial_queue_budget_seconds bounds waiting before first submission. The overall deadline defaults to 300 seconds and includes queue, backoff, and execution. It runs from acceptance and is not extended by retries or polling. Expiry prohibits new submissions but does not end financial reconciliation of an already submitted attempt.
 
 ## Rate limits
 
-Limiter key отражает фактическую область ограничения: provider organization, project, connection, model family или общий quota group. Несколько API-ключей одного аккаунта не увеличивают лимит автоматически.
+The limiter key reflects the actual limit scope: provider organization, project, connection, model family, or shared quota group. Multiple API keys for one account do not automatically increase the limit.
 
-Отдельно учитываются requests per interval, input/output token capacity согласно поставщику, число активных jobs и прочие документированные ограничения. Расход лимита не всегда совпадает с billable usage. Для него используется estimateLimitUsage, а не денежный калькулятор.
+Requests per interval, input/output token capacity under provider semantics, active jobs, and other documented constraints are accounted separately. Limit consumption does not always equal billable usage. It uses estimateLimitUsage rather than the monetary calculator.
 
-До dispatch применяется консервативная оценка потребности. После ответа модель лимита корректируется по headers и документированной семантике провайдера. Cached tokens могут по-разному влиять на стоимость и пропускную способность.
+A conservative demand estimate is applied before dispatch. After the response, the limit model is adjusted from headers and documented provider semantics. Cached tokens may affect cost and throughput differently.
 
-Retry-After задаёт минимальную задержку, если он относится к временной ошибке. Добавляются ограниченный exponential backoff и jitter. Отсутствие заголовка не означает немедленный повтор. Повтор также ограничен deadline и max attempts.
+Retry-After defines a minimum delay when it refers to a transient failure. Bounded exponential backoff and jitter are added. A missing header does not imply immediate retry. Retries are also bounded by deadline and max attempts.
 
-429 insufficient quota, billing failure или permanent permission error не обрабатываются как временный rate limit. Подключение получает соответствующее состояние и инцидент. Причина определяется по status и error code, а не по одному HTTP-коду.
+429 insufficient quota, billing failure, and permanent permission errors are not handled as temporary rate limits. The connection receives the corresponding state and incident. Cause is determined from status and error code, not HTTP status alone.
 
-## Состояния подключений
+## Connection states
 
-| Состояние | Разрешённое поведение |
+| State | Permitted behavior |
 |---|---|
-| healthy | Обычная маршрутизация |
-| rate_limited | Отложить до следующего доступного интервала |
-| degraded | Ограничить параллелизм, использовать допустимые альтернативы |
-| circuit_open | Не отправлять новые запросы до проверки восстановления |
-| recovery_wait | Общая пауза до следующего разрешённого recovery cycle |
-| probing | Только владелец probe lease проверяет восстановление; остальные ждут |
-| locked | Циклы исчерпаны; новые платные вызовы запрещены до ручного включения |
-| budget_exhausted | Ждать внешнего пополнения или выбрать другой разрешённый connection |
-| auth_failed | Требуется исправление credentials |
-| disabled | Не отправлять до явного включения |
-| balance_stale | Применить консервативный лимит риска, не утверждать точный остаток |
+| healthy | Normal routing |
+| rate_limited | Defer until the next available interval |
+| degraded | Limit concurrency; use permitted alternatives |
+| circuit_open | No new requests until recovery is checked |
+| recovery_wait | Shared pause until the next authorized recovery cycle |
+| probing | Only the probe lease owner checks recovery; others wait |
+| locked | Cycles exhausted; new paid calls prohibited until manual enable |
+| budget_exhausted | Wait for external top-up or select another permitted connection |
+| auth_failed | Credentials must be corrected |
+| disabled | No submission until explicitly enabled |
+| balance_stale | Apply a conservative risk limit; do not claim an exact balance |
 
-Health может быть разным у моделей одного подключения. Отказ image endpoint не обязан отключать text endpoint. Общая финансовая блокировка распространяется на весь соответствующий provider account.
+Models on one connection may have different health. An image endpoint failure need not disable text. A shared financial block covers the entire relevant provider account.
 
-Проверка восстановления использует неплатный документированный endpoint, если он подходит. Платная пробная генерация не запускается неявно. Её можно разрешить отдельной политикой с бюджетом платформы.
+Recovery checks use a documented free endpoint where suitable. A paid probe generation is not started implicitly. A separate policy may authorize it with platform budget.
 
-Неплатные отчёты и проверки могут продолжаться после locked, но успешный ответ не снимает блокировку. Администратор исправляет причину и явно включает затронутую область с reason. Enable не возобновляет терминальные пользовательские запросы; для них нужна новая операция. Acknowledge инцидента не равен enable. При budget_exhausted/auth_failed автоматического цикла платных проб нет.
+Free reports and checks may continue after locked, but a successful response does not remove the block. An administrator fixes the cause and explicitly enables the affected scope with a reason. Enable does not resume terminal user requests; they require a new operation. Acknowledging an incident is not enable. budget_exhausted/auth_failed have no automatic paid-probe cycle.
 
-## Классификация ошибок
+## Failure classification
 
-| Ошибка | Повтор или failover |
+| Failure | Retry or failover |
 |---|---|
-| Подтверждённый временный отказ до выполнения | Допустим в рамках политики и бюджета |
-| Временный rate limit | Повтор после задержки либо разрешённая альтернатива |
-| Исчерпание квоты/денег | Отключить маршрут до изменения состояния; разрешённая альтернатива возможна |
-| Неправильные credentials | Требуется исправление; автоматический повтор того же connection не помогает |
-| Неверные параметры/неподдерживаемая capability | Вернуть ошибку, не пробовать поставщиков наугад |
-| 5xx без доказанного отсутствия выполнения | Считать исход потенциально неопределённым |
-| Таймаут после возможной отправки | Lookup или документированная идемпотентность, иначе outcome_unknown; явный `timeout_retry` допускает повтор с риском второго списания поставщиком |
-| Ошибка технической валидации результата | Сохранить provider cost за счёт платформы; в пределах принятой общей политики |
+| Confirmed transient rejection before execution | Allowed within policy and budget |
+| Temporary rate limit | Retry after delay or use an authorized alternative |
+| Exhausted quota/funds | Disable the route until state changes; an authorized alternative is possible |
+| Invalid credentials | Correction required; automatic retry of the same connection does not help |
+| Invalid parameters/unsupported capability | Return an error; do not try providers at random |
+| 5xx without proof of non-execution | Treat outcome as potentially uncertain |
+| Timeout after possible submission | Lookup or documented idempotency, otherwise outcome_unknown; explicit `timeout_retry` permits retry with risk of a second provider charge |
+| Technical result validation failure | Preserve provider cost at platform expense; within the accepted overall policy |
 
-HTTP 5xx сам по себе не доказывает, что работа не выполнялась. Классификатор адаптера может пометить ошибку safe_to_retry только на основании контракта конкретного endpoint.
+HTTP 5xx alone does not prove that work did not execute. The adapter classifier may mark an error safe_to_retry only based on the specific endpoint's contract.
 
-Счётчик попытки увеличивается при каждом новом dispatch, включая подтверждённый отказ или 429. Локальное ожидание лимитера, polling той же native job и документированное восстановление той же внешней идемпотентной операции не создают новую генерацию. Бюджетные и сетевые ограничения таких проверок существуют отдельно. Outcome_unknown прерывает автоматический цикл независимо от свободных попыток.
+The attempt counter increases on each new dispatch, including a confirmed rejection or 429. Local limiter waiting, polling the same native job, and documented recovery of the same external idempotent operation do not create new generation. Those checks have separate budget and network limits. Outcome_unknown interrupts the automatic cycle regardless of remaining attempts.
 
-## Общий предел попыток
+## Overall attempt limit
 
-Принятый request хранит итоговую `execution` и идентификатор опубликованной файловой политики. Дефолт даёт 300 секунд от принятия и четыре отправки вместе с первой. Оперативный предел установки равен восьми и повторно проверяется перед dispatch. Перезапуск worker, смена модели, дефект схемы и повторная доставка задания не сбрасывают номер попытки.
+An accepted request stores resolved `execution` and the published file-policy ID. The default allows 300 seconds from acceptance and four submissions including the first. The installation operational limit is eight and is rechecked before dispatch. Worker restart, model change, schema defect, and job redelivery do not reset the attempt number.
 
-Первые две допустимые отправки выбирают primary; последующие используют явно заданный fallback либо тот же primary, если fallback отсутствует. Ошибка авторизации или исчерпанная квота может сразу переключить на разрешённое другое подключение. Невалидный ввод, отмена, отказ модели и неизвестный исход не разрешают новую генерацию.
+The first two permitted submissions select primary; later ones use an explicitly configured fallback or the same primary if no fallback exists. An authorization failure or exhausted quota may immediately switch to an authorized different connection. Invalid input, cancellation, model refusal, and unknown outcome do not authorize new generation.
 
-`backoff` задаёт base_ms, multiplier, cap_ms и jitter_ratio. Дефолтные задержки без jitter равны 1, 2 и 4 секундам. Retry-After является нижней границей. Если следующая отправка пришлась бы на deadline или позже, она не планируется. `recovery.delays_seconds` по умолчанию пуст; явный конечный список увеличивает задержки тех же попыток, не создавая дополнительных циклов.
+`backoff` specifies base_ms, multiplier, cap_ms, and jitter_ratio. Default delays without jitter are 1, 2, and 4 seconds. Retry-After is a lower bound. If the next submission would fall at or after the deadline, it is not scheduled. `recovery.delays_seconds` defaults to empty; an explicit finite list increases the delays of those same attempts without creating additional cycles.
 
-Технический дефект после предварительного вывода допускает повтор только при `retry_after_output=true`. Полный контракт сброса предварительного текста относится к UI-I04 [плана](UNIVERSAL_INVOCATION_PLAN.md); до его приёмки включение такого повторения не доказывает корректный live-показ.
+A technical defect after preliminary output permits retry only with `retry_after_output=true`. The complete preliminary-text reset contract belongs to UI-I04 of the [plan](UNIVERSAL_INVOCATION_PLAN.md); enabling such retries before its acceptance does not establish correct live display.
 
-`refused` является конечным исходом без fallback. При `billing.refused=platform` клиентское списание равно нулю; `actual_usage` применяет принятый расчёт. Неизвестная себестоимость остаётся предметом финансовой сверки. Отключение повторов не отключает lookup исходной job и часовое финансовое закрытие.
+`refused` is terminal without fallback. With `billing.refused=platform`, the customer charge is zero; `actual_usage` applies the accepted calculation. Unknown cost remains subject to financial reconciliation. Disabling retries does not disable original-job lookup or one-hour financial closure.
 
 ## Failover
 
-RouteVersion содержит упорядоченные варианты, необходимые capabilities, ограничения региона/обработки данных, предельную стоимость, число попыток и условия переключения. Пользовательское требование конкретной модели запрещает замену на другую модель.
+RouteVersion contains ordered alternatives, required capabilities, region/data-processing constraints, maximum cost, attempt count, and switching conditions. A user requirement for a specific model prohibits substitution with another model.
 
-При выборе альтернативы повторно проверяются input schema, context limit, image input, structured output, tools, streaming, параметры, cache assumptions и бюджет. Нельзя молча удалить неподдерживаемый параметр или сменить качество результата.
+Selecting an alternative rechecks input schema, context limit, image input, structured output, tools, streaming, parameters, cache assumptions, and budget. Unsupported parameters cannot be silently removed or result quality changed.
 
-Потеря кеша при переключении учитывается в резерве. Новый provider connection может иметь собственную цену той же модели. Фактическая цель сохраняется в attempt и возвращается в metadata результата.
+Loss of cache during switching is included in the reservation. A new provider connection may price the same model differently. The actual target is saved in the attempt and returned in result metadata.
 
-Если поток ответа уже показан пользователю, автоматическое продолжение текстом другой модели запрещено. Альтернатива может создать явно новый draft после очистки предыдущего с понятным событием, только если приложение поддерживает такой сценарий и политика его разрешает. По умолчанию поток останавливается с доступным статусом.
+Once an answer stream has been shown to the user, automatically continuing with another model's text is prohibited. An alternative may create an explicitly new draft after clearing the previous one with a clear event, only if the application supports this scenario and policy permits it. By default, the stream stops with an available status.
 
-Outcome_unknown не разрешает автоматический failover. Явный retry после неопределённости требует отдельного подтверждения риска двойного внешнего расхода и нового разрешённого бюджета. Он связан с исходным request, но является новой работой. Для личного Codex режима сохраняется отсутствие автоматического перехода на платный API.
+Outcome_unknown does not authorize automatic failover. Explicit retry after uncertainty requires separate confirmation of double external spending risk and new authorized budget. It references the original request but is new work. Personal Codex mode retains the absence of automatic switching to a paid API.
 
-## Нативные async jobs
+## Native async jobs
 
-Если provider возвращает job ID, он сохраняется до ожидания результата. Polling выполняется scheduler с backoff и общим лимитом. Webhook поставщика проверяется по подписи и связывается с известным job; дубли и порядок событий обрабатываются безопасно.
+If a provider returns a job ID, it is saved before waiting for the result. The scheduler polls with backoff and an overall limit. Provider webhooks are signature-verified and linked to a known job; duplicates and event order are handled safely.
 
-GET результата не вызывает повторную генерацию. Неизвестный статус поставщика не заменяется guessed success. Cancel является запросом отмены, пока поставщик не подтвердил терминальное состояние. Usage и стоимость отменённой задачи всё равно могут прийти позднее.
+GET of a result does not trigger regeneration. Unknown provider status is not replaced with guessed success. Cancel remains a cancellation request until the provider confirms a terminal state. Usage and cost for a cancelled job may still arrive later.
 
-## Отмена
+## Cancellation
 
-До отправки отмена завершает request без provider cost. После отправки платформа вызывает доступный cancel и прекращает запуск новых дочерних запросов. Активные sibling requests учитываются независимо.
+Before submission, cancellation completes a request without provider cost. After submission, the platform calls available cancel and stops launching new child requests. Active sibling requests are accounted independently.
 
-Отмена вкладкой браузера не равна отмене операции. Для отмены существует явный API. Потеря SSE-соединения не прекращает worker. Пользователь может вернуться, прочитать operation и получить уже готовые результаты.
+Closing a browser tab is not operation cancellation. Cancellation has an explicit API. Losing an SSE connection does not stop the worker. The user may return, read the operation, and retrieve ready results.
 
-После dispatch отмена оплачивает подтверждённый расход активной попытки в пределах принятого максимума. Прежние дефектные попытки остаются расходом платформы. Pending cancel не является гарантией остановки у поставщика. Если usage или итог выдачи неизвестны, применяется часовое финансовое закрытие из ACCOUNTING; отмена не обнуляет его таймер.
+After dispatch, cancellation charges confirmed spending of the active attempt within the accepted maximum. Earlier defective attempts remain platform expenses. Pending cancel does not guarantee a stop at the provider. If usage or delivery outcome is unknown, ACCOUNTING's one-hour financial closure applies; cancellation does not reset its timer.
 
-## Lease и восстановление
+## Lease and recovery
 
-Worker периодически продлевает lease. Fencing token не позволяет старому worker зафиксировать результат поверх нового владельца. Он не способен сам предотвратить второй внешний вызов.
+A worker periodically renews its lease. A fencing token prevents an old worker from committing a result over a new owner's result. It cannot itself prevent a second external call.
 
-После истечения lease:
+After lease expiry:
 
-- Если отправка достоверно не началась, задача может вернуться в очередь.
-- Если есть remote job ID, следующий worker восстанавливает наблюдение за той же задачей.
-- Если endpoint гарантирует идемпотентность, повтор использует тот же внешний ключ и тот же payload.
-- Если выполнение возможно, но проверить его нельзя, ставится outcome_unknown.
+- If submission is known not to have begun, the job may return to the queue.
+- With a remote job ID, the next worker resumes observation of the same job.
+- If the endpoint guarantees idempotency, a retry uses the same external key and payload.
+- If execution is possible but cannot be checked, outcome_unknown is set.
 
-Сбой между submission intent и фактической отправкой может оставить неопределённость даже без реального вызова. Без контракта провайдера безопасно считать такую ситуацию неопределённой. Нельзя обещать exactly-once внешнего исполнения.
+A failure between submission intent and actual submission may leave uncertainty even without an actual call. Without a provider contract, treating it as uncertain is safe. Exactly-once external execution cannot be promised.
 
-`attempt_timeout_seconds` политики выполнения ограничивает одну попытку. Срабатывает тот таймер, который наступит раньше: таймаут попытки или дедлайн запроса. Для синхронного HTTP-вызова отмена у поставщика — это закрытие соединения; native job продолжает наблюдаться по прежним правилам. Попытка получает `timed_out_at`, её стоимость остаётся неизвестной и закрывается сверкой. Повтор допускается, если адаптер объявил идемпотентность: новая попытка на том же подключении и модели отправляет прежний ключ (`AdapterContext.idempotency_key`). Он допускается и тогда, когда политика задаёт `timeout_retry: "accept_duplicate_cost"`, то есть явно принимает возможное второе списание поставщиком. Такой риск ограничен platform risk budget. Без этих условий запрос получает outcome_unknown сразу после таймаута. Повтор после показанного пользователю потока подчиняется `retry_after_output`.
+Execution policy's `attempt_timeout_seconds` limits one attempt. The earlier timer applies: attempt timeout or request deadline. For a synchronous HTTP call, provider cancellation means closing the connection; a native job continues to be observed under the existing rules. The attempt receives `timed_out_at`; its cost stays unknown and is closed through reconciliation. Retry is permitted if the adapter declares idempotency: a new attempt on the same connection and model sends the previous key (`AdapterContext.idempotency_key`). It is also permitted when policy sets `timeout_retry: "accept_duplicate_cost"`, explicitly accepting a possible second provider charge. This risk is bounded by platform risk budget. Otherwise the request becomes outcome_unknown immediately after timeout. Retrying after a displayed stream follows `retry_after_output`.
 
-Неопределённая попытка удерживает concurrency slot лимитера, пока её исход ещё может прийти: до финансового закрытия запроса и не дольше deadline плюс 5 минут для синхронного вызова или плюс окно опроса (1 час) для remote job. Финансовое закрытие переводит такую попытку в `abandoned` в той же транзакции. Поздний ответ всё равно записывается для сверки. Оператор может разрешить исход командой с reason и аудитом; см. [операции](OPERATIONS.md#слоты-лимитера-и-неизвестный-исход).
+An uncertain attempt holds a limiter concurrency slot while its outcome may still arrive: until request financial closure and no later than deadline plus 5 minutes for a synchronous call or plus the polling window (1 hour) for a remote job. Financial closure moves that attempt to `abandoned` in the same transaction. A late response is still recorded for reconciliation. An operator may resolve the outcome through a command with a reason and audit; see [operations](OPERATIONS.md#limiter-slots-and-unknown-outcomes).
 
-## События и выдача результата
+## Events and result delivery
 
-Durable events имеют event_id, sequence, occurred_at, scope и resource refs. SSE возобновляется с Last-Event-ID. При недоступном старом cursor клиент читает snapshot и начинает с текущей последовательности.
+Durable events have event_id, sequence, occurred_at, scope, and resource refs. SSE resumes with Last-Event-ID. If an old cursor is unavailable, the client reads a snapshot and starts from the current sequence.
 
-Text deltas являются данными представления и не сохраняются в долговечном финансовом outbox. Их потеря не должна влиять на wallet. Финальный результат доступен через request resource до acknowledgement/expiry/deletion. Затем ресурс сохраняет metadata и причину отсутствия содержимого; GET не запускает генерацию. Финансовые события выходят из committed outbox и содержат wallet revision. Доставка event с result reference не продлевает content TTL.
+Text deltas are presentation data and are not stored in the durable financial outbox. Losing them must not affect the wallet. The final result is available through the request resource until acknowledgement/expiry/deletion. The resource then retains metadata and the reason content is absent; GET does not trigger generation. Financial events come from the committed outbox and contain wallet revision. Delivering an event with a result reference does not extend content TTL.
 
-Ни SSE, ни повторный webhook не являются основанием для второго capture. Финансовый эффект создаётся доменной транзакцией, а доставка сообщает о нём.
+Neither SSE nor a repeated webhook justifies a second capture. A domain transaction creates the financial effect; delivery reports it.
 
-## Проверка привязок распределённого допуска
+## Distributed admission binding checks
 
-Перед созданием submission intent `assertQuotaProof` сверяет весь набор групп текущего маршрута с выданным admission или bundle. На время транзакции состав защищён shared advisory lock пары connection/model; триггер записи привязок использует matching exclusive lock. Блокировка распространяется и на добавление отсутствующей строки, но не на независимые модели. Для чтения состава не берётся tuple lock, чтобы не ждать UPDATE/DELETE, уже ожидающий этот advisory lock. После завершения транзакции отправка провайдеру выполняется без SQL-блокировок.
+Before creating submission intent, `assertQuotaProof` compares the full set of current-route groups against the issued admission or bundle. During the transaction, membership is protected by a shared advisory lock on the connection/model pair; the binding-write trigger uses a matching exclusive lock. The lock also covers adding a missing row, but not independent models. Reading membership takes no tuple lock, avoiding a wait for UPDATE/DELETE already waiting on that advisory lock. After the transaction, provider submission runs without SQL locks.
 
-Изменение capacity не отменяет ранее выданный действующий допуск. При этом сохраняются проверки request/fence, возраста допуска, heartbeat, защитного удержания, отсутствия release/unknown и соответствия полного состава групп. Изменившийся состав привязок требует нового допуска; он не разрешает использовать только часть старого bundle.
+Changing capacity does not revoke a previously issued valid admission. Checks remain for request/fence, admission age, heartbeat, protective hold, absence of release/unknown, and full group membership. Changed bindings require new admission; using only part of an old bundle is prohibited.
 
-## HTTP-вход native webhook
+## Native webhook HTTP entry
 
-API передаёт исходное подписанное тело в receiveNativeWebhook через отдельный parser, не меняющий обычные JSON-маршруты. Scope выводится из сохранённого request. Адаптер проверяет подпись и связывает событие с remote_job_id активной попытки до записи usage. Далее используется общий observation lease, quota feedback и settlement; уже записанный event_id не создаёт повторный эффект. Redis feedback для BullMQ сохраняется через существующий журнал quota_result_feedback, а сбой его применения оставляет запись для maintenance replay.
+The API forwards the original signed body to receiveNativeWebhook through a separate parser that does not change normal JSON routes. Scope is derived from the stored request. The adapter verifies the signature and links the event to the active attempt's remote_job_id before recording usage. Shared observation lease, quota feedback, and settlement then apply; an already recorded event_id creates no duplicate effect. Redis feedback for BullMQ is persisted through the existing quota_result_feedback journal; an application failure leaves the entry for maintenance replay.
 
-Тело ограничено 1 MiB, дублирующиеся заголовки отклоняются. HTTP 503 оставляет необходимость повторной доставки; HTTP-вход не заменяет polling и не утверждает, что содержимое webhook сохранено до проверки подписи. Поддержка конкретного native провайдера требует verifyNativeWebhook и callback URL в submitNative; текущая проверка выполнена на synthetic native adapter. См. [HTTP-контракт](API.md#входящие-webhook-провайдера).
+The body is limited to 1 MiB; duplicate headers are rejected. HTTP 503 preserves the need for redelivery; the HTTP entry does not replace polling or claim that webhook content is saved before signature verification. Supporting a specific native provider requires verifyNativeWebhook and a callback URL in submitNative; current verification uses a synthetic native adapter. See the [HTTP contract](API.md#incoming-provider-webhooks).
 
-## Транспорт BullMQ и подготовка допуска
+## BullMQ transport and admission preparation
 
-BullMQ worker исполняет конкретный request с сохранёнными backend/generation/purpose. Устаревшая доставка и повтор после settlement не создают новую попытку. Отложенная повторная работа планируется PostgreSQL scheduler; очередь не получает независимую политику повторных вызовов провайдера. Нативное наблюдение и maintenance имеют отдельные очереди и лимиты.
+A BullMQ worker executes a specific request with persisted backend/generation/purpose. Stale delivery and a retry after settlement do not create a new attempt. Deferred repeat work is scheduled by the PostgreSQL scheduler; the queue does not receive an independent provider retry policy. Native observation and maintenance have separate queues and limits.
 
-Большое окно квот может потребовать нескольких подготовительных Redis-команд. За один проход обрабатывается не более 4096 событий; промежуточный результат не разрешает отправку. Изменение usage, восстановление истории или истечение событий инвалидирует соответствующие производные данные. Только финальная проверка всех правил создаёт quota permit. Через 20 секунд незавершённая подготовка возвращает not_ready, оставляя intent для безопасного продолжения. Подробности и эксплуатационные ограничения описаны в [операциях](OPERATIONS.md#поэтапный-пересчёт-больших-окон-квот).
+A large quota window may require several preparatory Redis commands. Each pass processes no more than 4096 events; intermediate results do not authorize submission. Usage changes, history restoration, and event expiry invalidate corresponding derived data. Only the final check of every rule creates a quota permit. After 20 seconds, unfinished preparation returns not_ready, leaving intent for safe continuation. Details and operational constraints are in [operations](OPERATIONS.md#incremental-recalculation-of-large-quota-windows).
 
-## Расширение платных API
+## Paid API extension
 
-Контракт PA-I01, единицы измерения, периоды, резервы allowance и границы совместимости описаны в [контракте платных API](PAID_API_CONTRACT.md). Статус реализации и стабильные сценарии PA-A01–PA-A25 приведены в [плане](PAID_API_PLAN.md). Проект контракта не подтверждает доступность новых HTTP handlers.
+Contract PA-I01, units, periods, allowance reservations, and compatibility boundaries are described in the [paid API contract](PAID_API_CONTRACT.md). Implementation status and stable PA-A01–PA-A25 scenarios appear in the [plan](PAID_API_PLAN.md). A draft contract does not establish that new HTTP handlers are available.
 
-## Приоритеты и SVG
+## Priorities and SVG
 
-См. [контракт доработок LogoPanel](LOGOPANEL_FOLLOWUP_INTEGRATION.md): API/SDK, ограничения и неактивированные примеры конфигураций. Реальные вызовы требуют отдельного согласования по [правилам проверки провайдеров](REAL_PROVIDER_CHECKS.md).
+See the [LogoPanel follow-up integration contract](LOGOPANEL_FOLLOWUP_INTEGRATION.md): API/SDK, constraints, and inactive configuration examples. Real calls require separate agreement under the [provider verification rules](REAL_PROVIDER_CHECKS.md).

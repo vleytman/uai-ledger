@@ -1,176 +1,176 @@
-# План реализации Cerebras, Groq и Gemini Flash в Google Cloud
+# Implementation plan for Cerebras, Groq, and Gemini Flash on Google Cloud
 
-Дата плана: 25.09.2026. Обновлено 26.09.2026. Статус: реализация AMI-I00–I08 и применимая функциональная приёмка завершены. Живые возможности пяти моделей подтверждены, все финансовые исходы закрыты. См. [подключение](ALTERNATIVE_MODEL_INTEGRATION.md) и [сводку проверок](REAL_PROVIDER_CHECKS.md). Активация рабочих маршрутов, LogoPanel и нагрузочный/качественный benchmark остаются отдельными задачами.
+Plan date: 2026-09-25. Updated 2026-09-26. Status: AMI-I00–I08 implementation and applicable functional acceptance are complete. Live capabilities of all five models are confirmed, and all financial outcomes are closed. See [integration](ALTERNATIVE_MODEL_INTEGRATION.md) and the [check summary](REAL_PROVIDER_CHECKS.md). Activating operational routes, LogoPanel, and load/quality benchmarks remain separate tasks.
 
-[Оглавление](README.md) · [Исследование и сравнение](ALTERNATIVE_MODEL_SUPPORT_ASSESSMENT.md) · [Решения](DECISIONS.md) · [Текущая приёмка](ACCEPTANCE_RESULTS.md) · [Правила платных проверок](REAL_PROVIDER_CHECKS.md) · [LogoPanel follow-up](LOGOPANEL_FOLLOWUP_PLAN.md)
+[Contents](README.md) · [Research and comparison](ALTERNATIVE_MODEL_SUPPORT_ASSESSMENT.md) · [Decisions](DECISIONS.md) · [Current acceptance](ACCEPTANCE_RESULTS.md) · [Paid-check rules](REAL_PROVIDER_CHECKS.md) · [LogoPanel follow-up](LOGOPANEL_FOLLOWUP_PLAN.md)
 
-## 1. Объём и статус доказательств
+## 1. Scope and evidence status
 
-Включить Cerebras и Groq через их прямые API и Gemini Flash через Google Cloud Standard PayGo. Под стандартным аккаунтом понимается платный Cloud project с billing, включённым API и IAM-доступом, без закупки выделенной мощности. Это не ключ AI Studio и не обещание конкретной квоты новому аккаунту.
+Add Cerebras and Groq through their direct APIs and Gemini Flash through Google Cloud Standard PayGo. A standard account means a paid Cloud project with billing, the API enabled, and IAM access, without purchasing dedicated capacity. This is not an AI Studio key or a promise of a particular quota for a new account.
 
-Предыдущая проверка этих моделей была исследованием публичных каталогов и документации. Реальные генерации на них не выполнялись. Наличие возможностей в документации, локальная приёмка адаптера и подтверждённый живой вызов должны иметь отдельные статусы.
+Previous checks of these models researched public catalogs and documentation. They did not run real generations. Documented capabilities, local adapter acceptance, and confirmed live calls must have separate statuses.
 
-| Поставщик | Точный ID | Назначение | Вход | Статус выбора |
+| Provider | Exact ID | Purpose | Input | Selection status |
 |---|---|---|---|---|
-| Cerebras | `qwen-3.8-27b` | Основной Qwen для текста, анализа изображений и tools | Текст, изображения | Есть в текущем публичном API |
-| Cerebras | `gpt-oss-120b` | Текстовые задачи и reasoning | Текст | Есть в текущем публичном API |
-| Groq | `qwen/qwen3.8-27b` | Сравнение Qwen между поставщиками | Текст, изображения | Preview; отдельный экспериментальный профиль |
-| Groq | `openai/gpt-oss-20b` | Недорогие извлечение данных, классификация и tools | Текст | Production-модель в каталоге Groq |
-| Google Cloud | `gemini-3.8-flash` | Основной Gemini Flash | Текст, изображения | GA; Standard PayGo явно указан в карточке |
+| Cerebras | `qwen-3.8-27b` | Primary Qwen for text, image analysis, and tools | Text, images | In current public API |
+| Cerebras | `gpt-oss-120b` | Text tasks and reasoning | Text | In current public API |
+| Groq | `qwen/qwen3.8-27b` | Cross-provider Qwen comparison | Text, images | Preview; separate experimental profile |
+| Groq | `openai/gpt-oss-20b` | Inexpensive data extraction, classification, and tools | Text | Production model in Groq catalog |
+| Google Cloud | `gemini-3.8-flash` | Primary Gemini Flash | Text, images | GA; model card explicitly lists Standard PayGo |
 
-Источники повторно просмотрены 25.09.2026: [Cerebras models](https://api.cerebras.ai/public/v1/models), [Groq models](https://console.groq.com/docs/models), [Gemini Flash в Cloud](https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/3-8-flash). Перед реализацией и публикацией конфигураций повторно проверить IDs, доступность и тарифы. «Последняя версия» фиксируется проверенной датой и ID; автоматической замены модели при выходе новой версии не будет.
+Sources reviewed again on 2026-09-25: [Cerebras models](https://api.cerebras.ai/public/v1/models), [Groq models](https://console.groq.com/docs/models), [Gemini Flash on Cloud](https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/3-8-flash). Recheck IDs, availability, and rates before implementation and configuration publication. “Latest version” is pinned by verification date and ID; new releases will not replace models automatically.
 
-Включить text, vision у поддерживающих моделей, streaming, structured output, forced tool calling, оценку и фактический расчёт, очереди и диагностику. Полноценную передачу истории tools принять отдельным обязательным этапом для заявления полной поддержки. Исполняет инструменты приложение, не UAI.
+Include text, vision for supporting models, streaming, structured output, forced tool calling, quoting and actual-cost calculation, queues, and diagnostics. Accept full tool-history transfer as a separate mandatory phase before claiming full support. The application executes tools, not UAI.
 
-Kie, Google Pro, альтернативный Developer API, другие посредники, генерация изображений, embeddings, аудио, видео, встроенные поиск/code execution, закупка мощности и активация Priority в этот план не входят. Для Priority предусматривается расширение конфигурации; его живые проверки выполняются позднее.
+Kie, Google Pro, the alternative Developer API, other intermediaries, image generation, embeddings, audio, video, built-in search/code execution, capacity purchasing, and Priority activation are outside this plan. A configuration extension is planned for Priority; its live checks occur later.
 
-## 2. Существующая основа и изменения
+## 2. Existing foundation and changes
 
-Срез относится к текущей рабочей копии с параллельными незакоммиченными изменениями. Перед работой зафиксировать её состояние и повторить нужные проверки; не перезаписывать чужие изменения.
+This snapshot refers to the current working copy with parallel uncommitted changes. Record its state and repeat relevant checks before working; do not overwrite others' changes.
 
-| Уже есть | Использовать | Что добавить |
+| Already available | Reuse | Add |
 |---|---|---|
-| Provider registry и HTTP adapters | `packages/providers/src/registry.ts`, `contracts.ts`, `index.ts` | Cerebras, Groq, Google Cloud; общий Chat Completions transport и native Gemini |
-| Parameter allowlists | `packages/providers/src/parameters.ts` | Модельные параметры, диапазоны и допустимые сочетания |
-| Schema compiler и forced-tool эмуляция LF-I02/LF-I03 | `packages/providers/src/structured.ts`, `packages/contracts/schema.ts` | Особенности новых API; не писать второй общий компилятор |
-| TextInput, ToolChoice, единый tool_call | `packages/contracts/invocation.ts` | Сейчас роли system/user/assistant и text/image blocks; добавить историю calls/results и continuation metadata |
-| Model calculations, rate cards, cache forecast | `packages/model-pricing`, `packages/quoting` | Оценщики новых семейств, usage и кэш; заменить whitelist OpenAI/Anthropic в estimated_actual проверкой возможностей |
-| Queues, admission, execution policy | `packages/queue`, `packages/execution` | Квотные группы новых аккаунтов, классификация ошибок и метрики |
-| API/SDK, admin, файловые конфигурации | `apps/api`, `packages/sdk`, `packages/admin-module`, `packages/configuration` | Согласованные схемы и пять модельных профилей |
+| Provider registry and HTTP adapters | `packages/providers/src/registry.ts`, `contracts.ts`, `index.ts` | Cerebras, Groq, Google Cloud; shared Chat Completions transport and native Gemini |
+| Parameter allowlists | `packages/providers/src/parameters.ts` | Model parameters, ranges, and permitted combinations |
+| Schema compiler and LF-I02/LF-I03 forced-tool emulation | `packages/providers/src/structured.ts`, `packages/contracts/schema.ts` | New API specifics; do not write a second common compiler |
+| TextInput, ToolChoice, common tool_call | `packages/contracts/invocation.ts` | Currently system/user/assistant roles and text/image blocks; add calls/results history and continuation metadata |
+| Model calculations, rate cards, cache forecast | `packages/model-pricing`, `packages/quoting` | New family estimators, usage, and cache; replace estimated_actual OpenAI/Anthropic whitelist with capability checking |
+| Queues, admission, execution policy | `packages/queue`, `packages/execution` | New-account quota groups, error classification, metrics |
+| API/SDK, admin, file configurations | `apps/api`, `packages/sdk`, `packages/admin-module`, `packages/configuration` | Aligned schemas and five model profiles |
 
-Ограничение estimated_actual подтверждено в `packages/quoting/src/index.ts`; описание «OpenAI text only» также найдено в редакторе конфигураций. Обновить и серверную проверку, и интерфейс. Наличие schema/tools улучшений в контракте LF не доказывает совместимость новых провайдеров.
+The estimated_actual restriction is confirmed in `packages/quoting/src/index.ts`; “OpenAI text only” wording also appears in the configuration editor. Update both server validation and interface. Schema/tools improvements in the LF contract do not prove new-provider compatibility.
 
-## 3. Этапы и зависимости
+## 3. Phases and dependencies
 
-Исходные статусы AMI-Ixx были «не начато». Исторические результаты сведены в [матрице приёмки](ACCEPTANCE_RESULTS.md). Последовательность: I00 → I01 → I02/I03 → I04 → I05 → I06 → I07 → I08. I02 и I03 независимы по транспорту, но используют единый контракт I01.
+Original AMI-Ixx statuses were “not started.” Historical results are consolidated in the [acceptance matrix](ACCEPTANCE_RESULTS.md). Sequence: I00 → I01 → I02/I03 → I04 → I05 → I06 → I07 → I08. I02 and I03 have independent transports but use the common I01 contract.
 
-### AMI-I00. Зафиксировать baseline и матрицу возможностей
+### AMI-I00. Establish baseline and capability matrix
 
-- Проверить актуальные registry, контракт text input/output, execution policy и результаты LF-I02/LF-I03. Отдельно записать существующие ошибки baseline.
-- Для каждой модели описать поддерживаемые tools modes, schema subset, streaming combinations, reasoning, context/output limits, vision MIME/bytes/count и usage fields.
-- Проверить доступность Gemini Flash на global Standard в целевом аккаунте; квоты брать из аккаунта. Общая таблица Standard сама по себе не устанавливает квоту 3.8 Flash.
-- Подготовить минимальные обезличенные fixture payloads и ответы. Не сохранять секреты или приватные provider responses.
+- Check current registry, text input/output contract, execution policy, and LF-I02/LF-I03 results. Record existing baseline failures separately.
+- For each model, describe supported tools modes, schema subset, streaming combinations, reasoning, context/output limits, vision MIME/bytes/count, and usage fields.
+- Check Gemini Flash availability on global Standard in the target account; obtain quotas from the account. The general Standard table alone does not establish a 3.8 Flash quota.
+- Prepare minimal anonymized fixture payloads and responses. Do not save secrets or private provider responses.
 
-Готовность: пять заполненных карточек, неизвестные возможности помечены явно; нет запроса, который обещает неподтверждённое сочетание.
+Ready when: five cards are complete, unknown capabilities are explicit, and no request promises an unconfirmed combination.
 
-### AMI-I01. Контракт возможностей и финансовых режимов
+### AMI-I01. Capability and financial-mode contract
 
-Расширить capabilities для сочетаний schema/tools/streaming, native/эмулируемого forced choice, поддерживаемых output limits и доступных счётчиков. Общий флаг tools не означает поддержку любого режима.
+Extend capabilities for schema/tools/streaming combinations, native/emulated forced choice, supported output limits, and available counters. A general tools flag does not imply support for every mode.
 
-Для Google Cloud предусмотреть service mode в профиле маршрута, quote snapshot и attempt evidence. В этой поставке разрешён только Standard. Не принимать Priority без реализации его транспорта, тарифа и приёмки; не делать скрытого переключения на более дорогой режим. Хранить запрошенный и фактический режим раздельно, если последний действительно сообщён провайдером.
+For Google Cloud, include service mode in the route profile, quote snapshot, and attempt evidence. Only Standard is permitted in this delivery. Do not accept Priority without implementing its transport, rates, and acceptance; do not silently switch to a more expensive mode. Store requested and actual modes separately if the latter is actually reported by the provider.
 
-Обобщить estimated_actual через проверку расчётного профиля и usage, сохранив его существующую семантику прогноза и допустимого долга. Для capped-профилей требовать доказанный предел provider exposure; expected_output_tokens не считать ограничителем. Не менять разделение себестоимости, клиентской цены и риска установки.
+Generalize estimated_actual through calculation-profile and usage checks while preserving its existing forecast and permitted-debt semantics. Capped profiles require a proven provider-exposure bound; expected_output_tokens is not a limiter. Preserve the separation of provider cost, customer price, and installation risk.
 
-Готовность: неподдержанные параметры отклоняются до dispatch; схемы API/SDK/configuration согласованы. Новые storage поля или миграции добавлять только при невозможности выразить данные существующим механизмом.
+Ready when: unsupported parameters are rejected before dispatch; API/SDK/configuration schemas align. Add storage fields or migrations only when existing mechanisms cannot express the data.
 
-### AMI-I02. Cerebras и Groq
+### AMI-I02. Cerebras and Groq
 
-Создать общий Chat Completions transport и отдельные wrappers `cerebras@1`, `groq@1`. Названия предлагаемые; зарегистрировать их явно. URL/auth, параметры, errors и usage остаются ответственностью wrapper, а не одного универсального «совместимого» адаптера.
+Create a shared Chat Completions transport and separate `cerebras@1` and `groq@1` wrappers. Names are proposed; register them explicitly. URL/auth, parameters, errors, and usage remain wrapper responsibilities rather than those of a single universal “compatible” adapter.
 
-Реализовать обычный и потоковый текст, сборку fragmented tool arguments по ID/index, terminal usage и finish reason. Ограничить application-level tools текущими capabilities. Не включать встроенные платные инструменты поставщика.
+Implement normal and streaming text, fragmented tool-argument assembly by ID/index, terminal usage, and finish reason. Limit application-level tools to current capabilities. Do not enable providers' built-in paid tools.
 
-Для vision проверить фактическую wire schema каждого Qwen. Groq отдельно требует проверки опубликованных ограничений изображений и токенизации. GPT-OSS отклоняет image input до отправки. Для Groq schema+tools и schema+stream не разрешать без подтверждения поддерживаемого сочетания; при буферизации явно отличать поток провайдера от выдачи готового результата UAI.
+For vision, check each Qwen's actual wire schema. Groq separately requires verification of published image limits and tokenization. GPT-OSS rejects image input before dispatch. Do not permit Groq schema+tools or schema+stream without confirmation of the supported combination; when buffering, explicitly distinguish the provider stream from UAI's delivery of a completed result.
 
-Готовность: четыре модели проходят локальные text/stream/tool/schema сценарии и отрицательные проверки. Preview Groq Qwen доступен только как явно экспериментальный профиль, не как незаметная замена стабильного маршрута.
+Ready when: all four models pass local text/stream/tool/schema scenarios and negative checks. Groq Qwen Preview is available only as an explicitly experimental profile rather than a silent replacement for a stable route.
 
-### AMI-I03. Google Cloud Standard и Gemini Flash
+### AMI-I03. Google Cloud Standard and Gemini Flash
 
-Предлагаемый provider ID `google_cloud`, adapter `google_cloud@1`. Connection содержит project, location и ссылку на credentials. Для первого подключения использовать global endpoint. Выбрать поддерживаемый механизм OAuth/ADC для среды установки; реализовать refresh и защиту от параллельных обновлений токена. Не хранить credentials в профилях, quote snapshots или браузере.
+Proposed provider ID `google_cloud`, adapter `google_cloud@1`. A connection contains project, location, and a credentials reference. Use the global endpoint for the first connection. Choose a supported OAuth/ADC mechanism for the installation environment; implement refresh and protection against concurrent token refreshes. Do not store credentials in profiles, quote snapshots, or the browser.
 
-Native Gemini transport сериализует system instructions, contents/parts, inline images, generation config, function declarations и response schema. Реализовать generateContent и streamGenerateContent, разбор candidates, safety/finish reasons и usageMetadata. Сохранить thought signatures как непрозрачные данные продолжения, не раскрывать их как пользовательский текст.
+Native Gemini transport serializes system instructions, contents/parts, inline images, generation config, function declarations, and response schema. Implement generateContent and streamGenerateContent, parsing candidates, safety/finish reasons, and usageMetadata. Preserve thought signatures as opaque continuation data rather than exposing them as user text.
 
-Явно зафиксировать Standard-запрос согласно текущей Cloud документации; не полагаться на случайный режим аккаунта. Google billing включается владельцем при подготовке подключения, его активация не является побочным действием установки UAI.
+Explicitly specify a Standard request according to current Cloud documentation; do not depend on an incidental account mode. The owner enables Google billing while preparing the connection; activation is not a side effect of UAI setup.
 
-Готовность: Cloud auth/refresh, текст, поток, vision, schema, tools и отказ проходят локальную приёмку. Истечение токена, 403, 429, неполный поток и missing usage имеют отдельные результаты. При refresh после отправки нельзя незаметно повторить генерацию.
+Ready when: Cloud auth/refresh, text, streaming, vision, schema, tools, and refusal pass local acceptance. Token expiry, 403, 429, incomplete streams, and missing usage have separate outcomes. Refresh after dispatch must not silently repeat generation.
 
-### AMI-I04. Оценка, фактическая стоимость и кэш
+### AMI-I04. Estimation, actual cost, and cache
 
-- Оценивать реально сериализованные сообщения, tools/schema, изображения и ожидаемый выход; учитывать преобразования LF-I02/LF-I03.
-- Для GPT-OSS/Qwen не назначать tokenizer только по имени разработчика. Зафиксировать tokenizer/chat template либо измеренный приблизительный оценщик с погрешностью.
-- Для Gemini проверить CountTokens и его условия. Сетевой подсчёт не делать неявным обязательным шагом каждого quote; предусмотреть локальную оценку и явный статус точности.
-- Нормализовать input/output/reasoning/cache usage по каждой модели. Не складывать пересекающиеся счётчики и не заменять отсутствующие значения нулями.
-- Публиковать Cloud rate cards отдельно от Developer API. У каждой версии хранить источник, checked_at и условия. Акционные ставки имеют дату окончания; при отсутствии новой ставки останавливать публикацию/исполнение затронутого профиля, а не продлевать акцию автоматически.
-- Cache forecast начинать с холодного входа. Наблюдаемый cache hit сохранять в usage; не создавать платный explicit cache lifecycle в этом этапе. Идентичность кэша включает connection, модель, параметры и стабильный префикс.
+- Estimate actually serialized messages, tools/schema, images, and expected output; include LF-I02/LF-I03 transformations.
+- Do not assign GPT-OSS/Qwen tokenizers solely by developer name. Pin a tokenizer/chat template or a measured approximate estimator with an error margin.
+- Check Gemini CountTokens and its terms. Do not make network counting an implicit mandatory step for every quote; provide local estimation and an explicit accuracy status.
+- Normalize input/output/reasoning/cache usage per model. Do not add overlapping counters or replace missing values with zeros.
+- Publish Cloud rate cards separately from Developer API rates. Each version stores source, checked_at, and conditions. Promotional rates have an end date; without a new rate, stop affected-profile publication/execution rather than extending the promotion automatically.
+- Start cache forecasts with cold input. Save observed cache hits in usage; do not create a paid explicit-cache lifecycle in this phase. Cache identity includes connection, model, parameters, and stable prefix.
 
-Готовность: независимые fixtures подтверждают quote, provider cost, charge, refund/reserve и точную арифметику. Денежные целые передаются строками. Неизвестный расход остаётся unresolved по действующим правилам.
+Ready when: independent fixtures confirm quote, provider cost, charge, refund/reserve, and exact arithmetic. Monetary integers travel as strings. Unknown cost remains unresolved under current rules.
 
-### AMI-I05. Полная история инструментов
+### AMI-I05. Full tool history
 
-Добавить blocks для assistant tool calls и tool results, стабильные call IDs, ошибки инструмента и непрозрачные provider metadata. Согласовать TextInput, ProviderResult, delivery events, API/SDK и сохранение результата. Сохранить удобный режим «ровно один» для текущих типизированных вызовов; множественные вызовы представлять явно.
+Add blocks for assistant tool calls and tool results, stable call IDs, tool errors, and opaque provider metadata. Align TextInput, ProviderResult, delivery events, API/SDK, and result persistence. Preserve the convenient “exactly one” mode for current typed calls; represent multiple calls explicitly.
 
-Проверять соответствие результата исходному call ID, дубликаты, orphan results и допустимость parallel calls конкретной моделью. Continuation metadata привязать к поставщику/модели; fallback не должен передавать чужую подпись. При невозможности безопасного переноса истории отклонять fallback. Приложение выполняет tool, затем вызывает UAI снова; общего автономного agent loop не добавлять.
+Validate results against original call IDs, duplicates, orphan results, and each model's support for parallel calls. Bind continuation metadata to provider/model; fallback must not forward another provider's signature. Reject fallback when history cannot transfer safely. The application executes the tool and calls UAI again; do not add a general autonomous agent loop.
 
-Готовность: двухшаговый обмен call → result → ответ проходит для каждой модели с поддерживаемым режимом; неподдерживаемая параллельность отклоняется. До этого этапа допустимо объявлять поддержку одиночного forced call, но не полного tool dialogue.
+Ready when: a two-step call → result → answer exchange passes for each model in a supported mode; unsupported parallelism is rejected. Before this phase, support may be claimed for a single forced call, but not a full tool dialogue.
 
-### AMI-I06. Очередь, диагностика и финансовая безопасность
+### AMI-I06. Queue, diagnostics, and financial safety
 
-Подключить новые профили account/model quotas и ограничения concurrent streams. Дополнительные ключи одного аккаунта не считать независимыми квотами. Для Cloud учитывать organization/model scope там, где так устроен реальный лимит. Доступные заголовки Retry-After использовать в admission без повторного списания.
+Connect new account/model quota profiles and concurrent-stream limits. Additional keys on one account are not independent quotas. For Cloud, account for organization/model scope wherever the actual limit uses it. Apply available Retry-After headers in admission without duplicate charging.
 
-Сохранять предельное число attempts/deadline через все маршруты. SDK retries отключить либо включить в наблюдаемую политику; не умножать их на очередь. Различать auth, quota, временный сбой, safety refusal, invalid request, defect и outcome_unknown. После неизвестного платного исхода автоматической новой генерации нет.
+Preserve maximum attempts/deadline across all routes. Disable SDK retries or include them in the observable policy; do not multiply them by queue retries. Distinguish auth, quota, transient failure, safety refusal, invalid request, defect, and outcome_unknown. No automatic new generation after an unknown paid outcome.
 
-Метрики: TTFT, полное время, queue wait, активные запросы, 429/5xx, safety refusals, invalid schema/tools, доля terminal usage, прогноз/факт. Сверку по внешнему отчёту выполнять только при наличии подходящего API; локальный расчёт по usage не объявлять сверкой со счётом поставщика.
+Metrics: TTFT, total time, queue wait, active requests, 429/5xx, safety refusals, invalid schema/tools, terminal-usage rate, forecast/actual. Reconcile against external reports only when a suitable API exists; do not describe local usage-based calculation as reconciliation against a provider invoice.
 
-Готовность: fault-injection не создаёт двойные attempts/проводки и корректно освобождает либо сохраняет резерв. Fallback между vision и text-only маршрутом запрещён.
+Ready when: fault injection creates no duplicate attempts/postings and correctly releases or retains reservations. Fallback between vision and text-only routes is forbidden.
 
-### AMI-I07. Конфигурации, API/SDK, admin и локальная приёмка
+### AMI-I07. Configurations, API/SDK, admin, and local acceptance
 
-Подготовить пять файловых bundles: model/capabilities, rate card, route и invocation profile, без ключей и автоматической публикации в рабочую БД. Конкретные пути выбрать по действующим правилам FILE_CONFIGURATION; пользовательские подключения привязываются отдельно.
+Prepare five file bundles: model/capabilities, rate card, route, and invocation profile, without keys or automatic publication to an operational database. Choose specific paths according to current FILE_CONFIGURATION rules; bind user connections separately.
 
-В admin показывать provider, model ID, Standard mode, preview, состояние live validation, квоты и неизвестный usage. Удалить устаревшее ограничение текстов редактора «OpenAI only». Demo должна позволять выполнить текст, vision и tools по capabilities, не предлагая недоступную комбинацию.
+In admin, show provider, model ID, Standard mode, preview, live-validation status, quotas, and unknown usage. Remove the editor's obsolete “OpenAI only” wording restriction. The demo must allow text, vision, and tools according to capabilities without offering unavailable combinations.
 
-Обновить generated OpenAPI/SDK/configuration schemas и документацию. Запустить целевые provider, quoting, execution, queue и API/SDK tests; затем typecheck, проверки схем и docs. Для изменённого UI выполнить build и браузерную проверку элементов/ошибок. Существующие failing tests baseline отделить от новых регрессий.
+Update generated OpenAPI/SDK/configuration schemas and documentation. Run targeted provider, quoting, execution, queue, and API/SDK tests, then typecheck, schema checks, and docs checks. For changed UI, build and check rendered elements/errors in a browser. Separate existing failing baseline tests from new regressions.
 
-Готовность: локальная матрица AMI-Axx пройдена, финансовые проверки зелёные, в админке нет ложного статуса «реально проверено».
+Ready when: the local AMI-Axx matrix passes, financial checks are green, and admin contains no false “live verified” status.
 
-### AMI-I08. Ограниченный живой прогон и включение
+### AMI-I08. Limited live run and enablement
 
-Подготовить manifest с точными моделями, сценариями, числом вызовов, пределами входа/выхода/thinking и расчётным максимальным расходом. Начальный smoke: по четыре запроса на модель — text, stream, forced tool, schema; ещё по одному vision на три vision-модели; по два вызова на последовательность tool round-trip для пяти моделей. Всего **33 вызова**, если все комбинации подтверждены; неподдержанные сценарии исключаются с объяснением. Большую проверку качества и нагрузки считать отдельно.
+Prepare a manifest with exact models, scenarios, call counts, input/output/thinking limits, and calculated maximum cost. Initial smoke: four requests per model — text, stream, forced tool, schema; one additional vision request for each of the three vision models; two calls per tool round-trip sequence for each of five models. Total **33 calls** if all combinations are confirmed; exclude unsupported scenarios with explanations. Budget a larger quality/load check separately.
 
-Бюджет рассчитывается по текущим опубликованным ставкам и реальным bounds manifest, а не по одному ожидаемому ответу. До запроса разрешения подготовить полный локально проверенный runner и reviewable manifest. Разрешение требуется только перед платным прогоном по [правилам реальных проверок](REAL_PROVIDER_CHECKS.md); эта задача на план его не предоставляет.
+Calculate budget using current published rates and actual manifest bounds rather than one expected response. Prepare the complete locally verified runner and reviewable manifest before requesting authorization. Authorization is required only before the paid run under the [real-check rules](REAL_PROVIDER_CHECKS.md); this planning task does not provide it.
 
-Использовать выделенные тестовые процессы, allowlist пяти моделей, max_attempts=1 и stop-on-unknown. Не провоцировать массовые ошибки платными запросами. После smoke отдельно сравнить качество русскоязычных заданий и нагрузку, сохраняя раздельно функциональные результаты, стоимость и надёжность. Smoke не подтверждает SLA.
+Use dedicated test processes, a five-model allowlist, max_attempts=1, and stop-on-unknown. Do not provoke widespread errors through paid requests. After smoke, compare Russian-language task quality and load separately, keeping functional results, cost, and reliability distinct. Smoke does not confirm an SLA.
 
-Готовность: отчёт с версиями конфигураций, обезличенными IDs операций, usage, стоимостью, статусом каждого сценария и ограничениями. После прогона реальные flags выключены, спорные резервы разобраны. Активация рабочих маршрутов и обновление внешнего LogoPanel выполняются отдельной доставкой; данный план их не запускает.
+Ready when: a report records configuration versions, anonymized operation IDs, usage, cost, each scenario's status, and limitations. After the run, real flags are disabled and disputed reservations resolved. Activating operational routes and updating external LogoPanel occur in a separate delivery; this plan does not start them.
 
-## 4. Матрица приёмки
+## 4. Acceptance matrix
 
-Новые ID AMI-Axx не заменяют стабильные AMS-Axx исследования и LF-Axx текущего плана.
+New AMI-Axx IDs do not replace stable research AMS-Axx and current-plan LF-Axx IDs.
 
-| ID | Сценарий | Критерий |
+| ID | Scenario | Criterion |
 |---|---|---|
-| AMI-A01 | Регистрация и параметры | Пять IDs; неизвестный ID/параметр и запрещённый mode отклоняются до dispatch |
-| AMI-A02 | Text/stream | Правильный finish reason, хвост SSE и terminal usage; отказ не становится success |
-| AMI-A03 | Vision | Qwen и Gemini получают правильные assets; GPT-OSS отклоняет изображения |
-| AMI-A04 | Schema | Исходная схема и восстановленный ответ валидны; unsupported combinations отклоняются |
-| AMI-A05 | Forced tools | Ровно один required/named результат; native/schema method указан; refusal сохранён |
-| AMI-A06 | История tools | Call IDs, результаты и signatures переживают round-trip; parallel только по capabilities |
-| AMI-A07 | Оценщик | Учитываются tools/images/framing; точность не завышена; output forecast не объявлен cap |
-| AMI-A08 | Usage/pricing | Reasoning/cache не задвоены; дата акции, модель и mode выбирают правильную ставку |
-| AMI-A09 | Финансовые инварианты | Нет двойного списания; defect/refused/cancel/unknown следуют действующим решениям |
-| AMI-A10 | Cloud auth | Refresh конкурентно безопасен; credentials не попадают в содержимое API или logs |
-| AMI-A11 | Квоты и повторы | Общие account limits, 429/backoff, deadline, отмена и unknown не обходятся fallback |
-| AMI-A12 | API/SDK/admin | Согласованные схемы, корректный статус preview/live validation, рабочая demo |
-| AMI-A13 | Live smoke | Только разрешённые подключения/бюджет; каждый живой результат подтверждён отчётом |
-| AMI-A14 | Подготовка Priority | Standard остаётся default; Priority не включается без отдельного принятого профиля и тарифа |
+| AMI-A01 | Registration and parameters | Five IDs; unknown ID/parameter and forbidden mode rejected before dispatch |
+| AMI-A02 | Text/stream | Correct finish reason, SSE tail, and terminal usage; refusal does not become success |
+| AMI-A03 | Vision | Qwen and Gemini receive correct assets; GPT-OSS rejects images |
+| AMI-A04 | Schema | Original schema and reconstructed response valid; unsupported combinations rejected |
+| AMI-A05 | Forced tools | Exactly one required/named result; native/schema method specified; refusal preserved |
+| AMI-A06 | Tool history | Call IDs, results, and signatures survive round-trip; parallel only according to capabilities |
+| AMI-A07 | Estimator | Includes tools/images/framing; accuracy not overstated; output forecast not declared a cap |
+| AMI-A08 | Usage/pricing | Reasoning/cache not duplicated; promotional date, model, and mode select correct rate |
+| AMI-A09 | Financial invariants | No duplicate charge; defect/refused/cancel/unknown follow current decisions |
+| AMI-A10 | Cloud auth | Concurrent-safe refresh; credentials do not enter API content or logs |
+| AMI-A11 | Quotas and retries | Shared account limits, 429/backoff, deadline, cancellation, and unknown cannot be bypassed by fallback |
+| AMI-A12 | API/SDK/admin | Aligned schemas, correct preview/live-validation status, working demo |
+| AMI-A13 | Live smoke | Authorized connections/budget only; report confirms every live result |
+| AMI-A14 | Priority preparation | Standard remains default; Priority cannot enable without a separately accepted profile and rate |
 
-## 5. Оценка и порядок поставки
+## 5. Estimate and delivery order
 
-| Пакет | Ориентир |
+| Package | Estimate |
 |---|---:|
-| I00–I01: baseline, capabilities, финансовые условия | 2–3 дня |
-| I02: Chat transport, Cerebras и Groq | 3–5 дней |
-| I03: Google Cloud auth и native Gemini | 3–5 дней |
-| I04: оценка, usage, тарифы и кэш | 2–3 дня |
-| I05: полноценная история tools | 3–5 дней |
-| I06–I07: очереди, профили, API/SDK/admin и интеграционная приёмка | 3–4 дня |
-| I08: выполнение согласованного smoke и отчёт | 1–2 дня |
+| I00–I01: baseline, capabilities, financial terms | 2–3 days |
+| I02: Chat transport, Cerebras and Groq | 3–5 days |
+| I03: Google Cloud auth and native Gemini | 3–5 days |
+| I04: estimation, usage, rates, and cache | 2–3 days |
+| I05: full tool history | 3–5 days |
+| I06–I07: queues, profiles, API/SDK/admin, integration acceptance | 3–4 days |
+| I08: agreed smoke execution and report | 1–2 days |
 
-Итого **17–27 инженерных дней**. Это новая оценка именно пяти моделей трёх поставщиков, с полной историей tools и без Kie. Ожидание доступа/бюджета, неизвестные ограничения поставщика, исправления по живому прогону и длительный load/quality benchmark могут увеличить срок. Принятую параллельную работу LF повторно не реализовывать.
+Total **17–27 engineering days**. This is a new estimate specifically for five models from three providers, with full tool history and without Kie. Waiting for access/budget, unknown provider restrictions, fixes following the live run, and a lengthy load/quality benchmark may extend the schedule. Do not reimplement accepted parallel LF work.
 
-Сначала завершить локальную поставку I00–I07. Если нужен ранний результат, после I04 можно показать одиночный forced tool call, явно указав отсутствие полной истории до I05. Полной готовностью считается выполнение применимых AMI-Axx, а не только ответ на один текстовый запрос.
+Complete local delivery I00–I07 first. If an early result is needed, a single forced tool call may be demonstrated after I04 with an explicit statement that full history is absent until I05. Full readiness requires applicable AMI-Axx completion rather than merely one text response.
 
-## 6. Проверки документа и будущей реализации
+## 6. Document and future-implementation checks
 
-Команды существуют в корневом package.json: `pnpm typecheck`, `pnpm test`, `pnpm check:api`, `pnpm check:configuration`, `pnpm docs:check`, `pnpm build`. Целевые тесты выбирать по затронутым файлам. Локальные fixtures не подтверждают живые API.
+These commands exist in the root package.json: `pnpm typecheck`, `pnpm test`, `pnpm check:api`, `pnpm check:configuration`, `pnpm docs:check`, `pnpm build`. Select targeted tests according to affected files. Local fixtures do not confirm live APIs.
 
-При откате отключить новые маршруты для новых вызовов, сохранить версии уже принятых quote/attempts и довести их до разрешённого исхода. Не откатывать ledger или конфигурацию принятых операций восстановлением старой БД. Ветка, PR, публикация и deployment не создаются этой задачей.
+For rollback, disable new routes for new calls, preserve versions for already accepted quotes/attempts, and bring them to permitted outcomes. Do not roll back the ledger or accepted-operation configuration by restoring an old database. This task creates no branch, PR, publication, or deployment.
