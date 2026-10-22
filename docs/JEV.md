@@ -1,20 +1,20 @@
 # Jev System One
 
-[Contents](README.md) · [Plan](JEV_IMPLEMENTATION_PLAN.md)
+[Contents](README.md)
 
-## Status
+## Setup
 
 The local implementation uses `api.call`, provider `typesafe`, adapter `typesafe@1`, operation key `typesafe.systemone`, and profile `typesafe.jev-1.13.0`. HTTP requests always send `jev-1.13.0`. The actual `model` is required; a mismatch is a technical defect. Usage and the returned model are saved before response validation.
 
-The file package `configurations/api/typesafe/jev.json` has status=active, live_validation=passed. Five paid checks completed within the $0.05 budget; calculated spending was $0.000066948. The profile has not been published to a running installation. Local acceptance uses an isolated database and a substituted HTTP transport.
+Publish [the example bundle](../configurations/api/typesafe/jev.json) through the [configuration CLI](FILE_CONFIGURATION.md), binding it to a TypeSafe connection and installation budgets. The file alone does not activate a connection in your database.
 
-## What is confirmed and what remains unknown
+## Provider capabilities and limits
 
 On September 26, 2026, local date, the [API](https://docs.typesafe.ai/api), [OpenAPI](https://api.typesafe.ai/openapi.json), and [model card](https://docs.typesafe.ai/models) were checked. The public contract includes only evaluate and model listing. It does not describe a tokenizer, count endpoint, lookup, cancel, or provider idempotency. Balance/cost reporting is disabled.
 
-The input rate is $0.042 per million tokens; output is free. The model card specifies 64k for the entire request and 32k for state together with the longest question, but does not define the exact integer value of k or the relationship between the limit and `usage.input_tokens`. By the owner's decision of 2026-09-26, the profile maximum for reservation and quota admission is 32768 input tokens. This is a chosen financial admission limit, not a proven provider limit or price forecast. `estimateUsage` returns `unavailable`.
+The input rate is $0.042 per million tokens; output is free. The model card specifies 64k for the entire request and 32k for state together with the longest question, but does not define the exact integer value of k or the relationship between the limit and `usage.input_tokens`. The example profile uses a maximum of 32768 input tokens for reservation and quota admission. This is a chosen financial admission limit, not a proven provider limit or price forecast. `estimateUsage` returns `unavailable`.
 
-TypeSafe receives no token-limiting parameter: 32768 is used internally by UAI. Actual consumption may exceed the selected maximum; the full cost is recorded, and the installation absorbs any amount above the customer cap. The owner's decision replaces the original requirement to block the profile until a billable maximum is proven. Live acceptance requires separate budget authorization; five calls alone do not prove an upper bound.
+TypeSafe receives no token-limiting parameter: 32768 is used internally by UAI. Actual consumption may exceed the selected maximum; the full cost is recorded, and the installation absorbs any amount above the customer cap. Verify the provider contract and choose an acceptable financial risk budget before enabling this connection.
 
 ## Contract and limits
 

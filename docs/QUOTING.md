@@ -140,7 +140,7 @@ Before every request, the service checks component, call number, actual paramete
 
 ## Reservation for compound work
 
-A recipe requires advance knowledge of components and their counts. The application describes a chain whose next call depends on the previous answer as a reservation pool. The pool names single-call profiles, each profile's call limit, the overall limit, and the amount to hold. The owner's decision is recorded in [decisions](DECISIONS.md#logopanel-requests-dated-20102026).
+A recipe requires advance knowledge of components and their counts. The application describes a chain whose next call depends on the previous answer as a reservation pool. The pool names single-call profiles, each profile's call limit, the overall limit, and the amount to hold.
 
 ```json
 {"account_id":"acct_example","kind":"pool","pool":{"profiles":[{"profile":"logopanel.persona","max_calls":12},{"profile":"logopanel.moderator","max_calls":4}],"max_calls":14,"deadline_seconds":3600},"budget":{"max_credits":"2.5"}}
@@ -192,7 +192,7 @@ For `single_call`, the forecast considers specific input. The tokenizer counts s
 
 Actual charging still uses terminal usage and the accepted rate version within the agreed reservation. Technical-retry risk is accounted separately. Cache is not included as an advance discount. Rules must cover every permitted model parameter; if price depends on quality, size, or another setting, profile boundaries must match the selected table.
 
-Calculation methods are described in the [specification](MODEL_PRICING_SPEC.md).
+Calculation methods are described in the [specification](MODEL_PRICING.md).
 
 ## Fixed result price
 
@@ -214,7 +214,7 @@ The initial forecast includes the published model's buffer and markup; actual ch
 
 ## Paid API extension
 
-Contract PA-I01, units, periods, allowance reservations, and compatibility boundaries are described in the [paid API contract](PAID_API_CONTRACT.md). Implementation status and stable PA-A01–PA-A25 scenarios appear in the [plan](PAID_API_PLAN.md). A draft contract does not establish that new HTTP handlers are available.
+See the [paid API contract](PAID_API_CONTRACT.md) for provider accounts, usage units, periods, allowance reservations and supported HTTP endpoints.
 
 ## Universal call terms
 
@@ -222,4 +222,4 @@ Policy is resolved before reservation: UAI default, selected profile, call param
 
 ## Call-list forecast
 
-See the [LogoPanel follow-up integration contract](LOGOPANEL_FOLLOWUP_INTEGRATION.md): API/SDK, constraints, and inactive configuration examples. Real calls require separate agreement under the [provider verification rules](REAL_PROVIDER_CHECKS.md).
+See [model capabilities](MODEL_CAPABILITIES.md) for embeddings, structured responses, SVG support, limits and example configurations. Publish compatible profiles and configure connection budgets before making real calls.

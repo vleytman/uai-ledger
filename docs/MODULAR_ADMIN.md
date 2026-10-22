@@ -1,16 +1,14 @@
 # Unified Modular Admin
 
-[Contents](README.md) · [Architecture](ARCHITECTURE.md) · [Decisions](DECISIONS.md)
-
-Checked against source code on 2026-09-20. Reverification commands are in [local run](LOCAL_RUN.md).
+[Contents](README.md) · [Architecture](ARCHITECTURE.md)
 
 ## Purpose and Boundaries
 
-The user-facing frontend of LogoPanel or another product is a separate application and build. It does not connect to this administrative shell.
+The user-facing frontend of your product is a separate application and build. It does not connect to this administrative shell.
 
-One installation serves one owner-operated application. UAI provides financial accounting, model configuration, and request execution. The product adds its pages, settings, and payment integration. They are built into one interface with one administrative login. LogoPanel data does not become part of UAI's data model.
+One installation serves one owner-operated application. UAI provides financial accounting, model configuration, and request execution. The product adds its pages, settings, and payment integration. They are built into one interface with one administrative login. Product data does not become part of UAI's data model.
 
-Connecting a specific LogoPanel is done in its repository. There is no LogoPanel copy or placeholder pages pretending to be a complete integration here. Local distributed-execution acceptance was completed separately; its boundaries are described in the [plan](DISTRIBUTED_EXECUTION_PLAN.md). It does not establish LogoPanel integration or payment readiness.
+Your product owns its user-facing frontend, authentication and payment integration. The UAI admin packages do not provide those product-specific features.
 
 ## Structure
 
@@ -80,9 +78,9 @@ Client read call: `api('app.product.settings')`. Change: `command('app.product.s
 
 The administrative session is checked before the handler; changes also require Origin, JSON, and a command identifier. The product must validate `data`, implement transactional idempotency by `key`, audit, and rules for changing its resources. A key's presence does not replace idempotency.
 
-Standalone login grants installation-owner permissions. External mode connects the parent's session and staff `admin`/`viewer` roles with individual audit. It does not implement LogoPanel registration or memberships. A customer-team administrator does not automatically receive staff access. The user frontend remains separate and uses product client APIs. Hiding a menu does not restrict the API. The shared service admin is for employees; ordinary users work through the product frontend.
+Standalone login grants installation-owner permissions. External mode connects the parent's session and staff `admin`/`viewer` roles with individual audit. It does not implement product registration or memberships. A customer-team administrator does not automatically receive staff access. The user frontend remains separate and uses product client APIs. Hiding a menu does not restrict the API. The shared service admin is for employees; ordinary users work through the product frontend.
 
-By default, `loadConfig` reads a JSON file at the path in `UAI_ADMIN_CONFIG`, rather than JSON directly from the variable. Fields: `api_url`, `admin_token`, `account_id`, `wallet_id`, `session_secret`, `login_password`. The session secret must contain at least 32 characters, and the password at least 16; generate separate random values per installation. A session lasts eight hours; its cookie has HttpOnly and SameSite=Strict, plus Secure on HTTPS. In standalone mode this is a separate owner login. Shared login requires explicitly connecting an external adapter; there is no automatic unification with LogoPanel. Behind a reverse proxy, preserve the correct public origin for change validation.
+By default, `loadConfig` reads a JSON file at the path in `UAI_ADMIN_CONFIG`, rather than JSON directly from the variable. Fields: `api_url`, `admin_token`, `account_id`, `wallet_id`, `session_secret`, `login_password`. The session secret must contain at least 32 characters, and the password at least 16; generate separate random values per installation. A session lasts eight hours; its cookie has HttpOnly and SameSite=Strict, plus Secure on HTTPS. In standalone mode this is a separate owner login. Shared login requires explicitly connecting an external adapter; there is no automatic unification with the product. Behind a reverse proxy, preserve the correct public origin for change validation.
 
 ## Payments and Settings
 
@@ -117,11 +115,11 @@ The template includes Dependabot configuration for weekly submodule-update PRs a
 
 This does not promise delivery of SemVer releases only: `gitsubmodule` tracks a Git branch. For a release policy, keep the tracked branch verified or select a tag/commit manually. Restoring an old commit does not roll back database migrations. [Dependabot submodule support](https://docs.github.com/en/code-security/reference/supply-chain-security/supported-ecosystems-and-repositories).
 
-Another project must reference a published commit containing the packages and generator from these instructions. A documentation commit without implementation is insufficient. Actual LogoPanel integration is performed separately and does not follow from publishing UAI.
+Another project must reference a published commit containing the packages and generator from these instructions. A documentation commit without implementation is insufficient.
 
 Do not migrate `.data`, passwords, keys, or databases from an existing installation. A new installation receives its own secrets, database, Redis namespace, and application configuration.
 
-The owner's target topology: a data server with PostgreSQL/Redis; an application server with shared admin and API; an execution server with workers/scheduler and a separate Mastra process when connected. A shared interface does not require sharing a process with the worker. Sandbox and persistent files connect separately. This change did not deploy this topology to production.
+API, workers and data services may be deployed separately. A shared admin interface does not require them to run in one process; see [deployment](DEPLOYMENT.md).
 
 To run the administrative build locally from the product root: `UAI_ADMIN_CONFIG=/absolute/path/to/admin-config.json pnpm dev:admin`. The template uses `127.0.0.1:4311`; if standalone UAI admin already occupies this port, stop it or choose another port in the host script. UAI API, workers, and scheduler run separately according to [local run instructions](LOCAL_RUN.md). A new installation requires its own database, Redis namespace, credentials, and S3; do not copy the active demo's environment. Production deployment instructions are in [DEPLOYMENT.md](DEPLOYMENT.md).
 
@@ -133,5 +131,3 @@ To run the administrative build locally from the product root: `UAI_ADMIN_CONFIG
 - `pnpm exec vitest run packages/admin-shell/test/scaffold.test.ts`
 
 For a freshly generated product, run `pnpm install`, then `pnpm build`, then `pnpm typecheck`: the build generates the TanStack route file. Once the lockfile is committed, use `pnpm install --frozen-lockfile`. These commands verify administrative-build compatibility, but do not start UAI services or apply migrations.
-
-Modularity tests verify an additional page alongside UAI, direct links, refresh, returning to wallets, and logout; server tests verify authorization, CSRF, absence of the service token from context, and prohibition of overriding standard commands. Regression verifies existing forms, calculator, and tables. This does not test LogoPanel or a payment provider.

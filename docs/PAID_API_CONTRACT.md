@@ -1,6 +1,6 @@
 # Paid API and Allowance Contract
 
-[Plan and Decisions](PAID_API_PLAN.md) · [Operational HTTP API](API.md) · [OpenAPI Draft](openapi-paid-api.json)
+[Documentation](README.md) · [Operational HTTP API](API.md) · [OpenAPI extension](openapi-paid-api.json)
 
 Local implementation schemas are defined in [paid-api.ts](../packages/contracts/paid-api.ts). `pnpm generate:paid-api` creates the OpenAPI extension; `pnpm check:paid-api` validates it. `openapi.json` describes the full HTTP API and client types. Real provider calls are checked separately.
 
@@ -45,11 +45,6 @@ A snapshot contains account, period, metric, observation time, coverage time, pr
 Missing statistics do not reset local counters. State returns used, reserved, remaining, overdrawn, included and rolled-over volume, period, overage, and freshness. The remaining percentage is calculated against included volume plus rollover, accounting for open reservations.
 
 Notification rules select subscription, metric, unit, and threshold. Percentages and native units use different comparison bases. The fingerprint includes rule, subscription, period, and metric. A threshold is crossed once until recovery, subject to cooldown. `allowance.renewed` is a one-time event. Delivery uses the existing outbox and signed webhook with the same ID on retry. The application selects recipients for email/Telegram and user notifications.
-
-## Acceptance
-
-Stable checks PA-A01–PA-A25 remain in the [plan](PAID_API_PLAN.md). Schemas and documentation do not replace runtime checks. Actual availability of the four Firecrawl operations and observed usage are checked separately from synthetic fixtures, after approval of a paid run.
-
 
 ## Implemented HTTP Paths and Limits
 

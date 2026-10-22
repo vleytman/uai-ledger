@@ -1,8 +1,8 @@
-# File Configurations: Preparatory Phase PA-I00
+# File configuration
 
-[Contents](README.md) · [API Plan](PAID_API_PLAN.md) · [Local Run](LOCAL_RUN.md)
+[Contents](README.md) · [Local Run](LOCAL_RUN.md)
 
-Date: 2026-09-22. A local path has been implemented for one existing GPT-4.1 nano AI profile: rates, calculation method, route, and recipe. This prepares for expansion; new APIs, Firecrawl, allowance, and new notifications are outside this phase.
+This guide explains how to manage model definitions, pricing, routes, recipes and API services in Git while keeping connections, secrets and operational limits in the installation database.
 
 ## Data Ownership
 
@@ -12,7 +12,7 @@ Date: 2026-09-22. A local path has been implemented for one existing GPT-4.1 nan
 | TypeScript | Versioned adapters, provider authentication, HTTP protocol, usage and error normalization. |
 | Operational database | Connections and secrets, budgets, quotas, notifications, installation bindings, active publication. |
 
-Example: [openai-nano.json](../configurations/ai/openai-nano.json). Its contents come from the existing `demoModels().find(m => m.key === 'nano')`, with separate `files.openai.nano.*` keys. Original demo profiles are neither assigned to the file owner nor deleted. Rates retain the previous verification date of 2026-09-19; this work does not confirm current prices or model availability from the provider.
+Example: [openai-nano.json](../configurations/ai/openai-nano.json). Adapt the model parameters, rates and bindings for your installation; recheck provider prices and model availability before publication.
 
 The [JSON Schema](../configurations/schema.json) defines the format version, allowed resource kinds, fields, and references. Existing UAI domain validators additionally check nested calculation methods, rates, and recipes. Check that the schema is current with `pnpm check:configuration`; update it after format changes with `pnpm generate:configuration`. These are data for the existing calculation engine. JSON cannot connect arbitrary code, an HTTP endpoint address, a secret, or a new workflow.
 
@@ -61,16 +61,7 @@ On Models, Pricing, Routes, and Recipes pages, file records are marked `Git · A
 
 Editing, renaming, and creating a new version of a file record through the UI are disabled. Old HTTP paths also return `file_managed_configuration`; SQL triggers protect the source and published records. Creating a version with the same key through a legacy path cannot be bypassed using a new version number. The read-only calculator allows changing trial inputs and calculating prices without modifying the definition or calling the model.
 
-Connections, budgets, quotas, and notifications remain operational settings. Publication does not overwrite them. Activation in this preparatory phase uses the CLI; there is no separate publication editor/screen in the admin yet.
-
-## Acceptance and Boundaries
-
-A clean database and upgrading a populated schema from 0055 to 0056 were verified. PostgreSQL tests cover preview without writes, atomic rollback, concurrent idempotency, no activation on publication, switch conflicts, application isolation, preventing API/SQL bypass, and executing an old request after a new activation. In the last scenario, provider cost changes with the new rate while the charge follows stored terms: 21 000 units for synthetic usage.
-
-The browser fixture runs with `pnpm exec tsx scripts/run-file-configuration-fixture.ts` only against the local `uai_file_config_test` database. It creates a separate installation, disables real providers, and starts the admin on loopback port 4331. Verification uses Aside. The temporary service token is stored in Git-excluded `.data/file-configuration-fixture.json`; the file is deleted when the process stops.
-
-After PA-I00, legacy-profile export and atomic `adopt` were added: ownership migration with baseline verification, without changing old payloads or references held by accepted work. 20 local profiles (65 resources) are saved in `configurations/ai/legacy-local.json`; these are historical rates from the primary local installation, not verification of current provider prices. Connections and budgets are moved to local bindings; the baseline contains IDs and hashes of previous versions. Both files remain outside Git. Full-bundle publication and adoption were verified in an isolated installation; then 20 profiles in the primary local demo were switched to release `release_b666e880-bae1-4cdb-b20b-efe9d0f94c26`. Connections and wallets did not change; a local pg_dump was saved before adoption. The published bundle's key set is currently fixed: renaming or deletion requires a separate migration. Format v1 now includes `model.api` and `tariff`. Adapter code updates require versioning discipline and contract tests. Production, paid calls, and a full distributed crash/load run are outside PA-I00.
-
+Connections, budgets, quotas, and notifications remain operational settings. Publication does not overwrite them. Use the CLI to activate releases; the admin interface does not provide a publication editor.
 
 ## Migrating Existing Profiles
 
@@ -82,9 +73,9 @@ After PA-I00, legacy-profile export and atomic `adopt` were added: ownership mig
 
 The execution_policy resource stores the complete execution schema. Example: [default](../configurations/execution/default.json). It uses the same validate/preview/publish/activate path; a separate policy bundle does not require a recipe. An active policy with key=default sets the application default. A route may reference execution_policy_version_id through the @execution_policy:key symbol inside the bundle and partially override execution. Accepted requests store the final terms and version ID. Operational max_attempts and max_deadline_seconds live in invocation_execution_limits, rather than an independent file policy editor.
 
-## Additional LogoPanel Models
+## Additional model examples
 
-See the [LogoPanel follow-up contract](LOGOPANEL_FOLLOWUP_INTEGRATION.md): API/SDK, limits, and unactivated configuration examples. Real calls require separate approval under the [provider verification rules](REAL_PROVIDER_CHECKS.md).
+See [model capabilities](MODEL_CAPABILITIES.md) for embeddings, structured responses, SVG support, limits and example configurations. Publish compatible profiles and configure connection budgets before making real calls.
 
 ## GPT-6 Luna
 

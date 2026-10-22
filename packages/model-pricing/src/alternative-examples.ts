@@ -19,7 +19,6 @@ export function alternativeCalculation(provider:string,id:string):ModelCalculati
  const sample={input:{messages:[{role:'user',content:[{type:'text',text:'Hello'}]}]},parameters:{expected_output_tokens:32,max_output_tokens:256},assets:[]};
  method.samples=[{name:'Локальная оценка, не вызов поставщика',input:sample,expected:Object.fromEntries(calculateQuantities(method,sample).map(v=>[v.key,v.value]))}];return method;
 }
-// Historical functional smoke: 2026-09-26; limitations summarized in docs/REAL_PROVIDER_CHECKS.md.
 // This status does not validate a new installation's credentials, quota or SLA.
 export function alternativeBundle(provider:string,id:string):FileConfiguration{
  const m=alternativeModel(provider,id),key=`ami.${provider}.${id.replaceAll('/','.')}`,rates=alternativeRates(provider,id),method=alternativeCalculation(provider,id),ref=(kind:string)=>`@${kind}:${key}`;

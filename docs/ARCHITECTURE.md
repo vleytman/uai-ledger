@@ -30,9 +30,9 @@ flowchart LR
 
 The central catalog stores published model versions, parameter schemas, attachment preparation, estimation methods, and a separate pricing block for each model. `packages/model-pricing` executes the restricted tokens/per_unit/lookup/formula types and calculates with exact rational numbers. Provider rates are versioned separately. An administrator checks an unsaved calculation without calling a provider; publication checks coverage, control quantities, and specified expected costs.
 
-Quoting binds the final `quoted_final` price to specific input and versions, accounting ensures reservation and a single charge, and execution records each attempt's spending independently of the customer price. Actual cost does not rewrite the agreed price. The public catalog exposes parameters and file preparation to the client, but not internal methods or coefficients. See [central price calculation](MODEL_PRICING_SPEC.md).
+Quoting binds the final `quoted_final` price to specific input and versions, accounting ensures reservation and a single charge, and execution records each attempt's spending independently of the customer price. Actual cost does not rewrite the agreed price. The public catalog exposes parameters and file preparation to the client, but not internal methods or coefficients. See [central price calculation](MODEL_PRICING.md).
 
-One independent TypeScript codebase, deployed separately for each owner-operated application. Logo Panel will have its own instance. Installations have independent PostgreSQL databases, temporary BlobStores, configurations, service tokens, and provider keys. They do not access each other's databases or share user wallets.
+One independent TypeScript codebase, deployed separately for each owner-operated application. Installations have independent PostgreSQL databases, temporary BlobStores, configurations, service tokens, and provider keys. They do not access each other's databases or share user wallets.
 
 Within an installation, API, worker, and scheduler have separate entry points, shared contracts, and one PostgreSQL database. The administrative interface is a separate build. BlobStore has a local implementation for development and object storage for the server. Public third-party developer registration and a centralized SaaS control plane are outside v1.
 
@@ -75,7 +75,7 @@ Demo owns its chat history and permanent files, uses a separate database or isol
 
 Test grants are available only to an authenticated test user for their own account, and only when server-side test-environment mode is enabled. The backend uses a separate token with grant permission and a restricted scope. It checks a positive amount and the configured upper limit, sets explicit expires_at and reason, and retries the command with the same Idempotency-Key. The demo grant route is disabled in production independently of the frontend. A grant creates a credit lot and does not top up a provider account.
 
-Presentation requirements are in [OPERATIONS](OPERATIONS.md); client scenarios and acceptance are in [IMPLEMENTATION](IMPLEMENTATION.md).
+Presentation requirements are in [OPERATIONS](OPERATIONS.md).
 
 ## Modules and data ownership
 
@@ -103,7 +103,7 @@ A module does not directly modify another module's tables. A shared application 
 
 All reads and changes are restricted to the organization and authorized application/account. An application's service key grants no access to other applications. The browser does not receive an AI-platform key with grant permissions or permission to execute arbitrary requests.
 
-Accounts are created by the application's trusted backend. If direct browser calls are needed in the future, the backend issues a short-lived restricted token for a specific account, operation, and budget. This extension is not required for the first Logo Panel integration.
+Accounts are created by the application's trusted backend. If direct browser calls are needed in the future, the backend issues a short-lived restricted token for a specific account, operation, and budget.
 
 The implemented [external authorization contract](EXTERNAL_AUTH.md) preserves the server-to-server boundary: the parent backend verifies the person, membership, and product permissions, then the SDK forwards restricted context. UAI does not store users or team membership. `audit_identity` stores the external person, team, and service principal separately from historical `actor_id`. The initiator's identity and the accepted operation's payer do not change with the active session.
 
@@ -140,7 +140,7 @@ Each adapter publishes its capabilities rather than emulating missing features.
 
 Lookup by request ID is supported only where documented by the API. A correlation request ID in a header does not itself imply the ability to retrieve a result.
 
-The platform distinguishes text, image generation/edit, speech synthesis, search, embeddings, and specialized registered operations. Only used capabilities are activated in the first implementation. A general contract does not require implementing every modality immediately.
+The platform distinguishes text, image generation/edit, speech synthesis, search, embeddings, and specialized registered operations. Activate only the capabilities supported by your configured adapters and models.
 
 An arbitrary provider endpoint, secret, shell command, or executable code is not accepted from an end user. Specialized workers are registered by an administrator, run a preinstalled implementation, and report usage through a signed trusted channel.
 
@@ -202,7 +202,7 @@ Cleanup covers BlobStore, database text results, temporary files, response cache
 3. Select permitted routes. Use the built-in standard recipe for a single call; custom recipes are needed for compound actions.
 4. Integrate the SDK, durable result storage, acknowledgement, content deletion, and event handling.
 5. Connect grants from the payment service or administrative budget.
-6. Pass acceptance scenarios for retries, insufficient funds, unknown outcomes, and recovery.
+6. Verify retries, insufficient funds, unknown outcomes, and recovery before enabling real traffic.
 
 Profiles and recipes are exported as versioned configuration without secrets. Deploying another application must not require changing core code.
 
@@ -212,14 +212,12 @@ Profiles and recipes are exported as versioned configuration without secrets. De
 
 The product's user frontend is deployed separately. The shared administrative build includes UAI source from one repository through a Git submodule; the product keeps its own settings and payment pages outside UAI. Shared fixes land in UAI, then products update their pinned commit after compatibility checks.
 
-## Implemented distributed runtime
+## Distributed runtime
 
-The local installation uses BullMQ to deliver request IDs, PostgreSQL for execution authorization and finances, Redis for quota windows, and S3 for files. API, scheduler, generation, observation, and maintenance run as separate processes. Backend, generation, and purpose are pinned in durable dispatch; a completed Redis job is not the source of truth for a result or charge.
+The BullMQ backend uses BullMQ to deliver request IDs, PostgreSQL for execution authorization and finances, Redis for quota windows, and S3 for files. API, scheduler, generation, observation, and maintenance run as separate processes. Backend, generation, and purpose are pinned in durable dispatch; a completed Redis job is not the source of truth for a result or charge.
 
-The complete set of quota rules is checked in one final Lua command. Large histories are prepared in short passes without issuing permits. Provider-group concurrency is stored in PostgreSQL together with protective holds for unknown outcomes. Group session locks serialize admission preparation, but SQL transactions are not held during Redis or HTTP. After Redis, all groups are confirmed in one short SQL transaction that rechecks the fence, deadline, cancellation, and configuration. This refines the implementation: the early plan placed concurrency and windows together in Lua; the actual concurrency source remains durable PostgreSQL. Both sides of authorization are required before submission intent.
-
-Implementation status and evidence limits are listed in the current matrix and completion audit. Running multiple containers on one Docker host is not presented as testing independent VPSs.
+The complete set of quota rules is checked in one final Lua command. Large histories are prepared in short passes without issuing permits. Provider-group concurrency is stored in PostgreSQL together with protective holds for unknown outcomes. Group session locks serialize admission preparation, but SQL transactions are not held during Redis or HTTP. After Redis, all groups are confirmed in one short SQL transaction that rechecks the fence, deadline, cancellation, and configuration. Both sides of authorization are required before submission intent.
 
 ## Paid API extension
 
-Contract PA-I01, units, periods, allowance reservations, and compatibility boundaries are described in the [paid API contract](PAID_API_CONTRACT.md). Implementation status and stable PA-A01–PA-A25 scenarios appear in the [plan](PAID_API_PLAN.md). A draft contract does not establish that new HTTP handlers are available.
+See the [paid API contract](PAID_API_CONTRACT.md) for provider accounts, usage units, periods, allowance reservations and supported HTTP endpoints.

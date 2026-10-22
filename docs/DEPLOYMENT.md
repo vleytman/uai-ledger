@@ -1,8 +1,8 @@
 # Deploying UAI roles separately
 
-[Contents](README.md) · [Operations](OPERATIONS.md) · [Distributed execution plan](DISTRIBUTED_EXECUTION_PLAN.md)
+[Contents](README.md) · [Operations](OPERATIONS.md)
 
-The templates in `deploy/` split the backend across three nodes. They are a validated startup foundation, not completed production acceptance. The public LogoPanel product and its combined admin shell are built by their own project. The runtime image below contains the UAI API, scheduler, workers and migrations; the browser admin and demo are not included.
+The templates in `deploy/` split the backend across three nodes. Configure and validate networking, credentials, persistence and resource limits for your environment before routing user traffic. Build your product frontend and combined admin shell separately. The runtime image below contains the UAI API, scheduler, workers and migrations; the browser admin and demo are not included.
 
 ## Roles
 
@@ -62,9 +62,9 @@ Use `--scale generation=N` to add execution replicas. Account for the total Post
 
 ## Updates and rollback
 
-Prepare a new image digest, validate it on staging, make a verifiable PostgreSQL backup and check access to shared S3. Apply additive migrations, then update scheduler/API/workers by role. Do not run old and new backends on the same request without the prescribed generation transition. Backend migration and rollback order are described in the [plan](DISTRIBUTED_EXECUTION_PLAN.md).
+Prepare a new image digest, validate it on staging, make a verifiable PostgreSQL backup and check access to shared S3. Apply additive migrations, then update scheduler/API/workers by role. Do not run old and new backends on the same request without the prescribed generation transition. Validate a backend transition on staging before applying it to active requests; preserve database and storage consistency during rollback.
 
-Redis AOF does not replace a PostgreSQL or S3 backup. Do not restore financial tables alone without consistent operation/attempt/storage data. Automated restore drills, S3 backup rules and full multi-host rollback still require acceptance. The templates do not perform these operations automatically.
+Redis AOF does not replace a PostgreSQL or S3 backup. Do not restore financial tables alone without consistent operation/attempt/storage data. Configure S3 backups and rehearse a complete multi-host restore before relying on this deployment. The templates do not automate backups or rollback. `/health` checks HTTP availability; it does not establish database, queue or storage readiness.
 
 ## PostgreSQL restore drill
 
@@ -77,9 +77,3 @@ UAI_RESTORE_TEST_ONLY=1 UAI_RESTORE_TEST_CONTAINER=uai-postgres-1 pnpm exec tsx 
 The script exports a repeatable-read snapshot and passes it to pg_dump, so table comparisons and the dump represent the same state even while the source receives writes. Restoration creates a new unique `uai_restore_*` database; existing databases are neither deleted nor overwritten. Checks cover hashes/row counts of all public tables, the balance of every journal transaction and agreement between lot balances and postings. Separate probes verify that restored triggers forbid history changes and unbalanced writes. All probes are rolled back.
 
 The dump and report remain in `/tmp/uai-restore-*.dump` and `.json` with permissions 0600, and the new database is retained for inspection. These are temporary verification artifacts, not a backup retention policy. The runtime is not started against the restored database, and Redis and blob content are not restored. PostgreSQL/S3 consistency and safe resumption of unknown external requests need separate validation.
-
-## Locally verified behavior
-
-The ARM64 build, all 39 migrations on a separate database, API `/health` response 200, maintenance publication by the scheduler and execution by the production BullMQ worker were verified. Containers ran with a read-only filesystem; API and worker exited on SIGTERM with code 0. `/health` currently indicates a live HTTP process and does not test PostgreSQL, Redis or S3 readiness.
-
-During the build, optional `msgpackr-extract` failed to compile without a native toolchain; BullMQ passed with the JS fallback. The check does not measure fallback performance on a VPS. AMD64 images, production secrets, HTTPS, separate VPS hosts, private S3 and the admin interface were not covered by this container check.

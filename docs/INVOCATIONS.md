@@ -1,6 +1,6 @@
 # Universal Invocation Integration
 
-Contracts: [API](API.md), [execution](EXECUTION.md), [quoting](QUOTING.md), [plan and criteria](UNIVERSAL_INVOCATION_PLAN.md). All prices in the local environment are synthetic. Support for a specific model is declared by the catalog's published `text_features`, rather than the provider name.
+Contracts: [API](API.md), [execution](EXECUTION.md), [quoting](QUOTING.md). All prices in the local environment are synthetic. Support for a specific model is declared by the catalog's published `text_features`, rather than the provider name.
 
 ## Application Server
 
@@ -53,22 +53,16 @@ Accepted input use extends retention and holds the file for an active request. R
 
 `wallets.subscribe(walletId, {signal})` delivers an initial snapshot, followed by changes with increasing `revision`; after a disconnect it rereads the snapshot. `available_units` already excludes reservations. The application stores integer monetary values as strings, applies only newer revisions, and separately displays `reserved_units` and negative available balances.
 
-## Local Verification and Migration
-
-The `scripts/universal-fixture.ts` environment runs only with `UAI_ENV=test`, real providers disabled, a separate test database, and a `UAI_FIXTURE_ROOT` containing `.data/demo-config.json` from seed. The browser port is `127.0.0.1:4348`. Source tokens are not passed into HTML. Results are saved in `UAI_FIXTURE_ROOT/results` before ACK. `scripts/universal-latency.ts` measures only this loopback environment; `UAI_LATENCY_SAMPLES` sets the sample count and `UAI_LATENCY_OUTPUT` sets the report file.
-
-LogoPanel requires a separate task in the parent repository: update `vendor/uai`, apply migrations, rebuild the server and client, verify identity and persist-before-ACK, then configure approved real resources. This document does not mean the submodule or running service has already been updated.
-
 ## Embeddings
 
 The `embeddings.generate` capability uses the shared `ai.run`/`ai.stream`, but does not deliver provisional vectors. Input is `input: {texts: ['first line', 'second line']}`; the `dimensions` parameter is optional. OpenAI `text-embedding-3-small`, `text-embedding-3-large`, and Voyage `voyage-4` are registered; local implementation does not establish live availability.
 
-The profile publishes an `input_mode: 'embedding_batch'` calculation, without image assets. OpenAI uses `cl100k_base`; Voyage uses a conservative UTF-8 bound. An accepted batch is one work item and one reservation. Output contains `model`, `revision: null`, `dimensions`, and `data`; ordering is normalized by index. Details and reasons for the unknown revision are in the [follow-up contract](LOGOPANEL_FOLLOWUP_INTEGRATION.md).
+The profile publishes an `input_mode: 'embedding_batch'` calculation, without image assets. OpenAI uses `cl100k_base`; Voyage uses a conservative UTF-8 bound. An accepted batch is one work item and one reservation. Output contains `model`, `revision: null`, `dimensions`, and `data`; ordering is normalized by index. Details and reasons for the unknown revision are in the [model capabilities guide](MODEL_CAPABILITIES.md).
 
-Shared limits: 128 strings, 16384 coordinates, and a 512 KiB result; dimensions and token limits are model-specific. Large allows 3072; Voyage allows 256/512/1024/2048 and query/document without truncation. See the [model and limit table](LOGOPANEL_FOLLOWUP_INTEGRATION.md). Missing or duplicate indices, wrong dimensions, and nonnumeric coordinates mean the entire batch is defective. The application stores vectors permanently after persist-before-ACK.
+Shared limits: 128 strings, 16384 coordinates, and a 512 KiB result; dimensions and token limits are model-specific. Large allows 3072; Voyage allows 256/512/1024/2048 and query/document without truncation. See the [model and limit table](MODEL_CAPABILITIES.md). Missing or duplicate indices, wrong dimensions, and nonnumeric coordinates mean the entire batch is defective. The application stores vectors permanently after persist-before-ACK.
 
 The protocol was checked against the [official embeddings API](https://developers.openai.com/api/reference/resources/embeddings/methods/create) on 2026-09-25. Synthetic test tariffs are not OpenAI prices.
 
-## LogoPanel Additions
+## Additional model capabilities
 
-The [follow-up contract](LOGOPANEL_FOLLOWUP_INTEGRATION.md) describes optional/null JSON Schema and local refs, forced tool choice emulation, `priority`, `ai.forecast`, Recraft Styles/Vectorize, and Quiver. Forecasts do not reserve funds; new Quiver profiles have a cap without overdraft.
+The [model capabilities guide](MODEL_CAPABILITIES.md) describes optional/null JSON Schema and local refs, forced tool choice emulation, `priority`, `ai.forecast`, Recraft Styles/Vectorize, and Quiver. Forecasts do not reserve funds; new Quiver profiles have a cap without overdraft.

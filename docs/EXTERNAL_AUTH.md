@@ -1,6 +1,6 @@
 # External Authentication
 
-[Contents](README.md) · [Plan and Criteria](EXTERNAL_AUTH_PLAN.md) · [Modular Admin](MODULAR_ADMIN.md)
+[Contents](README.md) · [Modular Admin](MODULAR_ADMIN.md)
 
 UAI accepts a verified external identity from the application's trusted backend. Users, sessions, teams, and memberships belong to the parent project. The parent may use Better Auth, but UAI has no dependency on that library.
 

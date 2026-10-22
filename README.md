@@ -4,7 +4,7 @@ UAI Ledger executes AI requests and paid API calls, tracks costs, and manages cr
 
 The service is designed for self-hosting. The primary deployment model is a separate installation per application, with its own PostgreSQL database, storage, configuration, and provider credentials.
 
-This repository contains a working local implementation, an admin interface, and a test application. Full production readiness requires separate validation of infrastructure, settings, and individual connections. Publishing the source does not mean every adapter and scenario has passed live acceptance.
+This repository contains a working local implementation, an admin interface, and a test application. Full production readiness requires separate validation of infrastructure, settings, and individual connections. Validate each provider connection with your own credentials and spending limits before enabling user traffic.
 
 ## What it is for
 
@@ -77,7 +77,7 @@ An adapter does not imply support for every model or operation a provider offers
 
 Models, rates, routes, recipes, and API definitions live in [configurations/](configurations/). Changes are validated and published as immutable versions. These files contain no credentials. The admin interface displays file-owned definitions and exposes the supported operational settings.
 
-See [file configuration](docs/FILE_CONFIGURATION.md), [universal invocations](docs/UNIVERSAL_INVOCATION_INTEGRATION.md), and [live-validation limitations](docs/REAL_PROVIDER_CHECKS.md).
+See [file configuration](docs/FILE_CONFIGURATION.md), [universal invocations](docs/INVOCATIONS.md), and [deployment requirements](docs/DEPLOYMENT.md).
 
 ## Quick start
 
@@ -173,7 +173,7 @@ For external authentication and teams, use the [identity contract](docs/EXTERNAL
 | [scripts/](scripts/) | Migrations, seed, schema generators, fixtures, and validation commands |
 | [deploy/](deploy/) | Templates for deploying process roles separately |
 | [templates/](templates/) | Product admin-shell integration template |
-| [docs/](docs/) | Specification, decisions, guides, and acceptance matrix |
+| [docs/](docs/) | Setup, integration, configuration, and operations guides |
 
 ## Validation
 
@@ -196,7 +196,7 @@ REQUIRE_INTEGRATION_TESTS=1 pnpm test
 
 Without `DATABASE_URL`, some PostgreSQL tests are skipped. Such a run does not establish financial invariants. The test role needs `CREATEDB` for isolated scenarios; never point tests at production or the active demo database.
 
-Load testing, process failures, Redis, and container scenarios run separately as described in the [local guide](docs/LOCAL_RUN.md). Historical coverage and its limits are recorded in the [acceptance matrix](docs/ACCEPTANCE_RESULTS.md). Markdown and JSON-example validation does not replace implementation tests, and passing fixtures does not establish real-provider behavior.
+Use the [local guide](docs/LOCAL_RUN.md) to start the services and run development checks. Markdown and JSON-example validation does not replace implementation tests, and passing fixtures does not establish real-provider behavior.
 
 ## Real requests and operations
 
@@ -209,7 +209,6 @@ The quick-start admin and demo are intended for local development. Before exposi
 ## Documentation
 
 - [Service overview and boundaries](docs/README.md).
-- [Agreed product decisions](docs/DECISIONS.md).
 - [Architecture and module ownership](docs/ARCHITECTURE.md).
 - [Credit lots, postings, and financial invariants](docs/ACCOUNTING.md).
 - [Quoting, pricing, and reservations](docs/QUOTING.md).
@@ -217,4 +216,3 @@ The quick-start admin and demo are intended for local development. Before exposi
 - [API and SDK](docs/API.md).
 - [Operations, budgets, quotas, and observability](docs/OPERATIONS.md).
 - [Local run guide](docs/LOCAL_RUN.md) and [deployment](docs/DEPLOYMENT.md).
-- [Implementation phases](docs/IMPLEMENTATION.md) and [acceptance matrix](docs/ACCEPTANCE_RESULTS.md).

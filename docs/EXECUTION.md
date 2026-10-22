@@ -8,7 +8,7 @@ A `quoted_final` recipe uses the price and prepared attachments saved on quote a
 
 Each attempt separately records usage and provider cost, including technical retries and fallback. A successful attempt charges the customer price once; unsuccessful attempts remain platform expenses. Unknown cost is not replaced by zero. Route spending, retry, and platform risk limits apply independently of the customer price. Fallback must support the agreed parameters and file preparation. Changes to published rates do not change an accepted customer quote.
 
-Calculation and validation details are in the [specification](MODEL_PRICING_SPEC.md).
+Calculation and validation details are in the [specification](MODEL_PRICING.md).
 
 ## Execution levels
 
@@ -127,7 +127,7 @@ The first two permitted submissions select primary; later ones use an explicitly
 
 `backoff` specifies base_ms, multiplier, cap_ms, and jitter_ratio. Default delays without jitter are 1, 2, and 4 seconds. Retry-After is a lower bound. If the next submission would fall at or after the deadline, it is not scheduled. `recovery.delays_seconds` defaults to empty; an explicit finite list increases the delays of those same attempts without creating additional cycles.
 
-A technical defect after preliminary output permits retry only with `retry_after_output=true`. The complete preliminary-text reset contract belongs to UI-I04 of the [plan](UNIVERSAL_INVOCATION_PLAN.md); enabling such retries before its acceptance does not establish correct live display.
+A technical defect after preliminary output permits retry only with `retry_after_output=true`. When an attempt changes, clear its preliminary output. Treat streamed fragments as provisional until a complete result has been validated; see [streaming and delivery](INVOCATIONS.md#streaming-and-delivery).
 
 `refused` is terminal without fallback. With `billing.refused=platform`, the customer charge is zero; `actual_usage` applies the accepted calculation. Unknown cost remains subject to financial reconciliation. Disabling retries does not disable original-job lookup or one-hour financial closure.
 
@@ -198,12 +198,12 @@ The body is limited to 1 MiB; duplicate headers are rejected. HTTP 503 preserves
 
 A BullMQ worker executes a specific request with persisted backend/generation/purpose. Stale delivery and a retry after settlement do not create a new attempt. Deferred repeat work is scheduled by the PostgreSQL scheduler; the queue does not receive an independent provider retry policy. Native observation and maintenance have separate queues and limits.
 
-A large quota window may require several preparatory Redis commands. Each pass processes no more than 4096 events; intermediate results do not authorize submission. Usage changes, history restoration, and event expiry invalidate corresponding derived data. Only the final check of every rule creates a quota permit. After 20 seconds, unfinished preparation returns not_ready, leaving intent for safe continuation. Details and operational constraints are in [operations](OPERATIONS.md#incremental-recalculation-of-large-quota-windows).
+A large quota window may require several preparatory Redis commands. Each pass processes no more than 4096 events; intermediate results do not authorize submission. Usage changes, history restoration, and event expiry invalidate corresponding derived data. Only the final check of every rule creates a quota permit. After 20 seconds, unfinished preparation returns not_ready, leaving intent for safe continuation. Details and operational constraints are in [operations](OPERATIONS.md#provider-quota-group-settings).
 
 ## Paid API extension
 
-Contract PA-I01, units, periods, allowance reservations, and compatibility boundaries are described in the [paid API contract](PAID_API_CONTRACT.md). Implementation status and stable PA-A01–PA-A25 scenarios appear in the [plan](PAID_API_PLAN.md). A draft contract does not establish that new HTTP handlers are available.
+See the [paid API contract](PAID_API_CONTRACT.md) for provider accounts, usage units, periods, allowance reservations and supported HTTP endpoints.
 
 ## Priorities and SVG
 
-See the [LogoPanel follow-up integration contract](LOGOPANEL_FOLLOWUP_INTEGRATION.md): API/SDK, constraints, and inactive configuration examples. Real calls require separate agreement under the [provider verification rules](REAL_PROVIDER_CHECKS.md).
+See [model capabilities](MODEL_CAPABILITIES.md) for embeddings, structured responses, SVG support, limits and example configurations. Publish compatible profiles and configure connection budgets before making real calls.

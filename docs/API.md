@@ -2,7 +2,7 @@
 
 [Contents](README.md)
 
-The v1 contract is implemented in the local API. [OpenAPI](openapi.json) and SDK types are generated from shared runtime schemas; freshness is checked with `pnpm check:api`. Implementation completeness and verification are reflected in the [acceptance matrix](ACCEPTANCE_RESULTS.md). Example amounts are synthetic.
+[OpenAPI](openapi.json) and TypeScript SDK types describe the supported HTTP API and are generated from shared runtime schemas. Example amounts are synthetic. Use this guide to authenticate a server-side client, quote work, execute requests and persist results.
 
 ## General Rules
 
@@ -12,7 +12,7 @@ New single-call profiles may select `pricing_mode: quoted_final`. The quote retu
 
 `POST /v1/admin/model-versions/preview` requires `config:write`. It accepts a selected saved model or an unsaved calculation method with a rate version and test input. The response contains component quantities and costs, estimated provider cost, factors, and final price. Preview neither calls the provider nor requires completed verification examples; publication requires successful examples. The rate version is checked within the current application scope.
 
-The public catalog exposes the model parameter schema and attachment preparation rules. Calculation method, internal rates, safety, and markup remain administrative data. The detailed calculation-method contract is in the [specification](MODEL_PRICING_SPEC.md).
+The public catalog exposes the model parameter schema and attachment preparation rules. Calculation method, internal rates, safety, and markup remain administrative data. The detailed calculation-method contract is in the [specification](MODEL_PRICING.md).
 
 Base path: /v1. The server uses HTTPS in operational environments. JSON fields use snake_case. Dates and times use UTC ISO 8601. Identifiers are opaque; the client does not infer access rights from them.
 
@@ -159,7 +159,7 @@ The response includes id, input hash, recipe/route/price versions, estimated_uni
 
 A quote neither reserves credits nor promises a provider slot. Missing applicable price, upper bound, or capability returns a structured error. metadata has a size limit and does not affect authorization.
 
-When external_project_id is supplied, project_generation is required and validated server-side. This pair defines the content binding inherited by the operation and its requests; a child request cannot remove or replace it. Other arbitrary metadata does not control deletion. The general API permits no project binding; such content is deleted through operation scope or TTL. Logo Panel integration always supplies the project binding.
+When external_project_id is supplied, project_generation is required and validated server-side. This pair defines the content binding inherited by the operation and its requests; a child request cannot remove or replace it. Other arbitrary metadata does not control deletion. The general API permits no project binding; such content is deleted through operation scope or TTL. Supply the project binding when content belongs to a product project.
 
 ## Operation Acceptance
 
@@ -521,17 +521,17 @@ In a quote response, `estimate_only: true` and `overdraft_allowed: true` indicat
 
 For text/image/audio/tools, `active_account_limit`, `active_application_limit`, and `active_queue_limit` set separate active-lease limits. They do not limit backlog. `1 <= active_account_limit <= active_application_limit <= active_queue_limit <= 100000` must hold. Omitted active fields retain previous values; the resulting combination is validated. Lowering a limit does not interrupt running requests. Initial values 2/16/32 are local settings rather than provider quotas.
 
-Fields without the active prefix limit work delivery into BullMQ for text/image/audio/tools. For observe, these fields limit concurrent observations and the number of current poll revisions selected for delivery. Selection is recorded in PostgreSQL before publication; redelivery of an already selected poll occupies no new slot. A new poll revision or completion of observed work releases capacity. Historical and outdated transport records are excluded from this counter; separate active fields for observe and maintenance are currently rejected with HTTP 422 because their executors do not use these settings. Maintenance runs under one cycle-lease owner. These limits do not replace provider quotas or worker-process concurrency. The active demo remains on legacy until acceptance and switchover are complete.
+Fields without the active prefix limit work delivery into BullMQ for text/image/audio/tools. For observe, these fields limit concurrent observations and the number of current poll revisions selected for delivery. Selection is recorded in PostgreSQL before publication; redelivery of an already selected poll occupies no new slot. A new poll revision or completion of observed work releases capacity. Historical and outdated transport records are excluded from this counter; separate active fields for observe and maintenance are currently rejected with HTTP 422 because their executors do not use these settings. Maintenance runs under one cycle-lease owner. These limits do not replace provider quotas or worker-process concurrency.
 
 ### Rejection When the Queue Is Full
 
-When `execution_admission_policies` is configured, quote acceptance and increasing the authorized call count through amendment check backlog before financial reservation. New applications receive agreed limits of 20 per account, 200 per application, and queue age 900000 ms on first operation acceptance with the BullMQ backend. Legacy applications without an explicit policy preserve previous behavior.
+When `execution_admission_policies` is configured, quote acceptance and increasing the authorized call count through amendment check backlog before financial reservation. New applications receive default limits of 20 per account, 200 per application, and queue age 900000 ms on first operation acceptance with the BullMQ backend. Legacy applications without an explicit policy preserve previous behavior.
 
 An HTTP 429 response with `queue_backpressure` contains reason `account_backlog`, `application_backlog`, or `queue_age`, the current waiting-call count, and `retry_after_seconds: 5`. This recommends trying later rather than promising free capacity in five seconds. No reservation is created or increased. The count includes queued/waiting_retry/waiting_recovery and unused authorizations of open operations until their deadline. Idempotent replay of an accepted operation returns its prior result even when the queue is full.
 
 ### Application Admission Policy Settings
 
-`GET /v1/admin/admission-policy` returns limits only for the current token’s application. It requires `operations:admin`; account-restricted tokens are forbidden. A missing policy returns `enabled: false`, `revision: 0`, and agreed initial values; GET does not create a policy.
+`GET /v1/admin/admission-policy` returns limits only for the current token’s application. It requires `operations:admin`; account-restricted tokens are forbidden. A missing policy returns `enabled: false`, `revision: 0`, and default initial values; GET does not create a policy.
 
 `PATCH /v1/admin/admission-policy` additionally requires `config:write`, `Idempotency-Key`, a reason, and revision in the body. Revision 0 means first enablement. Settings apply to subsequent admission checks; accepted work is preserved. Allowed ranges: account 1–100000, application from account to 1000000, max_queue_age_ms 1000–86400000.
 
@@ -543,12 +543,11 @@ An HTTP 429 response with `queue_backpressure` contains reason `account_backlog`
     "application_limit": 200,
     "max_queue_age_ms": 900000
   },
-  "reason": "Enable the agreed queue limits"
+  "reason": "Enable application queue limits"
 }
 ```
 
 A competing change returns HTTP 409. Persistence and `admission.policy.updated` audit with before/after are atomic. Replaying the previous command creates no new audit and returns the current application policy. The application cannot be substituted in the command body or URL.
-
 
 ### Operational Quota Settings
 
@@ -564,11 +563,11 @@ The administrative list `GET /v1/admin/provider-quotas` returns organization gro
 
 After verification, the same receiveNativeWebhook and settlement are used as for internal event receipt. Repeating event_id of an already stored observation is acknowledged without a second financial effect. HTTP 200 with accepted=true confirms processing; 401 means invalid signature or job binding, 404 means unknown request/native job or no adapter webhook support, and 503 means temporary inability to process. Responses do not expose provider context. On 503 the provider must retry; unfinished native jobs also remain in polling.
 
-HTTP ingress was verified with a signed synthetic native adapter. Current real adapters do not implement verifyNativeWebhook, so this does not claim a ready OpenAI/Cartesia webhook. Specific headers, secrets, and freshness/replay rules are implemented and verified with the provider’s native adapter; callback URL is passed during its submitNative according to the provider contract.
+Current real-provider adapters do not implement `verifyNativeWebhook`; OpenAI/Cartesia webhook integration is therefore unavailable. To add webhook support, implement signature verification, freshness and replay checks in the provider’s native adapter, and pass the callback URL during `submitNative` according to the provider contract. Headers and secrets are adapter-specific.
 
 ## Paid API Extension
 
-The PA-I01 contract, measurement units, periods, allowance reservations, and compatibility boundaries are described in the [paid API contract](PAID_API_CONTRACT.md). Implementation status and stable PA-A01–PA-A25 scenarios are in the [plan](PAID_API_PLAN.md). A contract draft does not establish availability of new HTTP handlers.
+See the [paid API contract](PAID_API_CONTRACT.md) for provider accounts, usage units, periods, allowance reservations and supported HTTP endpoints.
 
 ## Universal Execution Policy
 
@@ -578,6 +577,6 @@ Automatic single-call with estimated_actual is permitted without a fixed budget;
 
 Upload accepts retention_seconds and metadata with external_project_id/project_generation. By default, available input is retained for seven days after completed upload or accepted use. GET does not extend retention. POST /v1/assets/{id}/renew extends valid input with an idempotency key. Expired input is uploaded again from the application’s original. Result ACK does not delete a shared input asset.
 
-## LogoPanel Contracts
+## Model capabilities
 
-See the [LogoPanel follow-up contract](LOGOPANEL_FOLLOWUP_INTEGRATION.md): API/SDK, limits, and unactivated configuration examples. Real calls require separate approval under the [provider verification rules](REAL_PROVIDER_CHECKS.md).
+See [model capabilities](MODEL_CAPABILITIES.md) for embeddings, structured responses, SVG support, limits and example configurations. Publish compatible profiles and configure connection budgets before making real calls.

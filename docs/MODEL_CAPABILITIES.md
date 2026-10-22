@@ -1,6 +1,4 @@
-# LogoPanel Follow-up Contracts
-
-Date: 2026-09-25. [Plan](LOGOPANEL_FOLLOWUP_PLAN.md).
+# Model capabilities and input limits
 
 ## Embeddings
 
@@ -44,7 +42,7 @@ The initial `interactive_reserve` is one slot. Background work may occupy at mos
 
 At capacity 1 there is no separate interactive slot. Running work is not preempted. Rejection by the local worker gate leaves the durable request queued; the reconciler republishes it. Task age raises selection order; the difference between new interactive/background tasks equals ten minutes of waiting. Fairness across accounts is preserved. This does not promise a start time when demand continuously exceeds available capacity.
 
-Priority does not change budget, authorization, rate windows, backpressure, deadline, attempt cap, or unknown outcomes. It cannot bypass provider quota. Migrations `0070_logopanel_validation.sql` and `0071_interactive_capacity.sql` were introduced.
+Priority does not change budget, authorization, rate windows, backpressure, deadline, attempt cap, or unknown outcomes. It cannot bypass provider quota.
 
 ## Call-list Forecast
 
@@ -97,9 +95,9 @@ Real generation requires a Quiver production key. `sk_test_` keys return synthet
 | arrow-2 | 4 | 0.4 | 5 | 20 |
 | arrow-2-telos | 6 | 0.6 | 7.5 | 30 |
 
-`input_tokens` includes cache: regular input = input − cached − cache_write; each of the three portions is billed once. Reasoning is included in `output_tokens` and stored only as a breakdown, without a second charge. Inconsistent counters or only one of the two cache counters yield `unknown`, rather than zero cost. **Quiver's native SVG reference does not guarantee cache breakdown fields**; their names are confirmed in Responses API documentation. Under the [decision of 2026-10-20](DECISIONS.md#logopanel-requests-dated-20102026), a response with no breakdown at all prices all input at the cache-write rate, the highest input rate, with `input_cache_split=absent_priced_as_cache_write` in the breakdown. Cost becomes known and the call is settled. This is an upper bound, rather than Quiver's exact price.
+`input_tokens` includes cache: regular input = input − cached − cache_write; each of the three portions is billed once. Reasoning is included in `output_tokens` and stored only as a breakdown, without a second charge. Inconsistent counters or only one of the two cache counters yield `unknown`, rather than zero cost. **Quiver's native SVG reference does not guarantee cache breakdown fields**; their names are confirmed in Responses API documentation. A response with no breakdown at all prices all input at the cache-write rate, the highest input rate, with `input_cache_split=absent_priced_as_cache_write` in the breakdown. Cost becomes known and the call is settled. This is an upper bound, rather than Quiver's exact price.
 
-Quiver verification found no cache breakdown in usage. The amount in the provider UI does not replace billing counters. The policy of pricing input at the cache-write rate is described in [decisions](DECISIONS.md).
+The amount shown in a provider dashboard is not a replacement for per-request billing counters.
 
 New Quiver profiles use `actual_capped`: an explicit customer cap is reserved, actual usage is priced with markup, and capture is limited to the accepted maximum. Overdraft permission is passed as a separate flag only for `estimated_actual`; token pricing alone does not enable it. Actual provider cost is stored in full even when above the customer cap. Transport failure/5xx/408 after dispatch means unknown, without automatic retry. Quiver declares no native lookup/cancel: abort after dispatch does not establish provider cancellation.
 

@@ -1,8 +1,8 @@
-# Specification: central model catalog and price calculation types
+# Model catalog and pricing methods
 
-[Contents](README.md) · [Decisions](DECISIONS.md) · [Quoting](QUOTING.md) · [Architecture](ARCHITECTURE.md)
+[Contents](README.md) · [Quoting](QUOTING.md) · [Architecture](ARCHITECTURE.md)
 
-Status: local single-call implementation and acceptance are complete. Evidence and boundaries appear in the [MPC01–MPC16 matrix](ACCEPTANCE_RESULTS.md). Basis: an agreed final price for a specific request and configuration of different calculation methods through admin. Entity and API names below describe the implemented technical contract. This document does not approve buffer percentages, markup, or numerical limits.
+Use this guide to define model cost calculations, choose a customer charging mode and publish pricing profiles. Safety factors, markup and numerical limits are configuration values; select them for your installation rather than treating examples as mandatory settings.
 
 ## 1. Goal and boundaries
 
@@ -12,7 +12,7 @@ Formula is one calculation type. Ordinary token models and prices per image, sec
 
 Estimated cost, maximum provider financial exposure, final customer price, and actual spending are distinct quantities. A final price does not imply exact cost prediction.
 
-Scope includes catalog, estimator, billing policy, quote/API/SDK, execution, admin, demo, migration compatibility, and checks. Logo Panel integration, production deployment, and automatic model discovery are excluded. A new provider protocol or fundamentally new meter may require adapter or evaluator code.
+The catalog connects estimation and billing with quotes, API/SDK calls, execution, and the admin interface. Models are configured explicitly; discovery is not automatic. A new provider protocol or fundamentally new meter may require adapter or evaluator code.
 
 ## 2. Two independent choices
 
@@ -86,7 +86,7 @@ Decimal values and tolerances are strings. `half_up` rounds halves away from zer
 
 Several models may reuse a method. Copying creates an independent draft; editing a shared draft does not change published versions. All published dependencies resolve by exact version, including the provider model where snapshots exist. Floating aliases explicitly display behavior-change risk.
 
-Provider rates do not contain our markup. Following the owner's latest clarification, buffer and markup are configured separately for each model. The catalog stores the method together with a separate pricing block containing safety_factor, markup_percent, and rounding_units. Publishing a catalog version pins both blocks. The recipe specifies charging mode.
+Provider rates do not contain our markup. Configure buffer and markup separately for each model. The catalog stores the method together with a separate pricing block containing safety_factor, markup_percent, and rounding_units. Publishing a catalog version pins both blocks. The recipe specifies charging mode.
 
 Transmit monetary values and monetary coefficients as strings; calculate with integer units/exact decimals or rational numbers, without money floats. Markup is markup on cost, not gross margin; the interface must distinguish them. Rounding follows a documented order and produces reproducible results.
 
@@ -118,7 +118,7 @@ A quote is calculated after verified file preparation: permitted format, actual 
 
 Execution sends the same prepared bytes used for pricing. The quote binds to immutable asset IDs and content hashes, not a mutable URL. Replacing a file or parameters requires a new quote. Align temporary file lifecycle and deletion with existing storage TTLs.
 
-For the initial GPT Image phase, use a limited set of verified reference dimensions. Experiments show that ceil(width/16) × ceil(height/16) is unsuitable for arbitrary large inputs. Do not publish it as universal. Method statuses: `documented`, `empirically_validated`, `approximate`; retain validation scope, date, examples, and limitations alongside them.
+For GPT Image, use only dimensions covered by the pricing method’s validation. The formula ceil(width/16) × ceil(height/16) is unsuitable for arbitrary large inputs. Do not publish it as universal. Method statuses: `documented`, `empirically_validated`, `approximate`; retain validation scope, date, examples, and limitations alongside them.
 
 ## 7. Final price calculation and execution
 
@@ -150,58 +150,15 @@ The prepublication calculator shows steps: normalized input → quantities → c
 
 Publication shows coverage errors, incompatible parameters, unsupported categories, and test results. Copy from existing, version diff, and activation of a new version for future quotes are available. Switching type cannot silently lose another type's configuration.
 
-API/SDK return charging mode and a separate final price, such as `price_units` for `quoted_final`. Old contract fields remain during transition; final price must not be hidden solely under `estimated_units`. Provider cost and internal markup are not automatically exposed to public clients: detailed calculation is available to administrators. Demo displays “Price: X credits,” launch confirmation, and the same final charge.
+API/SDK return charging mode and a separate final price, such as `price_units` for `quoted_final`. Read the final price from its dedicated field rather than treating `estimated_units` as a final price. Provider cost and internal markup are not automatically exposed to public clients: detailed calculation is available to administrators. Demo displays “Price: X credits,” launch confirmation, and the same final charge.
 
 Actual monetary profit cannot be calculated solely as credits minus provider cost: real revenue depends on credit sale/grant. Admin distinguishes differences in accounting units, platform costs, and monetary profit where external payment-service data exists.
-
-## 9. Compatibility and phases
-
-1. Catalog schema and versioning; predefined tokens/per_unit/lookup types; control cases.
-2. Restricted formula evaluator with the same result interface and validation.
-3. Billing policies, quote snapshots, existing fixed settlement, API/SDK.
-4. Admin, parameter catalog for demo, reference preparation, and adapter edits for supported OpenAI API.
-5. New demo profile versions and checks. Do not change old recipes, quotes, reservations, or postings.
-
-Support existing `components[].estimation` and `billing.mode: fixed` through a compatible path or explicit conversion into new drafts. Do not translate published legacy definitions into new semantics on read. Old customer-price tables cannot automatically be renamed provider cost.
-
-The first final-price release covers single_call. Preserve and explicitly label existing behavior for compound operations with unknown future-step inputs. Final pricing for an entire chain requires a separate bounded future-data profile; do not claim it ready in this task.
-
-Implementation must update DECISIONS, QUOTING, catalog/API, OpenAPI, SDK, and acceptance results. Qualify outdated statements requiring actual_usage exclusively and excluding a billing layer by mode. Before implementation, this document is a specification; older sections describe the legacy contract.
-
-## 10. Acceptance criteria
-
-New identifiers do not replace existing A scenarios.
-
-| ID | Check |
-|---|---|
-| MPC01 | A new text model on a supported API is added through admin without formulas or code edits; input, output, and different rates are calculated separately |
-| MPC02 | per_unit checks integer images/requests, duration with a rounding step, and selected character semantics |
-| MPC03 | Lookup covers all permitted price combinations; non-price parameters do not multiply rows; ambiguity/missing coverage blocks publication |
-| MPC04 | Admin configures output-cost lookup + text tokens + image input calculation; preview shows three costs and their sum; buffer/markup apply once. Checks include no references, one and multiple references, result count, included input, and rejection of duplicate coverage. Formula and predefined types return one typed result |
-| MPC05 | Invalid AST, cycles, unknown fields, wrong units, zero division base, and exceeded computation limits are safely rejected |
-| MPC06 | Identical versions/input give identical price including rounding; money preserves precision through storage and editing |
-| MPC07 | Text forecast policy and enforced output cap are checked separately; unknown future answers are not labeled exactly counted |
-| MPC08 | Quote binds to prepared files; changes to bytes, prompt, model, or parameters after quoting cannot launch a different request at the old price |
-| MPC09 | Publishing new rates/formula/billing does not change accepted quotes; resubmission does not duplicate charges |
-| MPC10 | Success, defect with retry, fallback, cancellation, success/cancellation race, unknown, and late response after financial closure preserve agreed price and financial invariants |
-| MPC11 | Concurrent requests and insufficient balance are checked with real PostgreSQL transactions; provider exposure is not replaced by customer price |
-| MPC12 | Actual usage, unknown cost, and all attempt costs are retained separately; lower cost does not recalculate final price |
-| MPC13 | Legacy actual_usage and fixed tables pass existing checks without changes to earlier postings |
-| MPC14 | Browser verifies forms for all four types, multiple components, preview, publication errors, diff, and demo “Price”; ordinary scenarios do not require JSON |
-| MPC15 | Control cases for different languages, dimensions, and attachment counts are retained; empirical accuracy scope is visible; accuracy on one sample is not presented as a provider guarantee |
-| MPC16 | Publication checks do not call paid models; documentation, OpenAPI, and SDK agree; implemented and deferred parts are listed in the acceptance report |
-
-## 11. Implementation materials
-
-Existing extension points: packages/quoting/src/estimation.ts, packages/quoting/src/fixed-pricing.ts, packages/quoting/src/index.ts, packages/execution/src/index.ts, catalog and rate versions, admin structured editor, and demo profiles. These are guides, not a requirement to preserve the current internal structure.
-
-Results of 15 manual calls are available in the current working session outside the repository. Before using them as regression cases, transfer only anonymized metadata and usage with provenance; do not add credentials, databases, or user images to Git. Record model and method versions; do not present observations as an official guarantee.
 
 ## Addendum: text forecasting with actual charges
 
 The new recipe mode `estimated_actual` uses the same central method for forecasting but preserves `pricing` in the accepted route for final usage-based calculation. The `estimated_parameter` output component takes expected length from `expected_output_tokens`; this is not an enforced limit. Support is limited to single OpenAI text.generate. Actual charges apply markup without the safety multiplier. Final image pricing remains separate as `quoted_final`.
 
-The owner permits negative balance only as settlement of an already accepted request. The initial reservation must be backed by available credits. Debt does not alter prepaid lot balances: separate `debt` and `debt_consumed` postings are reconciled with `capture_debts` through a deferred PostgreSQL constraint. Repayment links the amount to the original capture and top-up lot, retaining the ability to refund the paid portion. Detailed product contract: [decision](DECISIONS.md#text-estimation-separate-from-generation-limits).
+Negative balances are permitted only when settling an already accepted request. The initial reservation must be backed by available credits. Debt does not alter prepaid lot balances: separate `debt` and `debt_consumed` postings are reconciled with `capture_debts` through a deferred PostgreSQL constraint. Repayment links the amount to the original capture and top-up lot, retaining the ability to refund the paid portion. See [estimated-actual charging](QUOTING.md#estimated-text-billing-estimated_actual).
 
 ## Original images
 
