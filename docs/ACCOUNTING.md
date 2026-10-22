@@ -56,6 +56,12 @@ Expiry is an explicit condition of every grant. The command must supply expires_
 
 Reservation and balance reads check expires_at against server time even when the scheduler lags. Expired available credits cannot be spent before the background expire entry: the operation first materializes required postings in its own transaction. The plan, period calendar, and rollover permission remain with the payment service; the AI platform enforces lot terms.
 
+## Reservations and charges
+
+![Credit postings move funds from available to reserved and consumed, with release and refund paths](diagrams/credit-movements.svg)
+
+The diagram shows common postings within a credit lot. Capture and release can split one reservation: capture the charge and release the unused hold. Refunds follow lot validity rules and may create a replacement lot. Expiry, revocation and estimated-actual debt are described separately below and in [Quoting](QUOTING.md).
+
 ## Postings
 
 Each journal transaction has a type, idempotency identity, actor, reason, and references to a grant, operation, request, or original transaction. Its postings balance within one credit unit: signed amounts sum to zero.

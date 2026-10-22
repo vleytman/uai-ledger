@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reservations are not charges</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&family=Noto+Serif:ital@0;1&family=Noto+Sans+KR:wght@400;500;600&family=Noto+Serif+KR:wght@400&family=Noto+Sans+TC:wght@400;500;600&family=Noto+Serif+TC:wght@400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #f5f5f5;   /* white-smoke */
+      --color-ink:     #2d3142;   /* jet-black */
+      --color-muted:   #4f5d75;   /* blue-slate */
+      --color-accent:  #bf4520;   /* burnt-tangerine */
+      --font-sans:     'Geist', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', 'Noto Serif', 'Noto Serif KR', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+
+    .frame { max-width: 1200px; width: 100%; }
+    /* The SVG holds its readable width (min-width == the viewBox width, so the
+       type ramp is never silently scaled down). This wrapper lets a narrow
+       screen scroll the diagram instead of the whole page. */
+    .diagram-container { width: 100%; overflow-x: auto; }
+
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 1.5rem;
+    }
+
+    svg { width: 100%; min-width: 960px; display: block; }
+    /* Paper has no scrollbar, so the local scroller would clip instead of
+       scroll. Let the diagram scale down to the sheet: smaller but whole
+       beats sharp but cut off. Must come after the svg rule above - a media
+       query adds no specificity, so a later plain rule would win. */
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body><div class="frame"><div class="diagram-container"><svg viewBox="0 0 960 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="credit-movements-title credit-movements-desc"><title id="credit-movements-title">Reservations are not charges</title><desc id="credit-movements-desc">Credits move from available to reserved on acceptance, then to consumed on capture, while released holds and eligible refunds restore availability.</desc><defs><marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker><marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/></marker><marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#bf4520"/></marker></defs><rect width="960" height="600" fill="#f5f5f5"/><text x="40" y="72" font-family="'Instrument Serif',serif" font-size="28" font-weight="400" fill="#2d3142" text-anchor="start">Reservations are not charges</text><text x="40" y="100" font-family="'Geist Mono',ui-monospace,monospace" font-size="8" font-weight="500" fill="#4f5d75" text-anchor="start">STATE TRANSITIONS · CREDIT POSTINGS</text><path d="M 80,216 H 184" fill="none" stroke="#4f5d75" stroke-width="1.4" marker-end="url(#arrow)"/><path d="M 344,216 H 456" fill="none" stroke="#4f5d75" stroke-width="1.4" marker-end="url(#arrow)"/><path d="M 616,216 H 728" fill="none" stroke="#bf4520" stroke-width="1.4" marker-end="url(#arrow-accent)"/><path d="M 536,256 V 328 Q 536,336 528,336 H 312 Q 304,336 304,328 V 256" fill="none" stroke="#4f5d75" stroke-width="1.4" marker-end="url(#arrow)"/><path d="M 808,256 V 424 Q 808,432 800,432 H 232 Q 224,432 224,424 V 256" fill="none" stroke="#4f5d75" stroke-width="1.4" stroke-dasharray="5,4" marker-end="url(#arrow)"/><rect x="106.0" y="191" width="44" height="16" fill="#f5f5f5"/><text x="128" y="202" font-family="'Geist Mono',ui-monospace,monospace" font-size="8" font-weight="400" fill="#4f5d75" text-anchor="middle">GRANT</text><rect x="374.0" y="191" width="52" height="16" fill="#f5f5f5"/><text x="400" y="202" font-family="'Geist Mono',ui-monospace,monospace" font-size="8" font-weight="400" fill="#4f5d75" text-anchor="middle">RESERVE</text><rect x="646.0" y="191" width="52" height="16" fill="#f5f5f5"/><text x="672" y="202" font-family="'Geist Mono',ui-monospace,monospace" font-size="8" font-weight="400" fill="#4f5d75" text-anchor="middle">CAPTURE</text><rect x="394.0" y="311" width="52" height="16" fill="#f5f5f5"/><text x="420" y="322" font-family="'Geist Mono',ui-monospace,monospace" font-size="8" font-weight="400" fill="#4f5d75" text-anchor="middle">RELEASE</text><rect x="488.0" y="407" width="48" height="16" fill="#f5f5f5"/><text x="512" y="418" font-family="'Geist Mono',ui-monospace,monospace" font-size="8" font-weight="400" fill="#4f5d75" text-anchor="middle">REFUND</text><circle cx="80" cy="216" r="6" fill="#2d3142"/><rect x="184" y="176" width="160" height="80" rx="8" fill="#f5f5f5" stroke="#4f5d75" stroke-width="1"/><text x="264.0" y="204" font-family="'Geist',system-ui,sans-serif" font-size="12" font-weight="600" fill="#2d3142" text-anchor="middle">Available</text><text x="264.0" y="224" font-family="'Geist Mono',ui-monospace,monospace" font-size="9" font-weight="400" fill="#4f5d75" text-anchor="middle">spendable credits</text><rect x="456" y="176" width="160" height="80" rx="8" fill="#f5f5f5" stroke="#4f5d75" stroke-width="1"/><text x="536.0" y="204" font-family="'Geist',system-ui,sans-serif" font-size="12" font-weight="600" fill="#2d3142" text-anchor="middle">Reserved</text><text x="536.0" y="224" font-family="'Geist Mono',ui-monospace,monospace" font-size="9" font-weight="400" fill="#4f5d75" text-anchor="middle">held for accepted work</text><rect x="728" y="176" width="160" height="80" rx="8" fill="#f5f5f5" stroke="#bf4520" stroke-width="2"/><text x="808.0" y="204" font-family="'Geist',system-ui,sans-serif" font-size="12" font-weight="600" fill="#2d3142" text-anchor="middle">Consumed</text><text x="808.0" y="224" font-family="'Geist Mono',ui-monospace,monospace" font-size="9" font-weight="400" fill="#4f5d75" text-anchor="middle">customer charge</text><text x="480" y="488" font-family="'Geist',system-ui,sans-serif" font-size="11" font-weight="400" fill="#4f5d75" text-anchor="middle">Capture the charge; release any unused hold.</text><line x1="40" y1="540" x2="920" y2="540" stroke="#bfc0c0"/><text x="40" y="564" font-family="'Geist Mono',ui-monospace,monospace" font-size="9" font-weight="400" fill="#4f5d75" text-anchor="start">Posting subset. Expiry, revocation, debt and refund-lot rules are described in Accounting.</text></svg></div></div></body></html>

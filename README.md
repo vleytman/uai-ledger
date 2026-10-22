@@ -52,6 +52,8 @@ Integer monetary values are transmitted as strings in the API. Monetary budget u
 
 ## Architecture
 
+![Architecture showing the application backend, UAI API, workers, scheduler, database, queue and temporary storage](docs/diagrams/architecture.svg)
+
 One codebase is divided into processes with separate roles:
 
 | Component | Purpose |

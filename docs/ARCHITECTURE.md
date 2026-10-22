@@ -77,6 +77,10 @@ Test grants are available only to an authenticated test user for their own accou
 
 Presentation requirements are in [OPERATIONS](OPERATIONS.md).
 
+![Architecture showing the application backend, UAI runtime roles and connected services](diagrams/architecture.svg)
+
+This overview shows selected dependencies. API, workers and scheduler share PostgreSQL; the queue and quota components depend on the configured execution backend.
+
 ## Modules and data ownership
 
 | Module | Owns | Does not decide |

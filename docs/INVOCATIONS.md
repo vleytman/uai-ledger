@@ -33,6 +33,12 @@ const result = await client.ai.run({
 
 The application chooses the profile, parameters, and budget limit from the published configuration. This example is not a ready-to-use model configuration. With `estimated_actual`, the initial reservation follows the estimate; the actual charge may differ, including debt after a cache miss. `isInsufficientCredits(error)` lets the application show a top-up option without creating another invocation.
 
+## Request and delivery flow
+
+![Sequence from quoting and acceptance through provider execution, permanent application storage and delivery acknowledgement](diagrams/request-delivery.svg)
+
+This is the successful quote-based path, with UAI execution roles grouped into one participant. Your application must save the final result before acknowledging delivery. Streaming, reconnects and explicit cancellation follow the rules below.
+
 ## Streaming and Delivery
 
 `ai.stream(body, {key, signal})` returns `accepted`, `attempt`, `delta`, and `result` events. A delta has a request, attempt, generation, sequence, and optional `field_path`. The SDK discards duplicates and outdated attempts. On `attempt`, the application clears provisional output. `live_incomplete` means part of the stream was missed; the final object remains the source of the result.
