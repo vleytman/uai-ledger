@@ -1,0 +1,391 @@
+{
+  "schema_version": 1,
+  "bundle_key": "files.openai.luna6",
+  "resources": [
+    {
+      "kind": "rate_card",
+      "key": "files.openai.luna6.rates",
+      "display_name": "GPT-6 Luna · Git rates",
+      "payload": {
+        "id": "demo.gpt-6-luna",
+        "currency": "USD",
+        "source": "https://developers.openai.com/api/docs/models/gpt-6-luna; https://developers.openai.com/api/docs/pricing. Standard API, проверено 2026-09-26.",
+        "checked_at": "2026-09-26T00:00:00Z",
+        "rates": [
+          {
+            "id": "short-input.uncached",
+            "dimension": "input.uncached",
+            "amount": "0.10",
+            "unit": "tokens",
+            "unit_size": "1000000",
+            "effective_from": "2026-09-26T00:00:00Z",
+            "conditions": {
+              "context_window": "short"
+            }
+          },
+          {
+            "id": "short-input.cache_read",
+            "dimension": "input.cache_read",
+            "amount": "0.01",
+            "unit": "tokens",
+            "unit_size": "1000000",
+            "effective_from": "2026-09-26T00:00:00Z",
+            "conditions": {
+              "context_window": "short"
+            }
+          },
+          {
+            "id": "short-input.cache_write",
+            "dimension": "input.cache_write",
+            "amount": "0.125",
+            "unit": "tokens",
+            "unit_size": "1000000",
+            "effective_from": "2026-09-26T00:00:00Z",
+            "conditions": {
+              "context_window": "short"
+            }
+          },
+          {
+            "id": "short-output.text",
+            "dimension": "output.text",
+            "amount": "0.50",
+            "unit": "tokens",
+            "unit_size": "1000000",
+            "effective_from": "2026-09-26T00:00:00Z",
+            "conditions": {
+              "context_window": "short"
+            }
+          },
+          {
+            "id": "long-input.uncached",
+            "dimension": "input.uncached",
+            "amount": "0.20",
+            "unit": "tokens",
+            "unit_size": "1000000",
+            "effective_from": "2026-09-26T00:00:00Z",
+            "conditions": {
+              "context_window": "long"
+            }
+          },
+          {
+            "id": "long-input.cache_read",
+            "dimension": "input.cache_read",
+            "amount": "0.02",
+            "unit": "tokens",
+            "unit_size": "1000000",
+            "effective_from": "2026-09-26T00:00:00Z",
+            "conditions": {
+              "context_window": "long"
+            }
+          },
+          {
+            "id": "long-input.cache_write",
+            "dimension": "input.cache_write",
+            "amount": "0.25",
+            "unit": "tokens",
+            "unit_size": "1000000",
+            "effective_from": "2026-09-26T00:00:00Z",
+            "conditions": {
+              "context_window": "long"
+            }
+          },
+          {
+            "id": "long-output.text",
+            "dimension": "output.text",
+            "amount": "0.75",
+            "unit": "tokens",
+            "unit_size": "1000000",
+            "effective_from": "2026-09-26T00:00:00Z",
+            "conditions": {
+              "context_window": "long"
+            }
+          }
+        ]
+      },
+      "samples": [
+        {
+          "usage": {
+            "state": "known",
+            "items": [
+              {
+                "dimension": "input.uncached",
+                "unit": "tokens",
+                "quantity": "1",
+                "conditions": {
+                  "context_window": "short"
+                }
+              },
+              {
+                "dimension": "input.cache_read",
+                "unit": "tokens",
+                "quantity": "1",
+                "conditions": {
+                  "context_window": "short"
+                }
+              },
+              {
+                "dimension": "input.cache_write",
+                "unit": "tokens",
+                "quantity": "1",
+                "conditions": {
+                  "context_window": "short"
+                }
+              },
+              {
+                "dimension": "output.text",
+                "unit": "tokens",
+                "quantity": "1",
+                "conditions": {
+                  "context_window": "short"
+                }
+              },
+              {
+                "dimension": "input.uncached",
+                "unit": "tokens",
+                "quantity": "1",
+                "conditions": {
+                  "context_window": "long"
+                }
+              },
+              {
+                "dimension": "input.cache_read",
+                "unit": "tokens",
+                "quantity": "1",
+                "conditions": {
+                  "context_window": "long"
+                }
+              },
+              {
+                "dimension": "input.cache_write",
+                "unit": "tokens",
+                "quantity": "1",
+                "conditions": {
+                  "context_window": "long"
+                }
+              },
+              {
+                "dimension": "output.text",
+                "unit": "tokens",
+                "quantity": "1",
+                "conditions": {
+                  "context_window": "long"
+                }
+              }
+            ]
+          },
+          "context": {
+            "at": "2026-09-26T00:00:00Z"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "catalog",
+      "key": "files.openai.luna6.models",
+      "display_name": "GPT-6 Luna · Git model",
+      "payload": {
+        "models": [
+          {
+            "id": "gpt-6-luna",
+            "provider": "openai",
+            "adapter_ref": "openai@1",
+            "identity_kind": "alias",
+            "capabilities": [
+              "text.generate"
+            ],
+            "allowed_parameters": [
+              "expected_output_tokens",
+              "reasoning_effort",
+              "service_tier"
+            ],
+            "status": "active",
+            "calculation": {
+              "version": 1,
+              "source": "https://developers.openai.com/api/docs/models/gpt-6-luna; https://developers.openai.com/api/docs/pricing. Standard API, проверено 2026-09-26. Локальный профиль: до 16000 оценочных входных токенов, включая инструменты/схему и изображения. o200k_base и 4096 токенов на изображение являются приближением, не точным токенизатором Luna. Холодный кэш оценивается по ставке записи. expected_output_tokens включает reasoning и не ограничивает генерацию. Фактические ставки выбираются по input_tokens: short <=272000, long >272000.",
+              "verification": "approximate",
+              "verified_at": "2026-09-26T00:00:00Z",
+              "parameters": {
+                "expected_output_tokens": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 128000,
+                  "default": 4096,
+                  "required": true
+                },
+                "reasoning_effort": {
+                  "type": "string",
+                  "values": [
+                    "none",
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh",
+                    "max"
+                  ],
+                  "default": "medium",
+                  "required": true
+                },
+                "service_tier": {
+                  "type": "string",
+                  "values": [
+                    "default"
+                  ],
+                  "default": "default",
+                  "required": true
+                }
+              },
+              "preparation": {
+                "mode": "preserve",
+                "max_assets": 16,
+                "max_edge": 4096,
+                "format": "png"
+              },
+              "pricing": {
+                "safety_factor": "1.1",
+                "markup_percent": "100",
+                "rounding_units": "1"
+              },
+              "components": [
+                {
+                  "key": "input",
+                  "label": "Input context",
+                  "covers": [
+                    "text_input",
+                    "image_input"
+                  ],
+                  "maximum": "16000",
+                  "type": "tokens",
+                  "direction": "input",
+                  "tokenizer": "o200k_base",
+                  "input_mode": "compiled_messages_json",
+                  "overhead": 16,
+                  "per_message": 4,
+                  "per_asset": 4096,
+                  "result": {
+                    "kind": "quantity",
+                    "dimension": "input.cache_write",
+                    "unit": "tokens",
+                    "conditions": {
+                      "context_window": "short"
+                    }
+                  }
+                },
+                {
+                  "key": "output",
+                  "label": "Ожидаемый выход, включая reasoning",
+                  "covers": [
+                    "text_output"
+                  ],
+                  "maximum": "128000",
+                  "type": "tokens",
+                  "direction": "output",
+                  "policy": "estimated_parameter",
+                  "limit_parameter": "expected_output_tokens",
+                  "result": {
+                    "kind": "quantity",
+                    "dimension": "output.text",
+                    "unit": "tokens",
+                    "conditions": {
+                      "context_window": "short"
+                    }
+                  }
+                }
+              ],
+              "samples": [
+                {
+                  "name": "Локальная оценка, без вызова OpenAI",
+                  "input": {
+                    "input": {
+                      "messages": [
+                        {
+                          "role": "user",
+                          "content": "Hello"
+                        }
+                      ]
+                    },
+                    "parameters": {},
+                    "assets": []
+                  },
+                  "expected": {
+                    "input": "33",
+                    "output": "4096"
+                  },
+                  "expected_cost_usd": "0.002052125",
+                  "expected_price_units": "4514675"
+                }
+              ]
+            },
+            "rate_card_version_id": "@rate_card:files.openai.luna6.rates",
+            "live_validation": "not_run",
+            "text_features": {
+              "tools": true,
+              "tool_history": false,
+              "parallel_tools": false,
+              "schema_streaming": true,
+              "tool_streaming": true,
+              "usage_counters": [
+                "input",
+                "output",
+                "reasoning",
+                "cache_read"
+              ],
+              "output_limit": "provider_default",
+              "max_output_tokens": 128000,
+              "max_images": 16,
+              "max_image_bytes": 20000000,
+              "forced_tool_choice": true,
+              "schema": true,
+              "image_media_types": [
+                "image/png",
+                "image/jpeg",
+                "image/webp"
+              ],
+              "image_detail": [
+                "auto",
+                "low",
+                "high"
+              ],
+              "cache": "automatic"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "route",
+      "key": "files.openai.luna6.route",
+      "display_name": "GPT-6 Luna · Git route",
+      "payload": {
+        "capability": "text.generate",
+        "primary": {
+          "catalog_version_id": "@catalog:files.openai.luna6.models",
+          "model": "gpt-6-luna",
+          "connection_id": "@connection:primary",
+          "max_cost_units": "1000000000"
+        },
+        "deadline_seconds": 1800,
+        "platform_risk_budget_units": "4000000000"
+      }
+    },
+    {
+      "kind": "recipe",
+      "key": "files.openai.luna6",
+      "payload": {
+        "period_budget_key": "@budget:period",
+        "components": [
+          {
+            "key": "text",
+            "capability": "text.generate",
+            "route_version_id": "@route:files.openai.luna6.route",
+            "rate_card_version_id": "@rate_card:files.openai.luna6.rates",
+            "count": {
+              "constant": 1
+            },
+            "limits": {},
+            "pricing_mode": "estimated_actual"
+          }
+        ]
+      }
+    }
+  ]
+}

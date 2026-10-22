@@ -1,0 +1,7 @@
+import {z} from 'zod';
+const Units=z.string().regex(/^(0|[1-9]\d*)$/).max(19);
+const Volume=z.strictObject({dimension:z.string().min(1).max(100),unit:z.string().min(1).max(50),quantity:Units,low:Units.optional(),high:Units.optional(),conditions:z.record(z.string(),z.string()).optional()});
+export const ForecastBody=z.strictObject({account_id:z.string().min(1),calls:z.array(z.strictObject({profile:z.string().min(1).max(256),version:z.number().int().positive().optional(),count:z.number().int().min(1).max(1000).default(1),volumes:z.array(Volume).min(1).max(32),parameters:z.record(z.string(),z.unknown()).optional()})).min(1).max(100)});
+const Cost=z.strictObject({expected_units:Units,low_units:Units,high_units:Units});
+const Confidence=z.strictObject({category:z.enum(['documented','modeled','low']),reasons:z.array(z.string())});
+export const ForecastResponse=z.strictObject({credit_unit_id:z.string(),currency:z.literal('USD'),estimated_at:z.string(),range_is_charge_cap:z.literal(false),method_version:z.literal('lf-forecast-1'),provider_cost:Cost,customer_charge:Cost,confidence:Confidence,assumptions:z.array(z.string()),calls:z.array(z.strictObject({profile:z.string(),version:z.number(),count:z.number(),model:z.string(),provider:z.string(),versions:z.strictObject({profile_id:z.string(),route_id:z.string(),catalog_id:z.string(),rate_card_id:z.string()}),provider_cost:Cost,customer_charge:Cost,confidence:Confidence,assumptions:z.array(z.string())}))});

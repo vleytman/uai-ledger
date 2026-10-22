@@ -1,0 +1,37 @@
+# Application host. Admin/product hosting is configured separately.
+x-runtime: &runtime
+  image: ${UAI_IMAGE:?Set the tested runtime image tag or digest}
+  env_file: ${UAI_RUNTIME_ENV_FILE:?Set the absolute runtime env file path}
+  init: true
+  restart: unless-stopped
+  read_only: true
+  tmpfs: [/tmp:size=128m,mode=1777]
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  stop_grace_period: 45s
+  environment: &environment
+    UAI_EXECUTION_BACKEND: bullmq
+    UAI_BLOB_BACKEND: s3
+services:
+  api:
+    <<: *runtime
+    command: [node, --import, tsx, apps/api/src/index.ts]
+    ports: ["127.0.0.1:${UAI_API_PORT:-4310}:4310"]
+    environment:
+      <<: *environment
+      UAI_HOST: 0.0.0.0
+      UAI_PORT: '4310'
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:4310/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+  scheduler:
+    <<: *runtime
+    command: [node, --import, tsx, apps/scheduler/src/index.ts]
+  migrate:
+    <<: *runtime
+    profiles: [ops]
+    restart: 'no'
+    command: [node, --import, tsx, scripts/migrate.ts]

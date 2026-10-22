@@ -1,0 +1,1475 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "UAI paid API extension",
+    "version": "pa-i07",
+    "description": "Контракт локальной реализации. Полный рабочий API описан в openapi.json. Реальные интеграции проверяются отдельно."
+  },
+  "paths": {
+    "/v1/admin/provider-accounts": {
+      "post": {
+        "x-uai-status": "implemented-local",
+        "operationId": "postv1adminprovideraccounts",
+        "security": [
+          {
+            "ServiceToken": []
+          }
+        ],
+        "x-required-scopes": [
+          "operations:admin",
+          "config:write"
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderAccountCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Результат операции.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Receipt"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт либо исчерпание allowance",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Conflict"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/connections/{id}/provider-account": {
+      "put": {
+        "x-uai-status": "implemented-local",
+        "operationId": "putv1adminconnectionsidprovideraccount",
+        "security": [
+          {
+            "ServiceToken": []
+          }
+        ],
+        "x-required-scopes": [
+          "operations:admin",
+          "config:write"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectionBinding"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Результат операции.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Receipt"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт либо исчерпание allowance",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Conflict"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/provider-subscriptions": {
+      "post": {
+        "x-uai-status": "implemented-local",
+        "operationId": "postv1adminprovidersubscriptions",
+        "security": [
+          {
+            "ServiceToken": []
+          }
+        ],
+        "x-required-scopes": [
+          "operations:admin",
+          "config:write"
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscriptionCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Результат операции.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Receipt"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт либо исчерпание allowance",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Conflict"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/provider-subscriptions/{id}/allowance": {
+      "get": {
+        "x-uai-status": "implemented-local",
+        "operationId": "getv1adminprovidersubscriptionsidallowance",
+        "security": [
+          {
+            "ServiceToken": []
+          }
+        ],
+        "x-required-scopes": [
+          "operations:admin"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Результат операции.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AllowanceState"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт либо исчерпание allowance",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Conflict"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/allowance-snapshots": {
+      "post": {
+        "x-uai-status": "implemented-local",
+        "operationId": "postv1adminallowancesnapshots",
+        "security": [
+          {
+            "ServiceToken": []
+          }
+        ],
+        "x-required-scopes": [
+          "operations:admin",
+          "config:write"
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderSnapshot"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Результат операции.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Receipt"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт либо исчерпание allowance",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Conflict"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/allowance-adjustments": {
+      "post": {
+        "x-uai-status": "implemented-local",
+        "operationId": "postv1adminallowanceadjustments",
+        "security": [
+          {
+            "ServiceToken": []
+          }
+        ],
+        "x-required-scopes": [
+          "operations:admin",
+          "config:write"
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AllowanceAdjustment"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Результат операции.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Receipt"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Конфликт либо исчерпание allowance",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Conflict"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ServiceToken": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "Receipt": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+          },
+          "revision": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "id",
+          "revision"
+        ],
+        "additionalProperties": false
+      },
+      "Conflict": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false
+      },
+      "Quantity": {
+        "type": "string",
+        "pattern": "^(0|[1-9]\\d{0,28})(\\.\\d{1,9})?$"
+      },
+      "Units": {
+        "type": "string",
+        "pattern": "^(0|[1-9]\\d{0,18})$"
+      },
+      "ServiceOperation": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+          },
+          "kind": {
+            "type": "string",
+            "const": "api"
+          },
+          "capability": {
+            "type": "string",
+            "const": "api.call"
+          },
+          "provider": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+          },
+          "adapter_ref": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.-]+@[1-9]\\d*$"
+          },
+          "input_schema": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          },
+          "output_schema": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          },
+          "files": {
+            "type": "object",
+            "properties": {
+              "media_types": {
+                "maxItems": 30,
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "max_count": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "max_file_bytes": {
+                "type": "string",
+                "pattern": "^(0|[1-9]\\d{0,18})$"
+              },
+              "max_total_bytes": {
+                "type": "string",
+                "pattern": "^(0|[1-9]\\d{0,18})$"
+              }
+            },
+            "required": [
+              "media_types",
+              "max_count",
+              "max_file_bytes",
+              "max_total_bytes"
+            ],
+            "additionalProperties": false
+          },
+          "billing_mode": {
+            "type": "string",
+            "enum": [
+              "quoted_final",
+              "actual_capped"
+            ]
+          },
+          "allowance_mode": {
+            "type": "string",
+            "enum": [
+              "subscription",
+              "unmetered"
+            ]
+          },
+          "measurements": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+                },
+                "unit": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+                },
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "request",
+                    "verified_assets",
+                    "provider_usage"
+                  ]
+                },
+                "maximum": {
+                  "type": "string",
+                  "pattern": "^(0|[1-9]\\d{0,28})(\\.\\d{1,9})?$"
+                },
+                "expression": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {}
+                }
+              },
+              "required": [
+                "key",
+                "unit",
+                "source",
+                "maximum"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "pricing": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "const": "independent"
+                  },
+                  "expression": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {}
+                  },
+                  "max_units": {
+                    "type": "string",
+                    "pattern": "^(0|[1-9]\\d{0,18})$"
+                  },
+                  "rounding_units": {
+                    "type": "string",
+                    "pattern": "^(0|[1-9]\\d{0,18})$"
+                  }
+                },
+                "required": [
+                  "mode",
+                  "expression",
+                  "max_units",
+                  "rounding_units"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "const": "cost_plus"
+                  },
+                  "markup_percent": {
+                    "type": "string",
+                    "pattern": "^(0|[1-9]\\d{0,28})(\\.\\d{1,9})?$"
+                  },
+                  "safety_factor": {
+                    "type": "string",
+                    "pattern": "^(0|[1-9]\\d{0,28})(\\.\\d{1,9})?$"
+                  },
+                  "max_units": {
+                    "type": "string",
+                    "pattern": "^(0|[1-9]\\d{0,18})$"
+                  },
+                  "rounding_units": {
+                    "type": "string",
+                    "pattern": "^(0|[1-9]\\d{0,18})$"
+                  }
+                },
+                "required": [
+                  "mode",
+                  "markup_percent",
+                  "safety_factor",
+                  "max_units",
+                  "rounding_units"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "samples": {
+            "minItems": 1,
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "input": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {}
+                },
+                "assets": {
+                  "type": "object",
+                  "properties": {
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 16
+                    },
+                    "bytes": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9]\\d{0,18})$"
+                    }
+                  },
+                  "required": [
+                    "count",
+                    "bytes"
+                  ],
+                  "additionalProperties": false
+                },
+                "measurements": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+                  },
+                  "additionalProperties": {
+                    "type": "string",
+                    "pattern": "^(0|[1-9]\\d{0,28})(\\.\\d{1,9})?$"
+                  }
+                },
+                "expected_price_units": {
+                  "type": "string",
+                  "pattern": "^(0|[1-9]\\d{0,18})$"
+                }
+              },
+              "required": [
+                "name",
+                "input",
+                "assets",
+                "measurements",
+                "expected_price_units"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "key",
+          "kind",
+          "capability",
+          "provider",
+          "adapter_ref",
+          "input_schema",
+          "output_schema",
+          "files",
+          "billing_mode",
+          "allowance_mode",
+          "measurements",
+          "pricing",
+          "samples"
+        ],
+        "additionalProperties": false
+      },
+      "TariffTemplate": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+          },
+          "provider": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+          },
+          "calendar": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "calendar_month",
+                  "anniversary_month"
+                ]
+              },
+              "timezone": {
+                "type": "string",
+                "minLength": 1
+              },
+              "anchor": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              }
+            },
+            "required": [
+              "kind",
+              "timezone",
+              "anchor"
+            ],
+            "additionalProperties": false
+          },
+          "counters": {
+            "minItems": 1,
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+                },
+                "unit": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+                },
+                "dimensions": {
+                  "minItems": 1,
+                  "maxItems": 30,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+                  }
+                },
+                "included": {
+                  "type": "string",
+                  "pattern": "^(0|[1-9]\\d{0,28})(\\.\\d{1,9})?$"
+                },
+                "rollover": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "cap": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9]\\d{0,28})(\\.\\d{1,9})?$"
+                    },
+                    "expires_after_periods": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 24
+                    }
+                  },
+                  "required": [
+                    "enabled",
+                    "cap",
+                    "expires_after_periods"
+                  ],
+                  "additionalProperties": false
+                },
+                "overage_usd_per_unit": {
+                  "type": "string",
+                  "pattern": "^(0|[1-9]\\d{0,28})(\\.\\d{1,9})?$"
+                }
+              },
+              "required": [
+                "key",
+                "unit",
+                "included",
+                "rollover"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "overage": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "max_units": {
+                "type": "string",
+                "pattern": "^(0|[1-9]\\d{0,18})$"
+              }
+            },
+            "required": [
+              "enabled",
+              "max_units"
+            ],
+            "additionalProperties": false
+          },
+          "cost_allocation": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "const": "incremental"
+                  }
+                },
+                "required": [
+                  "mode"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "const": "allocated"
+                  },
+                  "subscription_fee_units": {
+                    "type": "string",
+                    "pattern": "^(0|[1-9]\\d{0,18})$"
+                  },
+                  "allocation_rates": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string",
+                      "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+                    },
+                    "additionalProperties": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9]\\d{0,28})(\\.\\d{1,9})?$"
+                    }
+                  }
+                },
+                "required": [
+                  "mode",
+                  "subscription_fee_units",
+                  "allocation_rates"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "required": [
+          "key",
+          "provider",
+          "calendar",
+          "counters",
+          "overage",
+          "cost_allocation"
+        ],
+        "additionalProperties": false
+      },
+      "SubscriptionCreate": {
+        "type": "object",
+        "properties": {
+          "provider_account_id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+          },
+          "tariff_version_id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+          },
+          "starts_at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "installation_share": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+            },
+            "additionalProperties": {
+              "type": "string",
+              "pattern": "^(0|[1-9]\\d{0,28})(\\.\\d{1,9})?$"
+            }
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "provider_account_id",
+          "tariff_version_id",
+          "starts_at",
+          "installation_share",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "ProviderAccountCreate": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "external_reference": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "provider",
+          "name",
+          "external_reference",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "ConnectionBinding": {
+        "type": "object",
+        "properties": {
+          "provider_account_id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+          },
+          "subscription_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "provider_account_id",
+          "subscription_id",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "AllowanceDemand": {
+        "type": "object",
+        "properties": {
+          "metric": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+          },
+          "quantity": {
+            "type": "string",
+            "pattern": "^(0|[1-9]\\d{0,28})(\\.\\d{1,9})?$"
+          }
+        },
+        "required": [
+          "metric",
+          "quantity"
+        ],
+        "additionalProperties": false
+      },
+      "UsageObservation": {
+        "type": "object",
+        "properties": {
+          "identity": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+          },
+          "revision": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "attempt_id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "known",
+              "unknown"
+            ]
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "metric": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+                },
+                "quantity": {
+                  "type": "string",
+                  "pattern": "^(0|[1-9]\\d{0,28})(\\.\\d{1,9})?$"
+                }
+              },
+              "required": [
+                "metric",
+                "quantity"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "provider",
+              "adapter",
+              "manual"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "identity",
+          "revision",
+          "attempt_id",
+          "state",
+          "items",
+          "source"
+        ],
+        "additionalProperties": false
+      },
+      "ProviderSnapshot": {
+        "type": "object",
+        "properties": {
+          "supersedes": {
+            "minItems": 1,
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+            }
+          },
+          "identity": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+          },
+          "provider_account_id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+          },
+          "period_id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+          },
+          "metric": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+          },
+          "remaining": {
+            "type": "string",
+            "pattern": "^(0|[1-9]\\d{0,28})(\\.\\d{1,9})?$"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "covered_through": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "precision": {
+            "type": "string",
+            "enum": [
+              "confirmed",
+              "estimated"
+            ]
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "provider_account",
+              "installation"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "identity",
+          "provider_account_id",
+          "period_id",
+          "metric",
+          "remaining",
+          "observed_at",
+          "covered_through",
+          "precision",
+          "scope",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "AllowanceAdjustment": {
+        "type": "object",
+        "properties": {
+          "period_id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+          },
+          "metric": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "increase",
+              "decrease"
+            ]
+          },
+          "quantity": {
+            "type": "string",
+            "pattern": "^(0|[1-9]\\d{0,28})(\\.\\d{1,9})?$"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "evidence_id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+          }
+        },
+        "required": [
+          "period_id",
+          "metric",
+          "direction",
+          "quantity",
+          "reason",
+          "evidence_id"
+        ],
+        "additionalProperties": false
+      },
+      "AllowanceState": {
+        "type": "object",
+        "properties": {
+          "subscription_id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+          },
+          "period_id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+          },
+          "period_start": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "period_end": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "metrics": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "metric": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+                },
+                "unit": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+                },
+                "included": {
+                  "type": "string",
+                  "pattern": "^(0|[1-9]\\d{0,28})(\\.\\d{1,9})?$"
+                },
+                "rollover": {
+                  "type": "string",
+                  "pattern": "^(0|[1-9]\\d{0,28})(\\.\\d{1,9})?$"
+                },
+                "consumed": {
+                  "type": "string",
+                  "pattern": "^(0|[1-9]\\d{0,28})(\\.\\d{1,9})?$"
+                },
+                "reserved": {
+                  "type": "string",
+                  "pattern": "^(0|[1-9]\\d{0,28})(\\.\\d{1,9})?$"
+                },
+                "available": {
+                  "type": "string",
+                  "pattern": "^(0|[1-9]\\d{0,28})(\\.\\d{1,9})?$"
+                },
+                "overdrawn": {
+                  "type": "string",
+                  "pattern": "^(0|[1-9]\\d{0,28})(\\.\\d{1,9})?$"
+                },
+                "remaining_percent": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^(0|[1-9]\\d{0,28})(\\.\\d{1,9})?$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "metric",
+                "unit",
+                "included",
+                "rollover",
+                "consumed",
+                "reserved",
+                "available",
+                "overdrawn",
+                "remaining_percent"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "overage": {
+            "type": "object",
+            "properties": {
+              "limit_units": {
+                "type": "string",
+                "pattern": "^(0|[1-9]\\d{0,18})$"
+              },
+              "spent_units": {
+                "type": "string",
+                "pattern": "^(0|[1-9]\\d{0,18})$"
+              },
+              "reserved_units": {
+                "type": "string",
+                "pattern": "^(0|[1-9]\\d{0,18})$"
+              }
+            },
+            "required": [
+              "limit_units",
+              "spent_units",
+              "reserved_units"
+            ],
+            "additionalProperties": false
+          },
+          "freshness": {
+            "type": "string",
+            "enum": [
+              "fresh",
+              "stale",
+              "unknown"
+            ]
+          },
+          "sampled_at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          }
+        },
+        "required": [
+          "subscription_id",
+          "period_id",
+          "period_start",
+          "period_end",
+          "metrics",
+          "overage",
+          "freshness",
+          "sampled_at"
+        ],
+        "additionalProperties": false
+      },
+      "AllowanceFailure": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "allowance_exhausted",
+                  "allowance_period_changed",
+                  "allowance_maximum_missing",
+                  "overage_budget_exhausted"
+                ]
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "object",
+                "properties": {
+                  "retryable": {
+                    "type": "boolean"
+                  },
+                  "resets_at": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "retryable",
+                  "resets_at"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false
+      },
+      "AllowanceRule": {
+        "type": "object",
+        "properties": {
+          "signal": {
+            "type": "string",
+            "enum": [
+              "allowance.low",
+              "allowance.exhausted",
+              "allowance.renewed",
+              "usage.snapshot_stale",
+              "allowance.discrepancy",
+              "overage.budget_low",
+              "overage.budget_exhausted"
+            ]
+          },
+          "allowance": {
+            "type": "object",
+            "properties": {
+              "subscription_id": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+              },
+              "metric": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+              },
+              "unit": {
+                "type": "string",
+                "enum": [
+                  "native",
+                  "percent",
+                  "money_units",
+                  "seconds"
+                ]
+              },
+              "comparison": {
+                "type": "string",
+                "enum": [
+                  "lt",
+                  "lte",
+                  "gt",
+                  "gte"
+                ]
+              }
+            },
+            "required": [
+              "subscription_id",
+              "unit"
+            ],
+            "additionalProperties": false
+          },
+          "threshold": {
+            "type": "string",
+            "pattern": "^(0|[1-9]\\d{0,28})(\\.\\d{1,9})?$"
+          },
+          "minimum_samples": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "info",
+              "warning",
+              "critical"
+            ]
+          },
+          "cooldown_seconds": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "recipients": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_.:-]{1,200}$"
+            }
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "signal",
+          "allowance",
+          "severity",
+          "cooldown_seconds",
+          "recipients",
+          "enabled"
+        ],
+        "additionalProperties": false
+      }
+    }
+  }
+}

@@ -1,0 +1,36 @@
+# Execution host. All replicas share the same installation/database/Redis/S3 scope.
+x-worker: &worker
+  image: ${UAI_IMAGE:?Set the tested runtime image tag or digest}
+  env_file: ${UAI_RUNTIME_ENV_FILE:?Set the absolute runtime env file path}
+  command: [node, --import, tsx, apps/worker/src/index.ts]
+  init: true
+  restart: unless-stopped
+  read_only: true
+  tmpfs: [/tmp:size=128m,mode=1777]
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  stop_grace_period: 45s
+  environment: &environment
+    UAI_EXECUTION_BACKEND: bullmq
+    UAI_WORKER_BACKEND: bullmq
+    UAI_BLOB_BACKEND: s3
+    UAI_WORKER_SHUTDOWN_GRACE_MS: '30000'
+services:
+  generation:
+    <<: *worker
+    environment:
+      <<: *environment
+      UAI_WORKER_QUEUES: text,image,audio,tools
+      UAI_WORKER_CONCURRENCY: '4'
+  observation:
+    <<: *worker
+    environment:
+      <<: *environment
+      UAI_WORKER_QUEUES: observe
+      UAI_WORKER_CONCURRENCY: '4'
+  maintenance:
+    <<: *worker
+    environment:
+      <<: *environment
+      UAI_WORKER_QUEUES: maintenance
+      UAI_WORKER_CONCURRENCY: '1'

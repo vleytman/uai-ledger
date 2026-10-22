@@ -1,0 +1,32 @@
+# Bind only to the data host's private/VPN address, with an application-host firewall allowlist.
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: uai
+      POSTGRES_DB: uai
+      POSTGRES_PASSWORD: ${UAI_POSTGRES_PASSWORD:?Set a database password}
+    ports: ["${UAI_DATA_BIND_IP:?Set the private data-host IP}:5432:5432"]
+    volumes: [postgres:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U uai -d uai]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${UAI_REDIS_PASSWORD:?Set a Redis password}
+    command: [sh, -ec, 'exec redis-server --appendonly yes --appendfsync everysec --maxmemory-policy noeviction --requirepass "$$REDIS_PASSWORD"']
+    ports: ["${UAI_DATA_BIND_IP:?Set the private data-host IP}:6379:6379"]
+    volumes: [redis:/data]
+    healthcheck:
+      test: [CMD-SHELL, 'REDISCLI_AUTH="$$REDIS_PASSWORD" redis-cli ping | grep -q PONG']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+volumes:
+  postgres:
+  redis:

@@ -1,0 +1,281 @@
+{
+  "schema_version": 1,
+  "bundle_key": "files.logopanel.arrow-2-telos-vectorize",
+  "resources": [
+    {
+      "kind": "rate_card",
+      "key": "files.logopanel.arrow-2-telos-vectorize.rates",
+      "payload": {
+        "id": "files.logopanel.arrow-2-telos-vectorize",
+        "currency": "USD",
+        "source": "https://docs.quiver.ai/developers/pricing; checked 2026-09-25. Standard prices, no free allowance assumed. Recheck before publication.",
+        "checked_at": "2026-09-25T00:00:00Z",
+        "rates": [
+          {
+            "id": "input",
+            "dimension": "input.uncached",
+            "unit": "tokens",
+            "unit_size": "1000000",
+            "amount": "6",
+            "effective_from": "2026-09-25T00:00:00Z"
+          },
+          {
+            "id": "cache_read",
+            "dimension": "input.cache_read",
+            "unit": "tokens",
+            "unit_size": "1000000",
+            "amount": "0.6",
+            "effective_from": "2026-09-25T00:00:00Z"
+          },
+          {
+            "id": "cache_write",
+            "dimension": "input.cache_write",
+            "unit": "tokens",
+            "unit_size": "1000000",
+            "amount": "7.5",
+            "effective_from": "2026-09-25T00:00:00Z"
+          },
+          {
+            "id": "output",
+            "dimension": "output.text",
+            "unit": "tokens",
+            "unit_size": "1000000",
+            "amount": "30",
+            "effective_from": "2026-09-25T00:00:00Z"
+          }
+        ]
+      },
+      "samples": [
+        {
+          "usage": {
+            "state": "known",
+            "items": [
+              {
+                "dimension": "input.uncached",
+                "unit": "tokens",
+                "quantity": "1"
+              },
+              {
+                "dimension": "input.cache_read",
+                "unit": "tokens",
+                "quantity": "1"
+              },
+              {
+                "dimension": "input.cache_write",
+                "unit": "tokens",
+                "quantity": "1"
+              },
+              {
+                "dimension": "output.text",
+                "unit": "tokens",
+                "quantity": "1"
+              }
+            ]
+          },
+          "context": {
+            "at": "2026-09-25T00:00:00Z",
+            "conditions": {
+              "model": "arrow-2-telos"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "kind": "catalog",
+      "key": "files.logopanel.arrow-2-telos-vectorize.model",
+      "payload": {
+        "models": [
+          {
+            "id": "arrow-2-telos",
+            "provider": "quiver",
+            "adapter_ref": "quiver@1",
+            "identity_kind": "alias",
+            "capabilities": [
+              "image.vectorize"
+            ],
+            "allowed_parameters": [
+              "max_output_tokens",
+              "auto_crop"
+            ],
+            "status": "active",
+            "calculation": {
+              "version": 1,
+              "source": "https://docs.quiver.ai/developers/pricing; Input quantity is an explicit approximation (UTF-8 prompt plus 4096 per reference), not a token bound. Output uses requested maximum. Cache estimates are zero; actual cache usage must be reported.",
+              "verification": "approximate",
+              "verified_at": "2026-09-25T00:00:00Z",
+              "parameters": {
+                "max_output_tokens": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 65536,
+                  "default": 8192,
+                  "required": true
+                },
+                "auto_crop": {
+                  "type": "boolean",
+                  "default": false
+                }
+              },
+              "preparation": {
+                "mode": "preserve",
+                "max_assets": 1,
+                "max_edge": 4096,
+                "format": "png"
+              },
+              "pricing": {
+                "safety_factor": "1",
+                "markup_percent": "0",
+                "rounding_units": "1"
+              },
+              "components": [
+                {
+                  "key": "input",
+                  "label": "Оценка входа",
+                  "covers": [
+                    "text_input",
+                    "image_input"
+                  ],
+                  "maximum": "80000",
+                  "type": "tokens",
+                  "direction": "input",
+                  "tokenizer": "utf8_upper_bound",
+                  "input_mode": "prompt",
+                  "overhead": 64,
+                  "per_message": 0,
+                  "per_asset": 4096,
+                  "result": {
+                    "kind": "quantity",
+                    "dimension": "input.uncached",
+                    "unit": "tokens"
+                  }
+                },
+                {
+                  "key": "cache_read",
+                  "label": "cache_read",
+                  "covers": [
+                    "cache_read"
+                  ],
+                  "maximum": "80000",
+                  "type": "per_unit",
+                  "source": "constant",
+                  "constant": "0",
+                  "step": "1",
+                  "rounding": "ceil",
+                  "result": {
+                    "kind": "quantity",
+                    "dimension": "input.cache_read",
+                    "unit": "tokens"
+                  }
+                },
+                {
+                  "key": "cache_write",
+                  "label": "cache_write",
+                  "covers": [
+                    "cache_write"
+                  ],
+                  "maximum": "80000",
+                  "type": "per_unit",
+                  "source": "constant",
+                  "constant": "0",
+                  "step": "1",
+                  "rounding": "ceil",
+                  "result": {
+                    "kind": "quantity",
+                    "dimension": "input.cache_write",
+                    "unit": "tokens"
+                  }
+                },
+                {
+                  "key": "output",
+                  "label": "Лимит выхода, включая reasoning",
+                  "covers": [
+                    "image_output"
+                  ],
+                  "maximum": "65536",
+                  "type": "tokens",
+                  "direction": "output",
+                  "policy": "requested_maximum",
+                  "limit_parameter": "max_output_tokens",
+                  "result": {
+                    "kind": "quantity",
+                    "dimension": "output.text",
+                    "unit": "tokens"
+                  }
+                }
+              ],
+              "samples": [
+                {
+                  "name": "Локальный расчёт; провайдер не вызывался",
+                  "input": {
+                    "input": {
+                      "asset_ids": [
+                        "ref-0"
+                      ]
+                    },
+                    "parameters": {
+                      "max_output_tokens": 8192
+                    },
+                    "assets": [
+                      {
+                        "id": "ref-0",
+                        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+                        "width": 256,
+                        "height": 256,
+                        "format": "png"
+                      }
+                    ]
+                  },
+                  "expected": {
+                    "input": "4160",
+                    "cache_read": "0",
+                    "cache_write": "0",
+                    "output": "8192"
+                  }
+                }
+              ]
+            },
+            "rate_card_version_id": "@rate_card:files.logopanel.arrow-2-telos-vectorize.rates"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "route",
+      "key": "files.logopanel.arrow-2-telos-vectorize.route",
+      "payload": {
+        "capability": "image.vectorize",
+        "primary": {
+          "catalog_version_id": "@catalog:files.logopanel.arrow-2-telos-vectorize.model",
+          "model": "arrow-2-telos",
+          "connection_id": "@connection:primary",
+          "max_cost_units": "5000000000"
+        },
+        "platform_risk_budget_units": "10000000000"
+      }
+    },
+    {
+      "kind": "recipe",
+      "key": "files.logopanel.arrow-2-telos-vectorize",
+      "payload": {
+        "period_budget_key": "@budget:period",
+        "execution": {
+          "max_attempts": 1
+        },
+        "components": [
+          {
+            "key": "call",
+            "capability": "image.vectorize",
+            "route_version_id": "@route:files.logopanel.arrow-2-telos-vectorize.route",
+            "rate_card_version_id": "@rate_card:files.logopanel.arrow-2-telos-vectorize.rates",
+            "count": {
+              "constant": 1
+            },
+            "limits": {},
+            "pricing_mode": "actual_capped"
+          }
+        ]
+      }
+    }
+  ]
+}

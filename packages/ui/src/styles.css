@@ -1,0 +1,114 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "@fontsource-variable/inter";
+
+/* Fluid Functionalism's light surface ladder, adapted to the shared UAI theme. */
+:root {
+  color-scheme: light;
+  --surface-1: #fafafa;
+  --surface-2: #fcfcfc;
+  --surface-3: #fff;
+  --background: var(--surface-1);
+  --foreground: #171717;
+  --card: var(--surface-3);
+  --card-foreground: var(--foreground);
+  --popover: var(--surface-3);
+  --popover-foreground: var(--foreground);
+  --primary: #171717;
+  --primary-foreground: #fff;
+  --secondary: #f4f4f5;
+  --secondary-foreground: var(--foreground);
+  --muted: #f4f4f5;
+  --muted-foreground: #737373;
+  --accent: #e5e5e5;
+  --accent-foreground: var(--foreground);
+  --destructive: #b42332;
+  --border: color-mix(in oklab, var(--foreground) 12%, transparent);
+  --input: #e5e5e5;
+  --ring: #6b97ff;
+  --focus-ring: #6b97ff;
+  --hover: rgb(0 0 0 / 0.04);
+  --active: rgb(0 0 0 / 0.07);
+  --shadow-1: 0 0 0 1px rgb(0 0 0 / 0.06);
+  --shadow-2: var(--shadow-1), 0 1px 1px -0.5px rgb(0 0 0 / 0.06);
+  --shadow-3: var(--shadow-2), 0 3px 3px -1.5px rgb(0 0 0 / 0.06);
+  --radius: 0.75rem;
+  --radius-control: 0.625rem;
+  --motion-fast: 80ms;
+  --motion-moderate: 160ms;
+  --motion-slow: 240ms;
+}
+
+@theme inline {
+  --font-sans: 'Inter Variable', Inter, sans-serif;
+  --color-background: var(--background); --color-foreground: var(--foreground);
+  --color-card: var(--card); --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover); --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary); --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary); --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted); --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent); --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive); --color-border: var(--border); --color-input: var(--input); --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px); --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius); --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * { @apply border-border; }
+  body { @apply bg-background text-foreground font-sans; margin: 0; font-size: 14px; -webkit-font-smoothing: antialiased; }
+  button:not(:disabled), a { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+  h1 { font-size: clamp(1.55rem, 2vw, 2rem); line-height: 1.2; font-weight: 650; letter-spacing: -.045em; }
+  h2 { font-weight: 600; letter-spacing: -.02em; }
+  ::selection { background: #dce7ff; color: #171717; }
+}
+
+.uai-layout { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100svh; }
+.uai-sidebar { position: sticky; top: 0; height: 100svh; overflow-y: auto; padding: 30px 16px 22px; background: var(--surface-3); border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 30px; }
+.uai-brand { display: block; padding: 0 12px; color: var(--foreground); font-size: 18px; line-height: 1.2; font-weight: 650; letter-spacing: -.05em; text-decoration: none; }
+.uai-brand span { display: block; margin-top: 6px; color: var(--muted-foreground); font-size: 11px; line-height: 1.4; font-weight: 450; letter-spacing: .01em; }
+.uai-nav { position: relative; display: flex; flex-direction: column; gap: 6px; }
+.uai-fluid-nav-highlight { z-index: 0; border-radius: var(--radius-control); background: var(--hover); }
+.uai-nav a { position: relative; z-index: 1; display: flex; align-items: center; gap: 12px; min-height: 38px; padding: 9px 12px; border-radius: var(--radius-control); color: var(--muted-foreground); font-size: 13px; line-height: 1.35; font-weight: 450; text-decoration: none; transition: color var(--motion-fast); }
+.uai-nav a:hover { color: var(--foreground); }
+.uai-nav a[aria-current=page] { background: var(--muted); color: var(--foreground); font-weight: 600; }
+.uai-nav a[aria-current=page]:hover { background: var(--accent); }
+.uai-nav svg { width: 17px; height: 17px; flex: none; color: currentColor; stroke-width: 1.8; }
+.uai-sidebar > .uai-footnote { margin-top: auto; padding: 0 12px; line-height: 1.5; }
+.uai-main { width: 100%; max-width: 1600px; min-width: 0; margin: auto; padding: 36px 40px 64px; }
+.uai-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 28px; }
+.uai-eyebrow { margin-bottom: 8px; color: var(--muted-foreground); font-size: 11px; font-weight: 550; letter-spacing: .08em; text-transform: uppercase; }
+.uai-subtitle { margin-top: 8px; color: var(--muted-foreground); font-size: 13px; line-height: 1.55; }
+.uai-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.uai-amount { font-size: clamp(24px, 2.1vw, 30px); line-height: 1.2; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.055em; }
+.uai-money { font-variant-numeric: tabular-nums; text-align: right; }
+.uai-grid { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(260px, 1fr); gap: 20px; margin-top: 22px; }
+.uai-stack { display: flex; flex-direction: column; gap: 20px; }
+.uai-footnote { color: var(--muted-foreground); font-size: 12px; }
+@media (max-width: 1100px) { .uai-main { padding: 28px 24px 52px; } .uai-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } .uai-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 700px) { .uai-layout { grid-template-columns: minmax(0, 1fr); } .uai-sidebar { position: static; height: auto; overflow: visible; gap: 16px; padding: 16px; border-right: 0; border-bottom: 1px solid var(--border); } .uai-brand { padding: 0 4px; font-size: 17px; } .uai-brand span { margin-top: 2px; } .uai-nav { flex-direction: row; gap: 10px; overflow-x: auto; scrollbar-width: thin; } .uai-nav a { min-height: 36px; white-space: nowrap; } .uai-main { padding: 24px 16px 48px; } .uai-heading { align-items: flex-start; flex-direction: column; } .uai-amount { font-size: 24px; } }
+@media (max-width: 480px) { .uai-metrics { grid-template-columns: minmax(0, 1fr); } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
+
+.uai-demo-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 700px) { .uai-demo-metrics { grid-template-columns: minmax(0, 1fr); } }
+
+/* Fluid Functionalism's inset button surface keeps the press depth 1px at any width. */
+[data-slot=button] { background: transparent; transition: color var(--motion-fast); }
+[data-slot=button] .uai-button-content { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: inherit; }
+[data-slot=button] .uai-button-surface { pointer-events: none; position: absolute; inset: 1px; border-radius: inherit; transition: background-color var(--motion-fast), box-shadow 180ms cubic-bezier(.23,1,.32,1); }
+[data-slot=button][data-variant=default] .uai-button-surface { --button-fill: var(--foreground); background: var(--button-fill); box-shadow: 0 0 0 1px var(--button-fill); }
+[data-slot=button][data-variant=default]:hover .uai-button-surface { --button-fill: #333; }
+[data-slot=button][data-variant=default]:active .uai-button-surface { --button-fill: #404040; box-shadow: 0 0 0 0 var(--button-fill); }
+[data-slot=button][data-variant=secondary] .uai-button-surface { --button-fill: var(--secondary); background: var(--button-fill); box-shadow: 0 0 0 1px var(--button-fill); }
+[data-slot=button][data-variant=secondary]:hover .uai-button-surface { --button-fill: var(--accent); }
+[data-slot=button][data-variant=secondary]:active .uai-button-surface { box-shadow: 0 0 0 0 var(--button-fill); }
+[data-slot=button][data-variant=outline] .uai-button-surface { background: var(--card); box-shadow: 0 0 0 1px var(--border), inset 0 0 0 0 var(--border); }
+[data-slot=button][data-variant=outline]:hover .uai-button-surface { background: var(--muted); }
+[data-slot=button][data-variant=outline]:active .uai-button-surface { box-shadow: 0 0 0 0 var(--border), inset 0 0 0 1px var(--border); }
+[data-slot=button][data-variant=ghost] .uai-button-surface { background: transparent; box-shadow: 0 0 0 1px transparent; }
+[data-slot=button][data-variant=ghost]:hover .uai-button-surface { background: var(--hover); box-shadow: 0 0 0 1px var(--hover); }
+[data-slot=button][data-variant=ghost]:active .uai-button-surface { background: var(--active); box-shadow: 0 0 0 0 var(--active); }
+[data-slot=button][data-variant=destructive] .uai-button-surface { background: #fff2f3; box-shadow: 0 0 0 1px #e9b9c0; }
+[data-slot=button][data-variant=destructive]:hover .uai-button-surface { background: #ffe6e8; }
+[data-slot=button][data-variant=destructive]:active .uai-button-surface { box-shadow: 0 0 0 0 #e9b9c0; }

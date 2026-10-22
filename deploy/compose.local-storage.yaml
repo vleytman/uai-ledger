@@ -1,0 +1,15 @@
+# Persistent development storage. Credentials are in an ignored, mode-0600 file.
+name: uai-local-storage
+services:
+  minio:
+    image: quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: [server, /data]
+    env_file: ../.data/local-storage.env
+    ports:
+      - "127.0.0.1:59010:9000"
+    volumes:
+      - blobs:/data
+    restart: unless-stopped
+    security_opt: [no-new-privileges:true]
+volumes:
+  blobs:

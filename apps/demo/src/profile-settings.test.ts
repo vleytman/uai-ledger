@@ -1,0 +1,6 @@
+import {it,expect} from 'vitest';
+import {primaryRecipes,preferredRecipe,recipeLabel,componentParameters,type DemoRecipe} from './profile-settings';
+const legacy:DemoRecipe={key:'text.standard',version:1,definition:{components:[{key:'text',capability:'text.generate',count:{constant:1},limits:{output_tokens:100}}]}};
+const real:DemoRecipe={key:'priced.openai.nano',version:1,definition:{components:[{...legacy.definition.components[0],pricing_mode:'quoted_final',model_settings:{id:'gpt-4.1-nano-2025-04-14',parameters:{max_output_tokens:{type:'number',values:[128,1024],default:1024}},preparation:{max_assets:0,max_edge:1024,format:'png'}}}]}};
+it('prefers configured final-price models over fixtures while keeping legacy reachable',()=>{expect(primaryRecipes([legacy,real],'text.generate')).toEqual([real]);expect(preferredRecipe([legacy,real],'text.generate')).toBe(real);expect(preferredRecipe([legacy],'text.generate')).toBe(legacy)});
+it('keeps real identifiers for quoting and human names for display',()=>{expect(recipeLabel(real)).toBe('GPT 4.1 nano');expect(recipeLabel(legacy)).toBe('text.standard');expect(componentParameters(real.definition.components[0],{max_output_tokens:'128'})).toEqual({max_output_tokens:128})});

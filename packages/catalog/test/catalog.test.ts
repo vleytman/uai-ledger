@@ -1,0 +1,67 @@
+import {afterAll,describe,it,expect} from 'vitest';
+import {createPool} from '../../db/src/index.js';
+import {persistObservation,persistCost} from '../../pricing/src/index.js';
+import {id} from '../../contracts/src/index.js';
+import {CatalogService,publicCatalog,type CatalogDefinition} from '../src/index.js';
+if(process.env.REQUIRE_INTEGRATION_TESTS==='1'&&!process.env.DATABASE_URL)throw new Error('DATABASE_URL required');
+const integration=process.env.DATABASE_URL?describe:describe.skip;
+const pool=process.env.DATABASE_URL?createPool():null;
+afterAll(async()=>{await pool?.end();});
+const payload:CatalogDefinition={models:[{id:'fixture-text',provider:'fake',capabilities:['text.generate'],allowed_parameters:[],status:'active'}]};
+integration('catalog PostgreSQL versions',()=>{
+  it('previews unsaved calculation without publication, validates scope and hides cost policy from public catalog',async()=>{
+    const scope={organization_id:id('org'),application_id:id('app')};const service=new CatalogService(pool!);
+    const card={id:'synthetic',currency:'USD' as const,source:'synthetic fixture',checked_at:'2026-01-01',rates:[{id:'r',dimension:'output.image',unit:'images',unit_size:'1',amount:'0.01',effective_from:'2026-01-01'}]};
+    const rates=await service.createDraft(scope,{kind:'rate_card',key:'price',version:1,payload:card,author:'test',comment:'fixture'});
+    const calculation:import('../../model-pricing/src/index.js').ModelCalculation={version:1,source:'synthetic',verification:'approximate',verified_at:'2026-01-01',parameters:{},preparation:{max_assets:0,max_edge:512,format:'png'},components:[{key:'image',label:'Image',covers:['image_output'],maximum:'1',result:{kind:'quantity',dimension:'output.image',unit:'images'},type:'per_unit',source:'constant',constant:'1',step:'1',rounding:'ceil'}],pricing:{safety_factor:'1.1',markup_percent:'25',rounding_units:'1'},samples:[]};
+    const input={model:'fixture',rate_card_version_id:rates.id,calculation,input:{input:{prompt:'Hello'},parameters:{},assets:[]}};
+    expect(await service.previewModel(scope,input)).toMatchObject({provider_estimate_usd:'0.01',price_units:'13750000'});
+    calculation.parameters.quality={type:'string',values:['low','high'],default:'low'};
+    expect(await service.previewModel(scope,input)).toMatchObject({normalized_input:{input:{prompt:'Hello'},parameters:{quality:'low'},assets:[]}});
+    delete calculation.parameters.quality;
+    await expect(service.previewModel({...scope,application_id:id('other')},input)).rejects.toMatchObject({code:'not_found'});
+    const draft=await service.createDraft(scope,{kind:'catalog',key:'models',version:1,payload:{models:[{id:'fixture',provider:'fake',capabilities:['image.generate'],status:'active',allowed_parameters:[],calculation,rate_card_version_id:rates.id}]},author:'test',comment:'fixture'});
+    await expect(service.publish(scope,draft.id,1)).rejects.toThrow(/test cases/);
+    expect((await service.get(scope,draft.id)).status).toBe('draft');
+    const publicView=publicCatalog(draft);expect(publicView.payload.models[0]).toMatchObject({id:'fixture',parameters:{},preparation:{max_assets:0}});
+    const encoded=JSON.stringify(publicView);for(const secret of ['markup_percent','safety_factor','calculation','rate_card_version_id','synthetic'])expect(encoded).not.toContain(secret);
+    await service.publish(scope,rates.id,1,[{usage:{state:'known',items:[{dimension:'output.image',unit:'images',quantity:'1'}]},context:{at:'2026-02-01'}}]);
+    calculation.samples=[{name:'one image',source:'synthetic expected invoice',input:input.input,expected:{image:'1'},expected_cost_usd:'0.02',expected_price_units:'13750000'}];
+    const updatedPayload:CatalogDefinition={models:[{...(draft.payload as CatalogDefinition).models[0],calculation}]};
+    const bad=await service.updateDraft(scope,draft.id,1,updatedPayload,'add expected cost');
+    await expect(service.publish(scope,draft.id,bad.revision)).rejects.toThrow(/provider cost does not match/);
+    expect((await service.get(scope,draft.id)).status).toBe('draft');
+    calculation.samples[0].expected_cost_usd='0.01';
+    const good=await service.updateDraft(scope,draft.id,bad.revision,updatedPayload,'correct expected cost');
+    expect(await service.publish(scope,draft.id,good.revision)).toMatchObject({status:'published'});
+  });
+  it('CAS permits exactly one concurrent draft edit',async()=>{const scope={organization_id:id('org'),application_id:id('app')};const service=new CatalogService(pool!);const v=await service.createDraft(scope,{kind:'catalog',key:'models',version:1,payload,author:'test',comment:'fixture'});const edits=await Promise.allSettled([1,2].map(n=>service.updateDraft(scope,v.id,1,payload,`edit ${n}`)));expect(edits.filter(e=>e.status==='fulfilled')).toHaveLength(1);expect((await service.get(scope,v.id)).revision).toBe(2);});
+  it('published configuration cannot be changed or deleted even by direct SQL',async()=>{const scope={organization_id:id('org'),application_id:id('app')};const service=new CatalogService(pool!);const v=await service.createDraft(scope,{kind:'catalog',key:'models',version:1,payload,author:'test',comment:'fixture'});expect(await service.publish(scope,v.id,1)).toMatchObject({status:'published',revision:2});await expect(service.updateDraft(scope,v.id,2,payload,'changed')).rejects.toMatchObject({code:'revision_conflict'});await expect(pool!.query('DELETE FROM configuration_versions WHERE id=$1',[v.id])).rejects.toThrow('immutable');await expect(pool!.query("UPDATE configuration_versions SET payload='{}' WHERE id=$1",[v.id])).rejects.toThrow('immutable');});
+  it('renames published pricing with CAS while preserving every financial and identity field',async()=>{
+    const scope={organization_id:id('org'),application_id:id('app')};const service=new CatalogService(pool!);
+    const card={id:'synthetic',currency:'USD' as const,source:'synthetic fixture',checked_at:'2026-01-01',rates:[{id:'r',dimension:'output.text',unit:'tokens',unit_size:'1000000',amount:'1',effective_from:'2026-01-01'}]};
+    const draft=await service.createDraft(scope,{kind:'rate_card',key:'stable.pricing',display_name:'Original',version:1,payload:card,author:'test',comment:'fixture'});
+    const before=await service.publish(scope,draft.id,1,[{usage:{state:'known',items:[{dimension:'output.text',quantity:'1',unit:'tokens'}]},context:{at:'2026-02-01'}}]);
+    const edits=await Promise.allSettled(['GPT-Images 2.5','GPT-Luna 5.6'].map(name=>service.renameRateCard(scope,draft.id,before.revision,name)));
+    expect(edits.filter(e=>e.status==='fulfilled')).toHaveLength(1);
+    const after=await service.get(scope,draft.id);expect(after).toEqual({...before,display_name:expect.any(String),revision:before.revision+1});
+    await expect(service.renameRateCard({...scope,application_id:id('other')},draft.id,after.revision,'Foreign')).rejects.toMatchObject({code:'revision_conflict'});
+    await expect(service.renameRateCard(scope,draft.id,after.revision,'  ')).rejects.toMatchObject({code:'invalid_display_name'});
+    await expect(pool!.query("UPDATE configuration_versions SET payload='{}',display_name='Changed',revision=revision+1 WHERE id=$1",[draft.id])).rejects.toThrow('immutable');
+    await expect(pool!.query("UPDATE configuration_versions SET key='changed',display_name='Changed',revision=revision+1 WHERE id=$1",[draft.id])).rejects.toThrow('immutable');
+    await expect(pool!.query('DELETE FROM configuration_versions WHERE id=$1',[draft.id])).rejects.toThrow('immutable');
+  });
+  it('scope cannot read or edit another application configuration',async()=>{const scope={organization_id:id('org'),application_id:id('app')};const service=new CatalogService(pool!);const v=await service.createDraft(scope,{kind:'catalog',key:'models',version:1,payload,author:'test',comment:'fixture'});const wrong={...scope,application_id:id('other')};await expect(service.get(wrong,v.id)).rejects.toMatchObject({code:'not_found'});await expect(service.publish(wrong,v.id,1)).rejects.toMatchObject({code:'not_found'});});
+  it('route publish requires published compatible model and explicit short recovery deadline',async()=>{const scope={organization_id:id('org'),application_id:id('app')};const service=new CatalogService(pool!);const model=await service.createDraft(scope,{kind:'catalog',key:'models',version:1,payload,author:'test',comment:'fixture'});const route={capability:'text.generate' as const,primary:{catalog_version_id:model.id,model:'fixture-text',connection_id:'fake',max_cost_units:'100'},deadline_seconds:1800,platform_risk_budget_units:'200'};const r=await service.createDraft(scope,{kind:'route',key:'text',version:1,payload:route,author:'test',comment:'fixture'});await expect(service.publish(scope,r.id,1)).rejects.toMatchObject({code:'unpublished_catalog'});await service.publish(scope,model.id,1);expect(await service.publish(scope,r.id,1)).toMatchObject({status:'published'});});
+  it('rate publication requires coverage samples and rejects missing dimensions',async()=>{const scope={organization_id:id('org'),application_id:id('app')};const service=new CatalogService(pool!);const p={id:'synthetic',currency:'USD' as const,source:'synthetic fixture',checked_at:'2026-01-01',rates:[{id:'r',dimension:'output.text',unit:'tokens',unit_size:'1000000',amount:'1',effective_from:'2026-01-01'}]};const v=await service.createDraft(scope,{kind:'rate_card',key:'text',version:1,payload:p,author:'test',comment:'fixture'});await expect(service.publish(scope,v.id,1)).rejects.toMatchObject({code:'pricing_samples_required'});await expect(service.publish(scope,v.id,1,[{usage:{state:'known',items:[{dimension:'input.cache_read',quantity:'1',unit:'tokens'}]},context:{at:'2026-02-01'}}])).rejects.toMatchObject({code:'rate_coverage_missing'});expect(await service.publish(scope,v.id,1,[{usage:{state:'known',items:[{dimension:'output.text',quantity:'1',unit:'tokens'}]},context:{at:'2026-02-01'}}])).toMatchObject({status:'published'});});
+  it('future comparison uses scoped saved usage, keeps unknown dimensions and never changes recorded cost',async()=>{
+    const scope={organization_id:id('org'),application_id:id('app'),account_id:id('account')};const service=new CatalogService(pool!);const attempt=id('attempt');
+    const card={id:'synthetic',currency:'USD' as const,source:'synthetic fixture',checked_at:'2026-01-01',rates:[{id:'r',dimension:'output.text',unit:'tokens',unit_size:'1000',amount:'1',effective_from:'2026-01-01'}]};
+    const before=await service.createDraft(scope,{kind:'rate_card',key:'price',version:1,payload:card,author:'test',comment:'baseline'});const after=await service.createDraft(scope,{kind:'rate_card',key:'price',version:2,payload:{...card,rates:[{...card.rates[0],amount:'2'}]},author:'test',comment:'future'});
+    const usage={state:'known' as const,items:[{dimension:'output.text',quantity:'3',unit:'tokens'}]};await persistObservation(pool!,scope,{attempt_id:attempt,connection_id:'fixture',model:'model',raw_usage:null,event_id:'final',kind:'final',revision:1,usage});const cost=await persistCost(pool!,scope,{identity:'original',attempt_id:attempt,connection_id:'fixture',model:'model',usage,rate_card:card,context:{at:'2026-02-01'}});
+    const result=await service.compareRates(scope,{before_version_id:before.id,after_version_id:after.id,baseline_at:'2026-02-01',effective_at:'2026-03-01',attempt_ids:[attempt]});expect(result).toMatchObject({sample_count:1,unknown_count:0,before_units:'3000000',after_units:'6000000',delta_units:'3000000'});expect((await pool!.query('SELECT rounded_units FROM provider_cost_entries WHERE id=$1',[cost.id])).rows[0].rounded_units).toBe('3000000');
+    const unknown=id('attempt');await persistObservation(pool!,scope,{attempt_id:unknown,connection_id:'fixture',model:'model',raw_usage:null,event_id:'final',kind:'final',revision:1,usage:{state:'unknown',reason:'missing_usage'}});expect(await service.compareRates(scope,{before_version_id:before.id,after_version_id:after.id,effective_at:'2026-03-01',attempt_ids:[unknown]})).toMatchObject({unknown_count:1,data:[{delta_units:null,before:{state:'unknown'}}]});
+    const foreign=id('attempt');await persistObservation(pool!,{...scope,application_id:id('other')},{attempt_id:foreign,connection_id:'fixture',model:'model',raw_usage:null,event_id:'final',kind:'final',revision:1,usage});await expect(service.compareRates(scope,{before_version_id:before.id,after_version_id:after.id,effective_at:'2026-03-01',attempt_ids:[foreign]})).rejects.toMatchObject({code:'not_found'});
+  });
+
+});

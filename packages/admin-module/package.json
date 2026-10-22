@@ -1,0 +1,24 @@
+{
+  "name": "@uai/admin-module",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/admin.tsx",
+    "./server": "./src/server/backend.ts",
+    "./styles.css": "./src/styles.css",
+    "./client": "./src/client.ts"
+  },
+  "dependencies": {
+    "@tanstack/react-table": "^8",
+    "@uai/ui": "workspace:*",
+    "lucide-react": "latest",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "@uai/admin-shell": "workspace:*",
+    "@base-ui/react": "latest"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "@types/react-dom": "^19"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "bundle_key": "execution.defaults",
+  "resources": [{
+    "kind": "execution_policy",
+    "key": "default",
+    "display_name": "Default execution policy",
+    "payload": {
+      "deadline_seconds": 300,
+      "max_attempts": 4,
+      "backoff": {"base_ms": 1000, "multiplier": 2, "cap_ms": 30000, "jitter_ratio": 0.1},
+      "retry_reasons": ["transient", "defect", "auth", "quota"],
+      "retry_after_output": true,
+      "recovery": {"delays_seconds": []}
+    }
+  }]
+}

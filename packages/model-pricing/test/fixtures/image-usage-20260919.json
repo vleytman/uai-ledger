@@ -1,0 +1,270 @@
+{
+  "observed_at": "2026-09-19",
+  "scope": "15 owner-authorized direct requests. Synthetic prompts and metadata only. Observations are not a provider guarantee. No credentials, request IDs, URLs, output text or image bytes.",
+  "cases": [
+    {
+      "case": "01-square",
+      "model": "gpt-image-2.5-sunburst-2026-09-08",
+      "size": "1024x1024",
+      "quality": "medium",
+      "prompt": "Create a clean illustration of a blue ceramic cup beside an orange on a pale cream table, with soft daylight and no text. If reference images are provided, use their colors and shapes as visual guidance.",
+      "references": [],
+      "usage": {
+        "text_input": 46,
+        "image_input": 0,
+        "image_output": 439
+      }
+    },
+    {
+      "case": "02-landscape",
+      "model": "gpt-image-2.5-sunburst-2026-09-08",
+      "size": "1536x1024",
+      "quality": "medium",
+      "prompt": "Create a clean illustration of a blue ceramic cup beside an orange on a pale cream table, with soft daylight and no text. If reference images are provided, use their colors and shapes as visual guidance.",
+      "references": [],
+      "usage": {
+        "text_input": 46,
+        "image_input": 0,
+        "image_output": 343
+      }
+    },
+    {
+      "case": "03-wide",
+      "model": "gpt-image-2.5-sunburst-2026-09-08",
+      "size": "2048x1152",
+      "quality": "medium",
+      "prompt": "Create a clean illustration of a blue ceramic cup beside an orange on a pale cream table, with soft daylight and no text. If reference images are provided, use their colors and shapes as visual guidance.",
+      "references": [],
+      "usage": {
+        "text_input": 46,
+        "image_input": 0,
+        "image_output": 367
+      }
+    },
+    {
+      "case": "04-one-reference",
+      "model": "gpt-image-2.5-sunburst-2026-09-08",
+      "size": "1024x1024",
+      "quality": "medium",
+      "prompt": "Create a clean illustration of a blue ceramic cup beside an orange on a pale cream table, with soft daylight and no text. If reference images are provided, use their colors and shapes as visual guidance.",
+      "references": [
+        {
+          "width": 512,
+          "height": 512,
+          "format": "png"
+        }
+      ],
+      "usage": {
+        "text_input": 56,
+        "image_input": 1024,
+        "image_output": 439
+      }
+    },
+    {
+      "case": "05-two-references",
+      "model": "gpt-image-2.5-sunburst-2026-09-08",
+      "size": "1024x1024",
+      "quality": "medium",
+      "prompt": "Create a clean illustration of a blue ceramic cup beside an orange on a pale cream table, with soft daylight and no text. If reference images are provided, use their colors and shapes as visual guidance.",
+      "references": [
+        {
+          "width": 512,
+          "height": 512,
+          "format": "png"
+        },
+        {
+          "width": 512,
+          "height": 341,
+          "format": "png"
+        }
+      ],
+      "usage": {
+        "text_input": 66,
+        "image_input": 1728,
+        "image_output": 439
+      }
+    },
+    {
+      "case": "01-short-en",
+      "model": "gpt-image-2.5-sunburst-2026-09-08",
+      "size": "1024x1024",
+      "quality": "medium",
+      "prompt": "A blue cup.",
+      "references": [],
+      "usage": {
+        "text_input": 10,
+        "image_input": 0,
+        "image_output": 439
+      }
+    },
+    {
+      "case": "02-russian",
+      "model": "gpt-image-2.5-sunburst-2026-09-08",
+      "size": "1024x1024",
+      "quality": "medium",
+      "prompt": "Нарисуй синюю чашку рядом с апельсином на светлом столе. Мягкий утренний свет, без надписей.",
+      "references": [],
+      "usage": {
+        "text_input": 40,
+        "image_input": 0,
+        "image_output": 439
+      }
+    },
+    {
+      "case": "03-long-russian",
+      "model": "gpt-image-2.5-sunburst-2026-09-08",
+      "size": "1024x1024",
+      "quality": "medium",
+      "prompt": "Нарисуй уютную кухню утром. На деревянном столе стоят синяя керамическая чашка и апельсин. Покажи мягкий дневной свет, естественные тени, матовую поверхность керамики и фактуру дерева. Покажи мягкий дневной свет, естественные тени, матовую поверхность керамики и фактуру дерева. Покажи мягкий дневной свет, естественные тени, матовую поверхность керамики и фактуру дерева. Покажи мягкий дневной свет, естественные тени, матовую поверхность керамики и фактуру дерева. Покажи мягкий дневной свет, естественные тени, матовую поверхность керамики и фактуру дерева. Покажи мягкий дневной свет, естественные тени, матовую поверхность керамики и фактуру дерева. Покажи мягкий дневной свет, естественные тени, матовую поверхность керамики и фактуру дерева. Покажи мягкий дневной свет, естественные тени, матовую поверхность керамики и фактуру дерева. Покажи мягкий дневной свет, естественные тени, матовую поверхность керамики и фактуру дерева. Покажи мягкий дневной свет, естественные тени, матовую поверхность керамики и фактуру дерева. Покажи мягкий дневной свет, естественные тени, матовую поверхность керамики и фактуру дерева. Покажи мягкий дневной свет, естественные тени, матовую поверхность керамики и фактуру дерева. Без букв, надписей и логотипов.",
+      "references": [],
+      "usage": {
+        "text_input": 335,
+        "image_input": 0,
+        "image_output": 439
+      }
+    },
+    {
+      "case": "04-ref256",
+      "model": "gpt-image-2.5-sunburst-2026-09-08",
+      "size": "1024x1024",
+      "quality": "medium",
+      "prompt": "Create a clean illustration of a blue ceramic cup beside an orange on a pale cream table, with soft daylight and no text. If reference images are provided, use their colors and shapes as visual guidance.",
+      "references": [
+        {
+          "width": 256,
+          "height": 256,
+          "format": "png"
+        }
+      ],
+      "usage": {
+        "text_input": 56,
+        "image_input": 256,
+        "image_output": 439
+      }
+    },
+    {
+      "case": "05-odd513x341",
+      "model": "gpt-image-2.5-sunburst-2026-09-08",
+      "size": "1024x1024",
+      "quality": "medium",
+      "prompt": "Create a clean illustration of a blue ceramic cup beside an orange on a pale cream table, with soft daylight and no text. If reference images are provided, use their colors and shapes as visual guidance.",
+      "references": [
+        {
+          "width": 513,
+          "height": 341,
+          "format": "png"
+        }
+      ],
+      "usage": {
+        "text_input": 56,
+        "image_input": 704,
+        "image_output": 439
+      }
+    },
+    {
+      "case": "06-ref1024",
+      "model": "gpt-image-2.5-sunburst-2026-09-08",
+      "size": "1024x1024",
+      "quality": "medium",
+      "prompt": "Create a clean illustration of a blue ceramic cup beside an orange on a pale cream table, with soft daylight and no text. If reference images are provided, use their colors and shapes as visual guidance.",
+      "references": [
+        {
+          "width": 1024,
+          "height": 1024,
+          "format": "png"
+        }
+      ],
+      "usage": {
+        "text_input": 56,
+        "image_input": 1024,
+        "image_output": 439
+      }
+    },
+    {
+      "case": "07-ref2048",
+      "model": "gpt-image-2.5-sunburst-2026-09-08",
+      "size": "1024x1024",
+      "quality": "medium",
+      "prompt": "Create a clean illustration of a blue ceramic cup beside an orange on a pale cream table, with soft daylight and no text. If reference images are provided, use their colors and shapes as visual guidance.",
+      "references": [
+        {
+          "width": 2048,
+          "height": 2048,
+          "format": "png"
+        }
+      ],
+      "usage": {
+        "text_input": 56,
+        "image_input": 1521,
+        "image_output": 439
+      }
+    },
+    {
+      "case": "08-jpeg512",
+      "model": "gpt-image-2.5-sunburst-2026-09-08",
+      "size": "1024x1024",
+      "quality": "medium",
+      "prompt": "Create a clean illustration of a blue ceramic cup beside an orange on a pale cream table, with soft daylight and no text. If reference images are provided, use their colors and shapes as visual guidance.",
+      "references": [
+        {
+          "width": 512,
+          "height": 512,
+          "format": "jpeg"
+        }
+      ],
+      "usage": {
+        "text_input": 56,
+        "image_input": 1024,
+        "image_output": 439
+      }
+    },
+    {
+      "case": "09-three-refs",
+      "model": "gpt-image-2.5-sunburst-2026-09-08",
+      "size": "1024x1024",
+      "quality": "medium",
+      "prompt": "Create a clean illustration of a blue ceramic cup beside an orange on a pale cream table, with soft daylight and no text. If reference images are provided, use their colors and shapes as visual guidance.",
+      "references": [
+        {
+          "width": 256,
+          "height": 256,
+          "format": "png"
+        },
+        {
+          "width": 513,
+          "height": 341,
+          "format": "png"
+        },
+        {
+          "width": 512,
+          "height": 512,
+          "format": "png"
+        }
+      ],
+      "usage": {
+        "text_input": 76,
+        "image_input": 1984,
+        "image_output": 439
+      }
+    },
+    {
+      "case": "10-flare512",
+      "model": "gpt-image-2.5-flare-2026-09-08",
+      "size": "1024x1024",
+      "quality": "medium",
+      "prompt": "Create a clean illustration of a blue ceramic cup beside an orange on a pale cream table, with soft daylight and no text. If reference images are provided, use their colors and shapes as visual guidance.",
+      "references": [
+        {
+          "width": 512,
+          "height": 512,
+          "format": "png"
+        }
+      ],
+      "usage": {
+        "text_input": 56,
+        "image_input": 1024,
+        "image_output": 439
+      }
+    }
+  ]
+}

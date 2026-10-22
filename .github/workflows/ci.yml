@@ -1,0 +1,33 @@
+name: Проверка UAI
+on: [push, pull_request]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: uai
+          POSTGRES_PASSWORD: uai_local_only
+          POSTGRES_DB: uai
+        ports: ["55432:5432"]
+        options: --health-cmd "pg_isready -U uai" --health-interval 2s --health-retries 20
+    env:
+      DATABASE_URL: postgresql://uai:uai_local_only@127.0.0.1:55432/uai
+      UAI_ENV: test
+      UAI_ALLOW_REAL_PROVIDERS: 'false'
+      REQUIRE_INTEGRATION_TESTS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:migrate
+      - run: pnpm check:api
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm docs:check
+      - run: pnpm build

@@ -1,0 +1,288 @@
+{
+  "schema_version": 1,
+  "bundle_key": "typesafe.jev-1.13.0",
+  "resources": [
+    {
+      "kind": "rate_card",
+      "key": "typesafe.systemone.rates",
+      "display_name": "Jev 1.13 input tokens",
+      "payload": {
+        "id": "typesafe.systemone.rates",
+        "currency": "USD",
+        "source": "https://docs.typesafe.ai/models; input $0.042/Mtok; output free. Profile exposure 32768 tokens selected by owner on 2026-09-26; not a verified provider token bound.",
+        "checked_at": "2026-09-26T00:00:00Z",
+        "rates": [
+          {
+            "id": "input_tokens",
+            "dimension": "input_tokens",
+            "unit": "tokens",
+            "unit_size": "1000000",
+            "amount": "0.042",
+            "effective_from": "2026-09-25T00:00:00Z"
+          },
+          {
+            "id": "output_tokens_free",
+            "dimension": "output_tokens",
+            "unit": "tokens",
+            "unit_size": "1000000",
+            "amount": "0",
+            "effective_from": "2026-09-25T00:00:00Z"
+          }
+        ]
+      },
+      "samples": [
+        {
+          "usage": {
+            "state": "known",
+            "items": [
+              {
+                "dimension": "input_tokens",
+                "unit": "tokens",
+                "quantity": "1000"
+              }
+            ]
+          },
+          "context": {
+            "at": "2026-09-26T00:00:00Z"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "catalog",
+      "key": "typesafe.systemone.catalog",
+      "display_name": "Jev 1.13",
+      "payload": {
+        "models": [
+          {
+            "id": "typesafe.systemone",
+            "provider": "typesafe",
+            "adapter_ref": "typesafe@1",
+            "capabilities": [
+              "api.call"
+            ],
+            "allowed_parameters": [],
+            "status": "active",
+            "api": {
+              "key": "typesafe.systemone",
+              "kind": "api",
+              "capability": "api.call",
+              "provider": "typesafe",
+              "adapter_ref": "typesafe@1",
+              "input_schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "state": {
+                    "x-uai-bounded-json": true
+                  },
+                  "questions": {
+                    "type": "object",
+                    "minProperties": 1,
+                    "maxProperties": 32,
+                    "additionalProperties": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "const": "choice",
+                              "maxLength": 6
+                            },
+                            "instructions": {
+                              "x-uai-bounded-json": true
+                            },
+                            "criteria": {
+                              "type": "object",
+                              "minProperties": 1,
+                              "maxProperties": 255,
+                              "additionalProperties": {
+                                "x-uai-bounded-json": true
+                              }
+                            }
+                          },
+                          "required": [
+                            "type",
+                            "instructions",
+                            "criteria"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "const": "score",
+                              "maxLength": 6
+                            },
+                            "instructions": {
+                              "x-uai-bounded-json": true
+                            },
+                            "criteria": {
+                              "type": "array",
+                              "minItems": 2,
+                              "maxItems": 10,
+                              "items": {
+                                "x-uai-bounded-json": true
+                              }
+                            }
+                          },
+                          "required": [
+                            "type",
+                            "instructions",
+                            "criteria"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "const": "noul",
+                              "maxLength": 6
+                            },
+                            "instructions": {
+                              "x-uai-bounded-json": true
+                            },
+                            "criteria": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "properties": {
+                                "true": {
+                                  "x-uai-bounded-json": true
+                                },
+                                "false": {
+                                  "x-uai-bounded-json": true
+                                }
+                              },
+                              "required": []
+                            }
+                          },
+                          "required": [
+                            "type",
+                            "instructions"
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "state",
+                  "questions"
+                ]
+              },
+              "output_schema": {
+                "type": "object",
+                "additionalProperties": true
+              },
+              "files": {
+                "media_types": [],
+                "max_count": 0,
+                "max_file_bytes": "0",
+                "max_total_bytes": "0"
+              },
+              "billing_mode": "actual_capped",
+              "allowance_mode": "unmetered",
+              "measurements": [
+                {
+                  "key": "input_tokens",
+                  "unit": "tokens",
+                  "source": "provider_usage",
+                  "maximum": "32768"
+                }
+              ],
+              "pricing": {
+                "mode": "cost_plus",
+                "safety_factor": "1",
+                "markup_percent": "0",
+                "max_units": "1376256",
+                "rounding_units": "1"
+              },
+              "samples": [
+                {
+                  "name": "Owner-selected 32768-token profile maximum; actual usage sample",
+                  "input": {
+                    "state": "A refund request without a deadline.",
+                    "questions": {
+                      "urgent": {
+                        "type": "noul",
+                        "instructions": "Is this urgent?"
+                      },
+                      "team": {
+                        "type": "choice",
+                        "instructions": "Choose the team.",
+                        "criteria": {
+                          "billing": null,
+                          "technical": null
+                        }
+                      },
+                      "severity": {
+                        "type": "score",
+                        "instructions": "Rate severity.",
+                        "criteria": [
+                          "Low",
+                          "High"
+                        ]
+                      }
+                    }
+                  },
+                  "assets": {
+                    "count": 0,
+                    "bytes": "0"
+                  },
+                  "measurements": {
+                    "input_tokens": "1000"
+                  },
+                  "expected_price_units": "42000"
+                }
+              ]
+            },
+            "rate_card_version_id": "@rate_card:typesafe.systemone.rates",
+            "live_validation": "passed",
+            "identity_kind": "snapshot"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "route",
+      "key": "typesafe.systemone.route",
+      "display_name": "typesafe.systemone route",
+      "payload": {
+        "capability": "api.call",
+        "primary": {
+          "catalog_version_id": "@catalog:typesafe.systemone.catalog",
+          "model": "typesafe.systemone",
+          "connection_id": "@connection:primary",
+          "max_cost_units": "1376256"
+        },
+        "deadline_seconds": 300,
+        "platform_risk_budget_units": "5505024"
+      }
+    },
+    {
+      "kind": "recipe",
+      "key": "typesafe.jev-1.13.0",
+      "payload": {
+        "period_budget_key": "@budget:period",
+        "components": [
+          {
+            "key": "call",
+            "capability": "api.call",
+            "route_version_id": "@route:typesafe.systemone.route",
+            "rate_card_version_id": "@rate_card:typesafe.systemone.rates",
+            "count": {
+              "constant": 1
+            },
+            "limits": {}
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,233 @@
+{
+  "schema_version": 1,
+  "bundle_key": "files.logopanel.recraft-v4-styles-svg",
+  "resources": [
+    {
+      "kind": "rate_card",
+      "key": "files.logopanel.recraft-v4-styles-svg.rates",
+      "payload": {
+        "id": "files.logopanel.recraft-v4-styles-svg",
+        "currency": "USD",
+        "source": "https://replicate.com/recraft-ai/recraft-v4-styles-svg; checked 2026-09-25. Standard prices, no free allowance assumed. Recheck before publication.",
+        "checked_at": "2026-09-25T00:00:00Z",
+        "rates": [
+          {
+            "id": "image",
+            "dimension": "output.image",
+            "unit": "images",
+            "unit_size": "1",
+            "amount": "0.05",
+            "effective_from": "2026-09-25T00:00:00Z"
+          },
+          {
+            "id": "style",
+            "dimension": "style.creation",
+            "unit": "calls",
+            "unit_size": "1",
+            "amount": "0",
+            "effective_from": "2026-09-25T00:00:00Z"
+          }
+        ]
+      },
+      "samples": [
+        {
+          "usage": {
+            "state": "known",
+            "items": [
+              {
+                "dimension": "output.image",
+                "unit": "images",
+                "quantity": "1"
+              },
+              {
+                "dimension": "style.creation",
+                "unit": "calls",
+                "quantity": "1"
+              }
+            ]
+          },
+          "context": {
+            "at": "2026-09-25T00:00:00Z",
+            "conditions": {
+              "model": "recraft-ai/recraft-v4-styles-svg"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "kind": "catalog",
+      "key": "files.logopanel.recraft-v4-styles-svg.model",
+      "payload": {
+        "models": [
+          {
+            "id": "recraft-ai/recraft-v4-styles-svg",
+            "provider": "replicate",
+            "adapter_ref": "replicate@1",
+            "identity_kind": "alias",
+            "capabilities": [
+              "image.generate"
+            ],
+            "allowed_parameters": [
+              "size",
+              "style_match"
+            ],
+            "status": "active",
+            "calculation": {
+              "version": 1,
+              "source": "https://replicate.com/recraft-ai/recraft-v4-styles-svg; Per-output price. Separate style.creation component is explicitly included at zero in published per-image price; recheck before publication.",
+              "verification": "documented",
+              "verified_at": "2026-09-25T00:00:00Z",
+              "parameters": {
+                "size": {
+                  "type": "string",
+                  "values": [
+                    "1024x1024",
+                    "1536x768",
+                    "768x1536",
+                    "1280x832",
+                    "832x1280",
+                    "1216x896",
+                    "896x1216",
+                    "1152x896",
+                    "896x1152",
+                    "832x1344",
+                    "1280x896",
+                    "896x1280",
+                    "1344x768",
+                    "768x1344"
+                  ],
+                  "default": "1024x1024"
+                },
+                "style_match": {
+                  "type": "string",
+                  "values": [
+                    "precise",
+                    "flexible"
+                  ],
+                  "default": "precise"
+                }
+              },
+              "preparation": {
+                "mode": "preserve",
+                "max_assets": 10,
+                "max_edge": 4096,
+                "format": "png"
+              },
+              "pricing": {
+                "safety_factor": "1",
+                "markup_percent": "0",
+                "rounding_units": "1"
+              },
+              "components": [
+                {
+                  "key": "image",
+                  "label": "Один SVG",
+                  "covers": [
+                    "text_input",
+                    "image_input",
+                    "image_output"
+                  ],
+                  "maximum": "1",
+                  "type": "per_unit",
+                  "source": "constant",
+                  "constant": "1",
+                  "step": "1",
+                  "rounding": "ceil",
+                  "result": {
+                    "kind": "quantity",
+                    "dimension": "output.image",
+                    "unit": "images"
+                  }
+                },
+                {
+                  "key": "style",
+                  "label": "Создание стиля включено в цену изображения",
+                  "covers": [
+                    "style_creation"
+                  ],
+                  "maximum": "1",
+                  "type": "per_unit",
+                  "source": "constant",
+                  "constant": "1",
+                  "step": "1",
+                  "rounding": "ceil",
+                  "result": {
+                    "kind": "quantity",
+                    "dimension": "style.creation",
+                    "unit": "calls"
+                  }
+                }
+              ],
+              "samples": [
+                {
+                  "name": "Локальный расчёт; провайдер не вызывался",
+                  "input": {
+                    "input": {
+                      "prompt": "Blue circle",
+                      "asset_ids": [
+                        "ref-0"
+                      ]
+                    },
+                    "parameters": {},
+                    "assets": [
+                      {
+                        "id": "ref-0",
+                        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+                        "width": 256,
+                        "height": 256,
+                        "format": "png"
+                      }
+                    ]
+                  },
+                  "expected": {
+                    "image": "1",
+                    "style": "1"
+                  }
+                }
+              ]
+            },
+            "rate_card_version_id": "@rate_card:files.logopanel.recraft-v4-styles-svg.rates"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "route",
+      "key": "files.logopanel.recraft-v4-styles-svg.route",
+      "payload": {
+        "capability": "image.generate",
+        "primary": {
+          "catalog_version_id": "@catalog:files.logopanel.recraft-v4-styles-svg.model",
+          "model": "recraft-ai/recraft-v4-styles-svg",
+          "connection_id": "@connection:primary",
+          "max_cost_units": "200000000"
+        },
+        "platform_risk_budget_units": "1000000000"
+      }
+    },
+    {
+      "kind": "recipe",
+      "key": "files.logopanel.recraft-v4-styles-svg",
+      "payload": {
+        "period_budget_key": "@budget:period",
+        "execution": {
+          "max_attempts": 1
+        },
+        "components": [
+          {
+            "key": "call",
+            "capability": "image.generate",
+            "route_version_id": "@route:files.logopanel.recraft-v4-styles-svg.route",
+            "rate_card_version_id": "@rate_card:files.logopanel.recraft-v4-styles-svg.rates",
+            "count": {
+              "constant": 1
+            },
+            "limits": {},
+            "pricing_mode": "quoted_final"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,168 @@
+{
+  "schema_version": 1,
+  "bundle_key": "files.logopanel.recraft-vectorize",
+  "resources": [
+    {
+      "kind": "rate_card",
+      "key": "files.logopanel.recraft-vectorize.rates",
+      "payload": {
+        "id": "files.logopanel.recraft-vectorize",
+        "currency": "USD",
+        "source": "https://replicate.com/recraft-ai/recraft-vectorize; checked 2026-09-25. Standard prices, no free allowance assumed. Recheck before publication.",
+        "checked_at": "2026-09-25T00:00:00Z",
+        "rates": [
+          {
+            "id": "image",
+            "dimension": "output.image",
+            "unit": "images",
+            "unit_size": "1",
+            "amount": "0.01",
+            "effective_from": "2026-09-25T00:00:00Z"
+          }
+        ]
+      },
+      "samples": [
+        {
+          "usage": {
+            "state": "known",
+            "items": [
+              {
+                "dimension": "output.image",
+                "unit": "images",
+                "quantity": "1"
+              }
+            ]
+          },
+          "context": {
+            "at": "2026-09-25T00:00:00Z",
+            "conditions": {
+              "model": "recraft-ai/recraft-vectorize"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "kind": "catalog",
+      "key": "files.logopanel.recraft-vectorize.model",
+      "payload": {
+        "models": [
+          {
+            "id": "recraft-ai/recraft-vectorize",
+            "provider": "replicate",
+            "adapter_ref": "replicate@1",
+            "identity_kind": "alias",
+            "capabilities": [
+              "image.vectorize"
+            ],
+            "allowed_parameters": [],
+            "status": "active",
+            "calculation": {
+              "version": 1,
+              "source": "https://replicate.com/recraft-ai/recraft-vectorize; Per-output price. Separate style.creation component is explicitly included at zero in published per-image price; recheck before publication.",
+              "verification": "documented",
+              "verified_at": "2026-09-25T00:00:00Z",
+              "parameters": {},
+              "preparation": {
+                "mode": "preserve",
+                "max_assets": 1,
+                "max_edge": 4096,
+                "format": "png"
+              },
+              "pricing": {
+                "safety_factor": "1",
+                "markup_percent": "0",
+                "rounding_units": "1"
+              },
+              "components": [
+                {
+                  "key": "image",
+                  "label": "Один SVG",
+                  "covers": [
+                    "text_input",
+                    "image_input",
+                    "image_output"
+                  ],
+                  "maximum": "1",
+                  "type": "per_unit",
+                  "source": "constant",
+                  "constant": "1",
+                  "step": "1",
+                  "rounding": "ceil",
+                  "result": {
+                    "kind": "quantity",
+                    "dimension": "output.image",
+                    "unit": "images"
+                  }
+                }
+              ],
+              "samples": [
+                {
+                  "name": "Локальный расчёт; провайдер не вызывался",
+                  "input": {
+                    "input": {
+                      "asset_ids": [
+                        "ref-0"
+                      ]
+                    },
+                    "parameters": {},
+                    "assets": [
+                      {
+                        "id": "ref-0",
+                        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+                        "width": 256,
+                        "height": 256,
+                        "format": "png"
+                      }
+                    ]
+                  },
+                  "expected": {
+                    "image": "1"
+                  }
+                }
+              ]
+            },
+            "rate_card_version_id": "@rate_card:files.logopanel.recraft-vectorize.rates"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "route",
+      "key": "files.logopanel.recraft-vectorize.route",
+      "payload": {
+        "capability": "image.vectorize",
+        "primary": {
+          "catalog_version_id": "@catalog:files.logopanel.recraft-vectorize.model",
+          "model": "recraft-ai/recraft-vectorize",
+          "connection_id": "@connection:primary",
+          "max_cost_units": "200000000"
+        },
+        "platform_risk_budget_units": "1000000000"
+      }
+    },
+    {
+      "kind": "recipe",
+      "key": "files.logopanel.recraft-vectorize",
+      "payload": {
+        "period_budget_key": "@budget:period",
+        "execution": {
+          "max_attempts": 1
+        },
+        "components": [
+          {
+            "key": "call",
+            "capability": "image.vectorize",
+            "route_version_id": "@route:files.logopanel.recraft-vectorize.route",
+            "rate_card_version_id": "@rate_card:files.logopanel.recraft-vectorize.rates",
+            "count": {
+              "constant": 1
+            },
+            "limits": {},
+            "pricing_mode": "quoted_final"
+          }
+        ]
+      }
+    }
+  ]
+}

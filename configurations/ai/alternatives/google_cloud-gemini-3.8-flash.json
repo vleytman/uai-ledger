@@ -1,0 +1,314 @@
+{
+  "schema_version": 1,
+  "bundle_key": "ami.google_cloud.gemini-3.8-flash",
+  "resources": [
+    {
+      "key": "ami.google_cloud.gemini-3.8-flash",
+      "kind": "rate_card",
+      "display_name": "gemini-3.8-flash · google_cloud Standard global",
+      "payload": {
+        "id": "ami.google_cloud.gemini-3.8-flash",
+        "currency": "USD",
+        "source": "https://cloud.google.com/gemini-enterprise-agent-platform/generative-ai/pricing",
+        "checked_at": "2026-09-25T00:00:00Z",
+        "rates": [
+          {
+            "id": "r0",
+            "dimension": "input.uncached",
+            "unit": "tokens",
+            "unit_size": "1000000",
+            "amount": "0.75",
+            "conditions": {
+              "model": "gemini-3.8-flash",
+              "service_mode": "standard"
+            },
+            "effective_from": "2026-09-25T00:00:00Z",
+            "effective_to": "2027-01-01T00:00:00Z"
+          },
+          {
+            "id": "r1",
+            "dimension": "output.text",
+            "unit": "tokens",
+            "unit_size": "1000000",
+            "amount": "3.75",
+            "conditions": {
+              "model": "gemini-3.8-flash",
+              "service_mode": "standard"
+            },
+            "effective_from": "2026-09-25T00:00:00Z",
+            "effective_to": "2027-01-01T00:00:00Z"
+          },
+          {
+            "id": "r2",
+            "dimension": "input.cache_read",
+            "unit": "tokens",
+            "unit_size": "1000000",
+            "amount": "0.075",
+            "conditions": {
+              "model": "gemini-3.8-flash",
+              "service_mode": "standard"
+            },
+            "effective_from": "2026-09-25T00:00:00Z",
+            "effective_to": "2027-01-01T00:00:00Z"
+          }
+        ]
+      },
+      "samples": [
+        {
+          "usage": {
+            "state": "known",
+            "items": [
+              {
+                "dimension": "input.uncached",
+                "quantity": "100",
+                "unit": "tokens"
+              },
+              {
+                "dimension": "output.text",
+                "quantity": "20",
+                "unit": "tokens"
+              }
+            ]
+          },
+          "context": {
+            "at": "2026-09-25T00:00:00Z",
+            "conditions": {
+              "model": "gemini-3.8-flash",
+              "service_mode": "standard"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "key": "ami.google_cloud.gemini-3.8-flash",
+      "kind": "catalog",
+      "payload": {
+        "models": [
+          {
+            "id": "gemini-3.8-flash",
+            "provider": "google_cloud",
+            "adapter_ref": "google_cloud@1",
+            "capabilities": [
+              "text.generate"
+            ],
+            "allowed_parameters": [
+              "expected_output_tokens",
+              "max_output_tokens",
+              "temperature",
+              "top_p",
+              "seed",
+              "thinking_level"
+            ],
+            "status": "active",
+            "preview": false,
+            "live_validation": "passed",
+            "identity_kind": "snapshot",
+            "text_features": {
+              "tools": true,
+              "forced_tool_choice": true,
+              "tool_history": true,
+              "parallel_tools": true,
+              "schema": true,
+              "schema_streaming": true,
+              "tool_streaming": true,
+              "usage_counters": [
+                "input",
+                "output",
+                "reasoning",
+                "cache_read"
+              ],
+              "output_limit": "required",
+              "max_output_tokens": 65536,
+              "max_images": 16,
+              "max_image_bytes": 7000000,
+              "image_media_types": [
+                "image/png",
+                "image/jpeg",
+                "image/webp"
+              ],
+              "image_detail": [
+                "auto"
+              ],
+              "cache": "automatic"
+            },
+            "calculation": {
+              "version": 1,
+              "source": "Local UTF-8 serialized-context approximation, including compiled schema/tools and framing. Not the model tokenizer or a proven financial cap. Vision: Groq Qwen 2048 tokens/image per model card; other vision 4096/image is an uncalibrated forecast. CountTokens is not called by quotes.",
+              "verification": "approximate",
+              "verified_at": "2026-09-25T00:00:00Z",
+              "parameters": {
+                "expected_output_tokens": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 65536,
+                  "default": 1024,
+                  "required": true
+                },
+                "max_output_tokens": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 65536,
+                  "default": 4096,
+                  "required": true
+                },
+                "temperature": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 2,
+                  "default": 1
+                },
+                "top_p": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "seed": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1000000000
+                },
+                "thinking_level": {
+                  "type": "string",
+                  "values": [
+                    "LOW",
+                    "MEDIUM",
+                    "HIGH"
+                  ],
+                  "default": "LOW"
+                }
+              },
+              "preparation": {
+                "mode": "preserve",
+                "max_assets": 16,
+                "max_edge": 4096,
+                "format": "png"
+              },
+              "pricing": {
+                "safety_factor": "1",
+                "markup_percent": "0",
+                "rounding_units": "1"
+              },
+              "components": [
+                {
+                  "key": "input",
+                  "label": "Приблизительная оценка полного входа",
+                  "covers": [
+                    "text_input",
+                    "image_input"
+                  ],
+                  "maximum": "1048576",
+                  "type": "tokens",
+                  "direction": "input",
+                  "tokenizer": "utf8_upper_bound",
+                  "input_mode": "compiled_messages_json",
+                  "overhead": 256,
+                  "per_message": 32,
+                  "per_asset": 4096,
+                  "result": {
+                    "kind": "quantity",
+                    "dimension": "input.uncached",
+                    "unit": "tokens",
+                    "conditions": {
+                      "model": "gemini-3.8-flash",
+                      "service_mode": "standard"
+                    }
+                  }
+                },
+                {
+                  "key": "output",
+                  "label": "Ожидаемый выход, включая reasoning",
+                  "covers": [
+                    "text_output"
+                  ],
+                  "maximum": "65536",
+                  "type": "tokens",
+                  "direction": "output",
+                  "policy": "estimated_parameter",
+                  "limit_parameter": "expected_output_tokens",
+                  "result": {
+                    "kind": "quantity",
+                    "dimension": "output.text",
+                    "unit": "tokens",
+                    "conditions": {
+                      "model": "gemini-3.8-flash",
+                      "service_mode": "standard"
+                    }
+                  }
+                }
+              ],
+              "samples": [
+                {
+                  "name": "Локальная оценка, не вызов поставщика",
+                  "input": {
+                    "input": {
+                      "messages": [
+                        {
+                          "role": "user",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Hello"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    "parameters": {
+                      "expected_output_tokens": 32,
+                      "max_output_tokens": 256
+                    },
+                    "assets": []
+                  },
+                  "expected": {
+                    "input": "361",
+                    "output": "32"
+                  }
+                }
+              ]
+            },
+            "rate_card_version_id": "@rate_card:ami.google_cloud.gemini-3.8-flash"
+          }
+        ]
+      }
+    },
+    {
+      "key": "ami.google_cloud.gemini-3.8-flash",
+      "kind": "route",
+      "payload": {
+        "capability": "text.generate",
+        "primary": {
+          "catalog_version_id": "@catalog:ami.google_cloud.gemini-3.8-flash",
+          "model": "gemini-3.8-flash",
+          "connection_id": "@connection:google_cloud",
+          "max_cost_units": "1000000000",
+          "service_mode": "standard"
+        },
+        "execution": {
+          "max_attempts": 1
+        },
+        "platform_risk_budget_units": "1000000000"
+      }
+    },
+    {
+      "key": "ami.google_cloud.gemini-3.8-flash",
+      "kind": "recipe",
+      "payload": {
+        "period_budget_key": "@budget:alternative-models",
+        "components": [
+          {
+            "key": "text",
+            "capability": "text.generate",
+            "route_version_id": "@route:ami.google_cloud.gemini-3.8-flash",
+            "rate_card_version_id": "@rate_card:ami.google_cloud.gemini-3.8-flash",
+            "count": {
+              "constant": 1
+            },
+            "limits": {},
+            "pricing_mode": "estimated_actual"
+          }
+        ]
+      }
+    }
+  ]
+}

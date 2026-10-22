@@ -1,0 +1,42 @@
+@import "@uai/ui/styles.css";
+@source "../../../packages/ui/src";
+
+.demo-credit-bar {position:sticky;top:0;z-index:30;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;padding:12px 16px;margin-bottom:24px;border:1px solid var(--border);border-radius:10px;background:var(--background);box-shadow:0 2px 8px #00000008}
+.demo-credit-stats {display:flex;gap:24px;align-items:center}
+.demo-credit-stats>div {display:flex;flex-direction:column;gap:2px;white-space:nowrap}
+.demo-credit-stats>div>span {font-size:11px;color:var(--muted-foreground)}
+.demo-credit-stats strong {font-size:14px;font-weight:500;font-variant-numeric:tabular-nums}
+.demo-credit-stats small {font-size:11px;font-weight:400;color:var(--muted-foreground)}
+.demo-credit-actions {display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.demo-credit-form {position:relative;display:flex;align-items:center;gap:6px;margin:0}
+.demo-credit-input {position:relative;width:100px}
+.demo-credit-input>svg {position:absolute;left:8px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:var(--muted-foreground);pointer-events:none}
+.demo-credit-input input {height:28px;padding-left:28px;font-size:12px}
+.demo-credit-error {position:absolute;top:calc(100% + 8px);right:0;width:280px;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--background);box-shadow:0 4px 16px #00000012}
+@media(max-width:700px){.demo-credit-bar{gap:10px;padding:10px;margin-bottom:16px}.demo-credit-stats{width:100%;justify-content:space-between;gap:12px}.demo-credit-actions{gap:8px;width:100%;justify-content:space-between}.demo-credit-input{width:75px}.demo-credit-form button{font-size:11px;padding-inline:8px}}
+
+.demo-layout {grid-template-rows:auto 1fr}
+.demo-layout>.demo-credit-bar {grid-column:1 / -1;align-self:start;width:100%;margin:0;border-radius:0;border-width:0 0 1px;padding-inline:24px}
+@media(max-width:700px){.demo-layout{grid-template-rows:auto auto 1fr}.demo-layout>.demo-credit-bar{padding-inline:16px}}
+
+.demo-layout>.uai-sidebar {position:sticky;top:var(--demo-credit-bar-height,66px);align-self:start;max-height:calc(100svh - var(--demo-credit-bar-height,66px));overflow-y:auto;z-index:20}
+
+@media(min-width:701px){.demo-layout>.uai-sidebar{height:calc(100svh - var(--demo-credit-bar-height,66px))}}
+
+.demo-main {max-width:none;margin:0}
+.demo-content {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;gap:24px}
+.demo-content>* {min-width:0}
+.demo-transactions {max-height:400px;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;font-size:12px;margin:0;padding:0;list-style:none}
+.demo-transaction {height:40px;display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid var(--border)}
+.demo-transaction>span {min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.demo-transaction time {flex-shrink:0;font-size:11px;color:var(--muted-foreground);font-variant-numeric:tabular-nums}
+.demo-events-title {font-size:16px;font-weight:500;margin:0}
+.demo-activity img {max-width:100%}
+@media(max-width:1000px){.demo-content{grid-template-columns:minmax(0,1fr)}}
+.demo-select {width:100%;min-width:0;border:1px solid var(--border);border-radius:8px;background:var(--background);padding:8px;font-size:14px}
+.demo-diagnostics>summary {cursor:pointer;font-size:14px;color:var(--muted-foreground);padding-block:12px}
+.demo-diagnostics[open]>.uai-stack {margin-top:12px}
+@media(max-width:700px){
+ .demo-layout>.uai-sidebar{padding:8px 16px;gap:0}
+ .demo-layout>.uai-sidebar>.uai-brand,.demo-layout>.uai-sidebar>[data-slot="badge"],.demo-layout>.uai-sidebar>.uai-footnote{display:none}
+}

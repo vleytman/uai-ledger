@@ -1,0 +1,256 @@
+{
+  "schema_version": 1,
+  "bundle_key": "files.openai.nano",
+  "resources": [
+    {
+      "kind": "rate_card",
+      "key": "files.openai.nano.rates",
+      "display_name": "GPT-4.1 nano · Git rates",
+      "payload": {
+        "id": "demo.gpt-4.1-nano-2025-04-14",
+        "currency": "USD",
+        "source": "https://developers.openai.com/api/docs/models/gpt-4.1-nano Standard API, short context, checked 2026-09-19.",
+        "checked_at": "2026-09-19T00:00:00Z",
+        "rates": [
+          {
+            "id": "rate-0",
+            "dimension": "input.uncached",
+            "amount": "0.1",
+            "unit": "tokens",
+            "unit_size": "1000000",
+            "effective_from": "2026-09-19T00:00:00Z"
+          },
+          {
+            "id": "rate-1",
+            "dimension": "input.cache_read",
+            "amount": "0.025",
+            "unit": "tokens",
+            "unit_size": "1000000",
+            "effective_from": "2026-09-19T00:00:00Z"
+          },
+          {
+            "id": "rate-2",
+            "dimension": "output.text",
+            "amount": "0.4",
+            "unit": "tokens",
+            "unit_size": "1000000",
+            "effective_from": "2026-09-19T00:00:00Z"
+          }
+        ]
+      },
+      "samples": [
+        {
+          "usage": {
+            "state": "known",
+            "items": [
+              {
+                "dimension": "input.uncached",
+                "unit": "tokens",
+                "quantity": "1"
+              },
+              {
+                "dimension": "input.cache_read",
+                "unit": "tokens",
+                "quantity": "1"
+              },
+              {
+                "dimension": "output.text",
+                "unit": "tokens",
+                "quantity": "1"
+              }
+            ]
+          },
+          "context": {
+            "at": "2026-09-22T00:00:00Z",
+            "conditions": {
+              "model": "gpt-4.1-nano-2025-04-14"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "kind": "catalog",
+      "key": "files.openai.nano.models",
+      "display_name": "GPT-4.1 nano · Git model",
+      "payload": {
+        "models": [
+          {
+            "id": "gpt-4.1-nano-2025-04-14",
+            "provider": "openai",
+            "adapter_ref": "openai@1",
+            "identity_kind": "snapshot",
+            "capabilities": [
+              "text.generate"
+            ],
+            "allowed_parameters": [
+              "expected_output_tokens"
+            ],
+            "status": "active",
+            "calculation": {
+              "version": 1,
+              "source": "https://developers.openai.com/api/docs/models/gpt-4.1-nano Standard API, short context, checked 2026-09-19. Input o200k_base estimate with framing allowance. Text only, no tools, <=16000 estimated input tokens, below long-context threshold. Expected output tokens are an estimate only, never an API output limit. Actual usage is billed with markup; safety applies only to the estimate. ",
+              "verification": "approximate",
+              "verified_at": "2026-09-19T00:00:00Z",
+              "parameters": {
+                "expected_output_tokens": {
+                  "type": "number",
+                  "minimum": 128,
+                  "maximum": 131072,
+                  "values": [
+                    128,
+                    512,
+                    1024,
+                    2048,
+                    4096,
+                    8192,
+                    16384,
+                    32768,
+                    65536,
+                    131072
+                  ],
+                  "default": 4096,
+                  "required": true
+                }
+              },
+              "preparation": {
+                "max_assets": 0,
+                "max_edge": 1024,
+                "format": "png"
+              },
+              "pricing": {
+                "safety_factor": "1.1",
+                "markup_percent": "100",
+                "rounding_units": "1"
+              },
+              "components": [
+                {
+                  "key": "input",
+                  "label": "Input context",
+                  "covers": [
+                    "text_input"
+                  ],
+                  "maximum": "16000",
+                  "type": "tokens",
+                  "direction": "input",
+                  "tokenizer": "o200k_base",
+                  "input_mode": "messages_json",
+                  "overhead": 16,
+                  "per_message": 4,
+                  "per_asset": 0,
+                  "result": {
+                    "kind": "quantity",
+                    "dimension": "input.uncached",
+                    "unit": "tokens"
+                  }
+                },
+                {
+                  "key": "output",
+                  "label": "Expected answer tokens",
+                  "covers": [
+                    "text_output"
+                  ],
+                  "maximum": "131072",
+                  "type": "tokens",
+                  "direction": "output",
+                  "policy": "estimated_parameter",
+                  "limit_parameter": "expected_output_tokens",
+                  "result": {
+                    "kind": "quantity",
+                    "dimension": "output.text",
+                    "unit": "tokens"
+                  }
+                }
+              ],
+              "samples": [
+                {
+                  "name": "Hello",
+                  "input": {
+                    "input": {
+                      "messages": [
+                        {
+                          "role": "user",
+                          "content": "Hello"
+                        }
+                      ]
+                    },
+                    "parameters": {
+                      "expected_output_tokens": 4096
+                    },
+                    "assets": []
+                  },
+                  "expected": {
+                    "input": "33",
+                    "output": "4096"
+                  },
+                  "expected_cost_usd": "0.0016417",
+                  "expected_price_units": "3611740"
+                },
+                {
+                  "name": "Привет, ответь одной фразой.",
+                  "input": {
+                    "input": {
+                      "messages": [
+                        {
+                          "role": "user",
+                          "content": "Привет, ответь одной фразой."
+                        }
+                      ]
+                    },
+                    "parameters": {
+                      "expected_output_tokens": 4096
+                    },
+                    "assets": []
+                  },
+                  "expected": {
+                    "input": "42",
+                    "output": "4096"
+                  },
+                  "expected_cost_usd": "0.0016426",
+                  "expected_price_units": "3613720"
+                }
+              ]
+            },
+            "rate_card_version_id": "@rate_card:files.openai.nano.rates"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "route",
+      "key": "files.openai.nano.route",
+      "display_name": "GPT-4.1 nano · Git route",
+      "payload": {
+        "capability": "text.generate",
+        "primary": {
+          "catalog_version_id": "@catalog:files.openai.nano.models",
+          "model": "gpt-4.1-nano-2025-04-14",
+          "connection_id": "@connection:primary",
+          "max_cost_units": "120000000"
+        },
+        "deadline_seconds": 1800,
+        "platform_risk_budget_units": "480000000"
+      }
+    },
+    {
+      "kind": "recipe",
+      "key": "files.openai.nano",
+      "payload": {
+        "period_budget_key": "@budget:period",
+        "components": [
+          {
+            "key": "text",
+            "capability": "text.generate",
+            "route_version_id": "@route:files.openai.nano.route",
+            "rate_card_version_id": "@rate_card:files.openai.nano.rates",
+            "count": {
+              "constant": 1
+            },
+            "limits": {},
+            "pricing_mode": "estimated_actual"
+          }
+        ]
+      }
+    }
+  ]
+}

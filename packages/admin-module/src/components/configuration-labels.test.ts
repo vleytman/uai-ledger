@@ -1,0 +1,5 @@
+import {it,expect} from 'vitest';
+import {configurationLabel,currentConfigurationVersions,modelLabel} from './configuration-labels';
+it('formats models and preserves human names',()=>{expect(modelLabel('gpt-4.1-nano-2025-04-14')).toBe('GPT-4.1 nano');expect(configurationLabel({display_name:'My special pricing',key:'internal'})).toBe('My special pricing');expect(configurationLabel({key:'central.flare.provider-rates'})).toBe('GPT-Image 2.5 Flare · provider costs')});
+it('uses catalog contents for unknown catalogs rather than internal keys',()=>{expect(configurationLabel({key:'new.internal.key',payload:{models:[{id:'gpt-5.6-sol'}]}})).toBe('GPT-5.6 Sol')});
+it('keeps latest published versions and every draft without mutating history',()=>{const rows=[{key:'a',version:1,status:'published'},{key:'a',version:2,status:'published'},{key:'a',version:3,status:'draft'},{key:'b',version:1,status:'published'}];expect(currentConfigurationVersions(rows)).toEqual(rows.slice(1));expect(rows).toHaveLength(4)});

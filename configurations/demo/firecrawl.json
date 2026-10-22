@@ -1,0 +1,871 @@
+{
+  "schema_version": 1,
+  "bundle_key": "demo.firecrawl",
+  "resources": [
+    {
+      "kind": "tariff",
+      "key": "demo.firecrawl.allowance",
+      "display_name": "Firecrawl demo: isolated 37 credit allowance",
+      "payload": {
+        "key": "demo.firecrawl.allowance",
+        "provider": "firecrawl",
+        "calendar": {
+          "kind": "calendar_month",
+          "timezone": "UTC",
+          "anchor": "2026-09-01T00:00:00Z"
+        },
+        "counters": [
+          {
+            "key": "credits",
+            "unit": "credits",
+            "included": "37",
+            "rollover": {
+              "enabled": false,
+              "cap": "0",
+              "expires_after_periods": 1
+            }
+          }
+        ],
+        "overage": {
+          "enabled": false,
+          "max_units": "0"
+        },
+        "cost_allocation": {
+          "mode": "incremental"
+        }
+      }
+    },
+    {
+      "kind": "rate_card",
+      "key": "demo.firecrawl.scrape.rates",
+      "payload": {
+        "id": "demo.firecrawl.scrape.rates",
+        "currency": "USD",
+        "source": "Included prepaid Firecrawl credits: incremental cash cost 0; subscription fee is not allocated. Demo customer prices are synthetic.",
+        "checked_at": "2026-09-23T00:00:00Z",
+        "rates": [
+          {
+            "id": "requests",
+            "dimension": "requests",
+            "unit": "requests",
+            "unit_size": "1",
+            "amount": "0",
+            "effective_from": "2026-01-01T00:00:00Z"
+          },
+          {
+            "id": "credits",
+            "dimension": "credits",
+            "unit": "credits",
+            "unit_size": "1",
+            "amount": "0",
+            "effective_from": "2026-01-01T00:00:00Z"
+          }
+        ]
+      },
+      "samples": [
+        {
+          "usage": {
+            "state": "known",
+            "items": [
+              {
+                "dimension": "credits",
+                "unit": "credits",
+                "quantity": "10"
+              }
+            ]
+          },
+          "context": {
+            "at": "2026-09-23T00:00:00Z"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "catalog",
+      "key": "demo.firecrawl.scrape.catalog",
+      "payload": {
+        "models": [
+          {
+            "id": "firecrawl.scrape",
+            "provider": "firecrawl",
+            "adapter_ref": "firecrawl@1",
+            "capabilities": [
+              "api.call"
+            ],
+            "allowed_parameters": [],
+            "status": "active",
+            "api": {
+              "key": "firecrawl.scrape",
+              "kind": "api",
+              "capability": "api.call",
+              "provider": "firecrawl",
+              "adapter_ref": "firecrawl@1",
+              "input_schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "maxLength": 2000,
+                    "format": "uri"
+                  },
+                  "formats": {
+                    "type": "array",
+                    "maxItems": 3,
+                    "items": {
+                      "type": "string",
+                      "maxLength": 20,
+                      "enum": [
+                        "markdown",
+                        "html",
+                        "links"
+                      ]
+                    }
+                  },
+                  "onlyMainContent": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "url"
+                ]
+              },
+              "output_schema": {
+                "type": "object",
+                "additionalProperties": true
+              },
+              "files": {
+                "media_types": [],
+                "max_count": 0,
+                "max_file_bytes": "0",
+                "max_total_bytes": "0"
+              },
+              "billing_mode": "actual_capped",
+              "allowance_mode": "subscription",
+              "measurements": [
+                {
+                  "key": "requests",
+                  "unit": "requests",
+                  "source": "request",
+                  "maximum": "1",
+                  "expression": {
+                    "op": "constant",
+                    "value": "1"
+                  }
+                },
+                {
+                  "key": "credits",
+                  "unit": "credits",
+                  "source": "provider_usage",
+                  "maximum": "10"
+                }
+              ],
+              "pricing": {
+                "mode": "independent",
+                "expression": {
+                  "op": "add",
+                  "args": [
+                    {
+                      "op": "constant",
+                      "value": "1000000"
+                    },
+                    {
+                      "op": "multiply",
+                      "args": [
+                        {
+                          "op": "field",
+                          "path": "measurements.credits"
+                        },
+                        {
+                          "op": "constant",
+                          "value": "1000000"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "max_units": "11000000",
+                "rounding_units": "1"
+              },
+              "samples": [
+                {
+                  "name": "Demo price: 1 + actual Firecrawl credits, not provider USD pricing",
+                  "input": {
+                    "url": "https://example.com"
+                  },
+                  "assets": {
+                    "count": 0,
+                    "bytes": "0"
+                  },
+                  "measurements": {
+                    "requests": "1",
+                    "credits": "10"
+                  },
+                  "expected_price_units": "11000000"
+                }
+              ]
+            },
+            "rate_card_version_id": "@rate_card:demo.firecrawl.scrape.rates"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "route",
+      "key": "demo.firecrawl.scrape.route",
+      "payload": {
+        "capability": "api.call",
+        "primary": {
+          "catalog_version_id": "@catalog:demo.firecrawl.scrape.catalog",
+          "model": "firecrawl.scrape",
+          "connection_id": "@connection:primary",
+          "max_cost_units": "1000000"
+        },
+        "deadline_seconds": 1800,
+        "platform_risk_budget_units": "16000000"
+      }
+    },
+    {
+      "kind": "recipe",
+      "key": "demo.firecrawl.scrape",
+      "payload": {
+        "period_budget_key": "@budget:period",
+        "components": [
+          {
+            "key": "call",
+            "capability": "api.call",
+            "route_version_id": "@route:demo.firecrawl.scrape.route",
+            "rate_card_version_id": "@rate_card:demo.firecrawl.scrape.rates",
+            "count": {
+              "constant": 1
+            },
+            "limits": {}
+          }
+        ]
+      }
+    },
+    {
+      "kind": "rate_card",
+      "key": "demo.firecrawl.search.rates",
+      "payload": {
+        "id": "demo.firecrawl.search.rates",
+        "currency": "USD",
+        "source": "Included prepaid Firecrawl credits: incremental cash cost 0; subscription fee is not allocated. Demo customer prices are synthetic.",
+        "checked_at": "2026-09-23T00:00:00Z",
+        "rates": [
+          {
+            "id": "requests",
+            "dimension": "requests",
+            "unit": "requests",
+            "unit_size": "1",
+            "amount": "0",
+            "effective_from": "2026-01-01T00:00:00Z"
+          },
+          {
+            "id": "credits",
+            "dimension": "credits",
+            "unit": "credits",
+            "unit_size": "1",
+            "amount": "0",
+            "effective_from": "2026-01-01T00:00:00Z"
+          }
+        ]
+      },
+      "samples": [
+        {
+          "usage": {
+            "state": "known",
+            "items": [
+              {
+                "dimension": "credits",
+                "unit": "credits",
+                "quantity": "100"
+              }
+            ]
+          },
+          "context": {
+            "at": "2026-09-23T00:00:00Z"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "catalog",
+      "key": "demo.firecrawl.search.catalog",
+      "payload": {
+        "models": [
+          {
+            "id": "firecrawl.search",
+            "provider": "firecrawl",
+            "adapter_ref": "firecrawl@1",
+            "capabilities": [
+              "api.call"
+            ],
+            "allowed_parameters": [],
+            "status": "active",
+            "api": {
+              "key": "firecrawl.search",
+              "kind": "api",
+              "capability": "api.call",
+              "provider": "firecrawl",
+              "adapter_ref": "firecrawl@1",
+              "input_schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "maxLength": 1000
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10,
+                    "enum": [
+                      1
+                    ]
+                  },
+                  "scrape": {
+                    "type": "boolean",
+                    "enum": [
+                      false
+                    ]
+                  }
+                },
+                "required": [
+                  "query",
+                  "limit",
+                  "scrape"
+                ]
+              },
+              "output_schema": {
+                "type": "object",
+                "additionalProperties": true
+              },
+              "files": {
+                "media_types": [],
+                "max_count": 0,
+                "max_file_bytes": "0",
+                "max_total_bytes": "0"
+              },
+              "billing_mode": "actual_capped",
+              "allowance_mode": "subscription",
+              "measurements": [
+                {
+                  "key": "requests",
+                  "unit": "requests",
+                  "source": "request",
+                  "maximum": "1",
+                  "expression": {
+                    "op": "constant",
+                    "value": "1"
+                  }
+                },
+                {
+                  "key": "credits",
+                  "unit": "credits",
+                  "source": "provider_usage",
+                  "maximum": "10"
+                }
+              ],
+              "pricing": {
+                "mode": "independent",
+                "expression": {
+                  "op": "add",
+                  "args": [
+                    {
+                      "op": "constant",
+                      "value": "1000000"
+                    },
+                    {
+                      "op": "multiply",
+                      "args": [
+                        {
+                          "op": "field",
+                          "path": "measurements.credits"
+                        },
+                        {
+                          "op": "constant",
+                          "value": "1000000"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "max_units": "11000000",
+                "rounding_units": "1"
+              },
+              "samples": [
+                {
+                  "name": "Demo price: 1 + actual Firecrawl credits, not provider USD pricing",
+                  "input": {
+                    "query": "public patent information",
+                    "limit": 1,
+                    "scrape": false
+                  },
+                  "assets": {
+                    "count": 0,
+                    "bytes": "0"
+                  },
+                  "measurements": {
+                    "requests": "1",
+                    "credits": "10"
+                  },
+                  "expected_price_units": "11000000"
+                }
+              ]
+            },
+            "rate_card_version_id": "@rate_card:demo.firecrawl.search.rates"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "route",
+      "key": "demo.firecrawl.search.route",
+      "payload": {
+        "capability": "api.call",
+        "primary": {
+          "catalog_version_id": "@catalog:demo.firecrawl.search.catalog",
+          "model": "firecrawl.search",
+          "connection_id": "@connection:primary",
+          "max_cost_units": "1000000"
+        },
+        "deadline_seconds": 1800,
+        "platform_risk_budget_units": "16000000"
+      }
+    },
+    {
+      "kind": "recipe",
+      "key": "demo.firecrawl.search",
+      "payload": {
+        "period_budget_key": "@budget:period",
+        "components": [
+          {
+            "key": "call",
+            "capability": "api.call",
+            "route_version_id": "@route:demo.firecrawl.search.route",
+            "rate_card_version_id": "@rate_card:demo.firecrawl.search.rates",
+            "count": {
+              "constant": 1
+            },
+            "limits": {}
+          }
+        ]
+      }
+    },
+    {
+      "kind": "rate_card",
+      "key": "demo.firecrawl.patent_search.rates",
+      "payload": {
+        "id": "demo.firecrawl.patent_search.rates",
+        "currency": "USD",
+        "source": "Included prepaid Firecrawl credits: incremental cash cost 0; subscription fee is not allocated. Demo customer prices are synthetic.",
+        "checked_at": "2026-09-23T00:00:00Z",
+        "rates": [
+          {
+            "id": "requests",
+            "dimension": "requests",
+            "unit": "requests",
+            "unit_size": "1",
+            "amount": "0",
+            "effective_from": "2026-01-01T00:00:00Z"
+          },
+          {
+            "id": "credits",
+            "dimension": "credits",
+            "unit": "credits",
+            "unit_size": "1",
+            "amount": "0",
+            "effective_from": "2026-01-01T00:00:00Z"
+          }
+        ]
+      },
+      "samples": [
+        {
+          "usage": {
+            "state": "known",
+            "items": [
+              {
+                "dimension": "credits",
+                "unit": "credits",
+                "quantity": "10"
+              }
+            ]
+          },
+          "context": {
+            "at": "2026-09-23T00:00:00Z"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "catalog",
+      "key": "demo.firecrawl.patent_search.catalog",
+      "payload": {
+        "models": [
+          {
+            "id": "firecrawl.patent_search",
+            "provider": "firecrawl",
+            "adapter_ref": "firecrawl@1",
+            "capabilities": [
+              "api.call"
+            ],
+            "allowed_parameters": [],
+            "status": "active",
+            "api": {
+              "key": "firecrawl.patent_search",
+              "kind": "api",
+              "capability": "api.call",
+              "provider": "firecrawl",
+              "adapter_ref": "firecrawl@1",
+              "input_schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "maxLength": 2000
+                  },
+                  "page_size": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100
+                  },
+                  "start": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 999
+                  },
+                  "databases": {
+                    "type": "array",
+                    "maxItems": 3,
+                    "items": {
+                      "type": "string",
+                      "maxLength": 20,
+                      "enum": [
+                        "US-PGPUB",
+                        "USPAT",
+                        "USOCR"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "query"
+                ]
+              },
+              "output_schema": {
+                "type": "object",
+                "additionalProperties": true
+              },
+              "files": {
+                "media_types": [],
+                "max_count": 0,
+                "max_file_bytes": "0",
+                "max_total_bytes": "0"
+              },
+              "billing_mode": "actual_capped",
+              "allowance_mode": "subscription",
+              "measurements": [
+                {
+                  "key": "requests",
+                  "unit": "requests",
+                  "source": "request",
+                  "maximum": "1",
+                  "expression": {
+                    "op": "constant",
+                    "value": "1"
+                  }
+                },
+                {
+                  "key": "credits",
+                  "unit": "credits",
+                  "source": "provider_usage",
+                  "maximum": "10"
+                }
+              ],
+              "pricing": {
+                "mode": "independent",
+                "expression": {
+                  "op": "add",
+                  "args": [
+                    {
+                      "op": "constant",
+                      "value": "1000000"
+                    },
+                    {
+                      "op": "multiply",
+                      "args": [
+                        {
+                          "op": "field",
+                          "path": "measurements.credits"
+                        },
+                        {
+                          "op": "constant",
+                          "value": "1000000"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "max_units": "11000000",
+                "rounding_units": "1"
+              },
+              "samples": [
+                {
+                  "name": "Demo price: 1 + actual Firecrawl credits, not provider USD pricing",
+                  "input": {
+                    "query": "\"quantum computing\".ti.",
+                    "page_size": 5,
+                    "start": 0
+                  },
+                  "assets": {
+                    "count": 0,
+                    "bytes": "0"
+                  },
+                  "measurements": {
+                    "requests": "1",
+                    "credits": "10"
+                  },
+                  "expected_price_units": "11000000"
+                }
+              ]
+            },
+            "rate_card_version_id": "@rate_card:demo.firecrawl.patent_search.rates"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "route",
+      "key": "demo.firecrawl.patent_search.route",
+      "payload": {
+        "capability": "api.call",
+        "primary": {
+          "catalog_version_id": "@catalog:demo.firecrawl.patent_search.catalog",
+          "model": "firecrawl.patent_search",
+          "connection_id": "@connection:primary",
+          "max_cost_units": "1000000"
+        },
+        "deadline_seconds": 1800,
+        "platform_risk_budget_units": "16000000"
+      }
+    },
+    {
+      "kind": "recipe",
+      "key": "demo.firecrawl.patent_search",
+      "payload": {
+        "period_budget_key": "@budget:period",
+        "components": [
+          {
+            "key": "call",
+            "capability": "api.call",
+            "route_version_id": "@route:demo.firecrawl.patent_search.route",
+            "rate_card_version_id": "@rate_card:demo.firecrawl.patent_search.rates",
+            "count": {
+              "constant": 1
+            },
+            "limits": {}
+          }
+        ]
+      }
+    },
+    {
+      "kind": "rate_card",
+      "key": "demo.firecrawl.patent_document.rates",
+      "payload": {
+        "id": "demo.firecrawl.patent_document.rates",
+        "currency": "USD",
+        "source": "Included prepaid Firecrawl credits: incremental cash cost 0; subscription fee is not allocated. Demo customer prices are synthetic.",
+        "checked_at": "2026-09-23T00:00:00Z",
+        "rates": [
+          {
+            "id": "requests",
+            "dimension": "requests",
+            "unit": "requests",
+            "unit_size": "1",
+            "amount": "0",
+            "effective_from": "2026-01-01T00:00:00Z"
+          },
+          {
+            "id": "credits",
+            "dimension": "credits",
+            "unit": "credits",
+            "unit_size": "1",
+            "amount": "0",
+            "effective_from": "2026-01-01T00:00:00Z"
+          }
+        ]
+      },
+      "samples": [
+        {
+          "usage": {
+            "state": "known",
+            "items": [
+              {
+                "dimension": "credits",
+                "unit": "credits",
+                "quantity": "10"
+              }
+            ]
+          },
+          "context": {
+            "at": "2026-09-23T00:00:00Z"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "catalog",
+      "key": "demo.firecrawl.patent_document.catalog",
+      "payload": {
+        "models": [
+          {
+            "id": "firecrawl.patent_document",
+            "provider": "firecrawl",
+            "adapter_ref": "firecrawl@1",
+            "capabilities": [
+              "api.call"
+            ],
+            "allowed_parameters": [],
+            "status": "active",
+            "api": {
+              "key": "firecrawl.patent_document",
+              "kind": "api",
+              "capability": "api.call",
+              "provider": "firecrawl",
+              "adapter_ref": "firecrawl@1",
+              "input_schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "number": {
+                    "type": "string",
+                    "maxLength": 80
+                  },
+                  "include_full_text": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "number"
+                ]
+              },
+              "output_schema": {
+                "type": "object",
+                "additionalProperties": true
+              },
+              "files": {
+                "media_types": [],
+                "max_count": 0,
+                "max_file_bytes": "0",
+                "max_total_bytes": "0"
+              },
+              "billing_mode": "actual_capped",
+              "allowance_mode": "subscription",
+              "measurements": [
+                {
+                  "key": "requests",
+                  "unit": "requests",
+                  "source": "request",
+                  "maximum": "1",
+                  "expression": {
+                    "op": "constant",
+                    "value": "1"
+                  }
+                },
+                {
+                  "key": "credits",
+                  "unit": "credits",
+                  "source": "provider_usage",
+                  "maximum": "10"
+                }
+              ],
+              "pricing": {
+                "mode": "independent",
+                "expression": {
+                  "op": "add",
+                  "args": [
+                    {
+                      "op": "constant",
+                      "value": "1000000"
+                    },
+                    {
+                      "op": "multiply",
+                      "args": [
+                        {
+                          "op": "field",
+                          "path": "measurements.credits"
+                        },
+                        {
+                          "op": "constant",
+                          "value": "1000000"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "max_units": "11000000",
+                "rounding_units": "1"
+              },
+              "samples": [
+                {
+                  "name": "Demo price: 1 + actual Firecrawl credits, not provider USD pricing",
+                  "input": {
+                    "number": "11234567",
+                    "include_full_text": false
+                  },
+                  "assets": {
+                    "count": 0,
+                    "bytes": "0"
+                  },
+                  "measurements": {
+                    "requests": "1",
+                    "credits": "10"
+                  },
+                  "expected_price_units": "11000000"
+                }
+              ]
+            },
+            "rate_card_version_id": "@rate_card:demo.firecrawl.patent_document.rates"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "route",
+      "key": "demo.firecrawl.patent_document.route",
+      "payload": {
+        "capability": "api.call",
+        "primary": {
+          "catalog_version_id": "@catalog:demo.firecrawl.patent_document.catalog",
+          "model": "firecrawl.patent_document",
+          "connection_id": "@connection:primary",
+          "max_cost_units": "1000000"
+        },
+        "deadline_seconds": 1800,
+        "platform_risk_budget_units": "16000000"
+      }
+    },
+    {
+      "kind": "recipe",
+      "key": "demo.firecrawl.patent_document",
+      "payload": {
+        "period_budget_key": "@budget:period",
+        "components": [
+          {
+            "key": "call",
+            "capability": "api.call",
+            "route_version_id": "@route:demo.firecrawl.patent_document.route",
+            "rate_card_version_id": "@rate_card:demo.firecrawl.patent_document.rates",
+            "count": {
+              "constant": 1
+            },
+            "limits": {}
+          }
+        ]
+      }
+    }
+  ]
+}

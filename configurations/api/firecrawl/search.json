@@ -1,0 +1,210 @@
+{
+  "schema_version": 1,
+  "bundle_key": "firecrawl.search",
+  "resources": [
+    {
+      "kind": "rate_card",
+      "key": "firecrawl.search.rates",
+      "display_name": "firecrawl.search · synthetic USD rates",
+      "payload": {
+        "id": "firecrawl.search.rates",
+        "currency": "USD",
+        "source": "SYNTHETIC EXAMPLE ONLY. Replace with the actual provider tariff before activation.",
+        "checked_at": "2026-09-23T00:00:00Z",
+        "rates": [
+          {
+            "id": "requests",
+            "dimension": "requests",
+            "unit": "requests",
+            "unit_size": "1",
+            "amount": "0",
+            "effective_from": "2026-01-01T00:00:00Z"
+          },
+          {
+            "id": "credits",
+            "dimension": "credits",
+            "unit": "credits",
+            "unit_size": "1",
+            "amount": "0.001",
+            "effective_from": "2026-01-01T00:00:00Z"
+          }
+        ]
+      },
+      "samples": [
+        {
+          "usage": {
+            "state": "known",
+            "items": [
+              {
+                "dimension": "credits",
+                "unit": "credits",
+                "quantity": "100"
+              }
+            ]
+          },
+          "context": {
+            "at": "2026-09-23T00:00:00Z"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "catalog",
+      "key": "firecrawl.search.catalog",
+      "display_name": "firecrawl.search",
+      "payload": {
+        "models": [
+          {
+            "id": "firecrawl.search",
+            "provider": "firecrawl",
+            "adapter_ref": "firecrawl@1",
+            "capabilities": [
+              "api.call"
+            ],
+            "allowed_parameters": [],
+            "status": "active",
+            "api": {
+              "key": "firecrawl.search",
+              "kind": "api",
+              "capability": "api.call",
+              "provider": "firecrawl",
+              "adapter_ref": "firecrawl@1",
+              "input_schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "maxLength": 1000
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10
+                  },
+                  "scrape": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "query"
+                ]
+              },
+              "output_schema": {
+                "type": "object",
+                "additionalProperties": true
+              },
+              "files": {
+                "media_types": [],
+                "max_count": 0,
+                "max_file_bytes": "0",
+                "max_total_bytes": "0"
+              },
+              "billing_mode": "actual_capped",
+              "allowance_mode": "subscription",
+              "measurements": [
+                {
+                  "key": "requests",
+                  "unit": "requests",
+                  "source": "request",
+                  "maximum": "1",
+                  "expression": {
+                    "op": "constant",
+                    "value": "1"
+                  }
+                },
+                {
+                  "key": "credits",
+                  "unit": "credits",
+                  "source": "provider_usage",
+                  "maximum": "100"
+                }
+              ],
+              "pricing": {
+                "mode": "independent",
+                "expression": {
+                  "op": "add",
+                  "args": [
+                    {
+                      "op": "constant",
+                      "value": "1000"
+                    },
+                    {
+                      "op": "multiply",
+                      "args": [
+                        {
+                          "op": "field",
+                          "path": "measurements.credits"
+                        },
+                        {
+                          "op": "constant",
+                          "value": "1000"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "max_units": "1000000",
+                "rounding_units": "100"
+              },
+              "samples": [
+                {
+                  "name": "Synthetic customer price; replace before live use",
+                  "input": {
+                    "query": "public patent information",
+                    "limit": 5
+                  },
+                  "assets": {
+                    "count": 0,
+                    "bytes": "0"
+                  },
+                  "measurements": {
+                    "requests": "1",
+                    "credits": "100"
+                  },
+                  "expected_price_units": "101000"
+                }
+              ]
+            },
+            "rate_card_version_id": "@rate_card:firecrawl.search.rates"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "route",
+      "key": "firecrawl.search.route",
+      "display_name": "firecrawl.search route",
+      "payload": {
+        "capability": "api.call",
+        "primary": {
+          "catalog_version_id": "@catalog:firecrawl.search.catalog",
+          "model": "firecrawl.search",
+          "connection_id": "@connection:primary",
+          "max_cost_units": "1000000000"
+        },
+        "deadline_seconds": 1800,
+        "platform_risk_budget_units": "16000000000"
+      }
+    },
+    {
+      "kind": "recipe",
+      "key": "firecrawl.search",
+      "payload": {
+        "period_budget_key": "@budget:period",
+        "components": [
+          {
+            "key": "call",
+            "capability": "api.call",
+            "route_version_id": "@route:firecrawl.search.route",
+            "rate_card_version_id": "@rate_card:firecrawl.search.rates",
+            "count": {
+              "constant": 1
+            },
+            "limits": {}
+          }
+        ]
+      }
+    }
+  ]
+}

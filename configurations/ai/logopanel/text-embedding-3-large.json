@@ -1,0 +1,172 @@
+{
+  "schema_version": 1,
+  "bundle_key": "files.logopanel.text-embedding-3-large",
+  "resources": [
+    {
+      "kind": "rate_card",
+      "key": "files.logopanel.text-embedding-3-large.rates",
+      "payload": {
+        "id": "files.logopanel.text-embedding-3-large",
+        "currency": "USD",
+        "source": "https://developers.openai.com/api/docs/pricing; checked 2026-09-25. Standard prices, no free allowance assumed. Recheck before publication.",
+        "checked_at": "2026-09-25T00:00:00Z",
+        "rates": [
+          {
+            "id": "input",
+            "dimension": "input.uncached",
+            "unit": "tokens",
+            "unit_size": "1000000",
+            "amount": "0.13",
+            "effective_from": "2026-09-25T00:00:00Z"
+          }
+        ]
+      },
+      "samples": [
+        {
+          "usage": {
+            "state": "known",
+            "items": [
+              {
+                "dimension": "input.uncached",
+                "unit": "tokens",
+                "quantity": "1"
+              }
+            ]
+          },
+          "context": {
+            "at": "2026-09-25T00:00:00Z",
+            "conditions": {
+              "model": "text-embedding-3-large"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "kind": "catalog",
+      "key": "files.logopanel.text-embedding-3-large.model",
+      "payload": {
+        "models": [
+          {
+            "id": "text-embedding-3-large",
+            "provider": "openai",
+            "adapter_ref": "openai@1",
+            "identity_kind": "alias",
+            "capabilities": [
+              "embeddings.generate"
+            ],
+            "allowed_parameters": [
+              "dimensions"
+            ],
+            "status": "active",
+            "calculation": {
+              "version": 1,
+              "source": "https://developers.openai.com/api/reference/resources/embeddings/methods/create; cl100k_base for complete batch.",
+              "verification": "documented",
+              "verified_at": "2026-09-25T00:00:00Z",
+              "parameters": {
+                "dimensions": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 3072,
+                  "default": 3072
+                }
+              },
+              "preparation": {
+                "mode": "preserve",
+                "max_assets": 0,
+                "max_edge": 4096,
+                "format": "png"
+              },
+              "pricing": {
+                "safety_factor": "1",
+                "markup_percent": "0",
+                "rounding_units": "1"
+              },
+              "components": [
+                {
+                  "key": "input",
+                  "label": "Весь пакет",
+                  "covers": [
+                    "text_input"
+                  ],
+                  "maximum": "300000",
+                  "type": "tokens",
+                  "direction": "input",
+                  "tokenizer": "cl100k_base",
+                  "input_mode": "embedding_batch",
+                  "overhead": 0,
+                  "per_message": 0,
+                  "per_asset": 0,
+                  "result": {
+                    "kind": "quantity",
+                    "dimension": "input.uncached",
+                    "unit": "tokens"
+                  }
+                }
+              ],
+              "samples": [
+                {
+                  "name": "Локальный расчёт; провайдер не вызывался",
+                  "input": {
+                    "input": {
+                      "texts": [
+                        "Синий круг",
+                        "Blue circle"
+                      ]
+                    },
+                    "parameters": {
+                      "dimensions": 3072
+                    },
+                    "assets": []
+                  },
+                  "expected": {
+                    "input": "7"
+                  }
+                }
+              ]
+            },
+            "rate_card_version_id": "@rate_card:files.logopanel.text-embedding-3-large.rates"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "route",
+      "key": "files.logopanel.text-embedding-3-large.route",
+      "payload": {
+        "capability": "embeddings.generate",
+        "primary": {
+          "catalog_version_id": "@catalog:files.logopanel.text-embedding-3-large.model",
+          "model": "text-embedding-3-large",
+          "connection_id": "@connection:primary",
+          "max_cost_units": "100000000"
+        },
+        "platform_risk_budget_units": "1000000000"
+      }
+    },
+    {
+      "kind": "recipe",
+      "key": "files.logopanel.text-embedding-3-large",
+      "payload": {
+        "period_budget_key": "@budget:period",
+        "execution": {
+          "max_attempts": 1
+        },
+        "components": [
+          {
+            "key": "call",
+            "capability": "embeddings.generate",
+            "route_version_id": "@route:files.logopanel.text-embedding-3-large.route",
+            "rate_card_version_id": "@rate_card:files.logopanel.text-embedding-3-large.rates",
+            "count": {
+              "constant": 1
+            },
+            "limits": {},
+            "pricing_mode": "estimated_actual"
+          }
+        ]
+      }
+    }
+  ]
+}

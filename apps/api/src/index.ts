@@ -1,0 +1,12 @@
+import { loadRuntimeSecrets } from '../../../packages/runtime-config/src/index.js';
+import { systemClock } from '../../../packages/contracts/src/index.js';
+import { restoreContentGuard } from '../../../packages/storage/src/index.js';
+import { createPool, transaction } from '../../../packages/db/src/index.js';
+import { createApi } from './server.js';
+await loadRuntimeSecrets();
+const pool=createPool(undefined,'api');
+await transaction(pool,tx=>restoreContentGuard(tx,systemClock));
+const app=createApi(pool);
+await app.listen({host:process.env.UAI_HOST??'127.0.0.1',port:Number(process.env.UAI_PORT??4310)});
+console.log(`UAI API listening on ${app.server.address() && process.env.UAI_PORT || 4310}`);
+for(const signal of ['SIGINT','SIGTERM'] as const)process.on(signal,async()=>{await app.close();await pool.end();process.exit(0)});

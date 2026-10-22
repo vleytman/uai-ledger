@@ -1,0 +1,2 @@
+import type {JevInput} from '../../../packages/contracts/jev';
+export const jevExample:JevInput={state:'My invoice was charged twice. Please help.',questions:{urgent:{type:'noul',instructions:'Does the customer describe an urgent deadline?'},team:{type:'choice',instructions:'Which team should handle the request?',criteria:{billing:'Invoices and payments',technical:'Technical issues'}},severity:{type:'score',instructions:'Rate the severity.',criteria:['Minor inconvenience','Significant problem','Critical outage']}}};
