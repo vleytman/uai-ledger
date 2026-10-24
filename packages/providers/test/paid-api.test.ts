@@ -47,4 +47,17 @@ describe('Paid provider protocols without external calls',()=>{
   const adapter=new SerperApiAdapter({apiKey:'synthetic',models:[request.model],fetch:async(_url,init)=>{body=JSON.parse(String(init.body));return new Response(JSON.stringify({organic:[],credits:2}));}});
   expect(await adapter.execute(request,context)).toMatchObject({outcome:'success',usage:{state:'known',items:[{dimension:'credits',quantity:'2',unit:'credits'}]}});expect(body).toEqual({q:'public patent information',num:10});
  });
+ it('searches images through the same adapter: its own endpoint, the pictures kept, a body without them a defect',async()=>{
+  const request=await input('serper','images');let wire:any;
+  const images=[{title:'Basil packet',imageUrl:'https://example.org/basil.jpg',imageWidth:1200,imageHeight:900,thumbnailUrl:'https://example.org/t.jpg',source:'Seed Savers',domain:'seedsavers.org',link:'https://seedsavers.org/basil',position:1}];
+  const adapter=new SerperApiAdapter({apiKey:'synthetic',models:['serper.search',request.model],fetch:async(url,init)=>{wire={url,body:JSON.parse(String(init!.body))};return new Response(JSON.stringify({images,credits:1}));}});
+  const result=await adapter.execute(request,context);
+  expect(result).toMatchObject({outcome:'success',usage:{state:'known',items:[{dimension:'credits',quantity:'1'}]}});
+  expect(wire).toEqual({url:'https://google.serper.dev/images',body:{q:'hand lettered seed packet',num:10}});
+  expect(JSON.parse((result as any).output.text).images).toEqual(images);
+  const empty=new SerperApiAdapter({apiKey:'synthetic',models:[request.model],fetch:async()=>new Response(JSON.stringify({organic:[],credits:1}))});
+  expect(await empty.execute(request,context)).toMatchObject({outcome:'failure',failure:{kind:'defect',code:'serper_results_missing'}});
+  // A search model cannot be asked for through the images adapter call, nor one the connection does not list.
+  expect(()=>new SerperApiAdapter({apiKey:'synthetic',models:['serper.search']}).validate(request)).toThrow();
+ });
 });
