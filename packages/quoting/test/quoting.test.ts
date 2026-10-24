@@ -1,5 +1,6 @@
 import {afterAll,describe,test,expect,vi} from 'vitest';
 import {monitorEventLoopDelay} from 'node:perf_hooks';
+import {getEncoding} from 'js-tiktoken';
 import {createPool,transaction,type Tx} from '../../db/src/index.js';
 import {id,ManualClock,type Scope} from '../../contracts/src/index.js';
 import {CatalogService,type RouteDefinition} from '../../catalog/src/index.js';
@@ -132,7 +133,7 @@ integration('Quoting atomic admission on PostgreSQL',()=>{
   await f.run(tx=>e.observeAttempt(tx,f.scope,f.clock,{request_id:request.id,attempt_id:attempt.id,fence:request.fencing_token,observation_key:'done',outcome:'success',cost_units:'70',result_available:true},(t,sc,i)=>q.settleRequest(t,sc,f.clock,i)));
   expect(await f.run(tx=>q.getOperation(tx,f.scope,f.clock,accepted.operation_id))).toMatchObject({captured_units:'45',reserved_units:'0'});
  });
- test('a final price for 24 000 letters without spaces is exact and leaves the event loop free',async()=>{
+ test('final prices for 24 000 letters without spaces and for special-token text are exact and leave the event loop free',async()=>{
   const f=await fixture();await publishNewRate(f,'0.0001');
   const rates=await f.run(async tx=>(await new CatalogService(tx,f.clock).list(f.scope)).find(v=>v.kind==='rate_card'&&v.key==='text-rates'&&v.version===2)!);
   await publishCalculated(f,{rateCardId:rates.id,inputMaximum:'30000'});
@@ -145,6 +146,10 @@ integration('Quoting atomic admission on PostgreSQL',()=>{
   expect(elapsed).toBeLessThan(1000);expect(lag.max/1e6).toBeLessThan(250);
   const accepted=await f.invoke({quote_id:quote.id,input:{text:'x'.repeat(24000)},parameters:{max_output_tokens:100},budget:{max_units:quote.price_units}});
   expect(await f.run(tx=>q.getOperation(tx,f.scope,f.clock,accepted.operation_id))).toMatchObject({reserved_units:quote.price_units});
+  const special='Explain what <|endoftext|> and <|endofprompt|> mean.';
+  const plain=await f.quote({profile:'text',kind:'single_call',recipe:{key:'text',version:2},inputs:{},input:{text:special},parameters:{max_output_tokens:100}});
+  const priced=(await pool!.query('SELECT components FROM quotes WHERE id=$1',[plain.id])).rows[0].components[0];
+  expect(priced.calculation_snapshot.breakdown.components.find((r:{key:string})=>r.key==='input').value).toBe(String(getEncoding('o200k_base').encode(special,[],[]).length+6));
  });
  test('parallel final-price admissions cannot spend the same available credits and retries are idempotent',async()=>{
   const f=await fixture();await publishCalculated(f);

@@ -4,11 +4,11 @@ import cl100k from 'js-tiktoken/ranks/cl100k_base';
 import {DomainError} from '../../contracts/src/index.js';
 export type Tokenizer='o200k_base'|'cl100k_base'|'utf8_upper_bound';
 export type TokenInputMode='prompt'|'messages_json'|'compiled_messages_json'|'embedding_batch';
-interface Vocabulary {ranks:Map<string,number>;texts:string[];pattern:string;special:RegExp;maxBytes:number;pairs:Map<number,number>[];cached:number;last?:{text:string;count:number}}
+interface Vocabulary {ranks:Map<string,number>;texts:string[];pattern:string;maxBytes:number;pairs:Map<number,number>[];cached:number;last?:{text:string;count:number}}
 const vocabularies=new Map<string,Vocabulary>();
 function vocabulary(tokenizer:'o200k_base'|'cl100k_base'):Vocabulary{
  let v=vocabularies.get(tokenizer);if(v)return v;
- const source=tokenizer==='o200k_base'?o200k:cl100k;v={ranks:new Map(),texts:[],pattern:source.pat_str,special:new RegExp(Object.keys(source.special_tokens).map(t=>t.replace(/[\\^$*+?.()|[\]{}]/g,'\\$&')).join('|')),maxBytes:0,pairs:[],cached:0};
+ const source=tokenizer==='o200k_base'?o200k:cl100k;v={ranks:new Map(),texts:[],pattern:source.pat_str,maxBytes:0,pairs:[],cached:0};
  for(const line of source.bpe_ranks.split('\n')){if(!line)continue;const [,offset,...tokens]=line.split(' ');tokens.forEach((token,i)=>{const text=Buffer.from(token,'base64').toString('latin1');v!.ranks.set(text,+offset+i);v!.texts[+offset+i]=text;if(text.length>v!.maxBytes)v!.maxBytes=text.length;});}
  vocabularies.set(tokenizer,v);return v;
 }
@@ -28,10 +28,10 @@ function pieceTokens(v:Vocabulary,bytes:string):number{
  while(size){const key=pop(),r=Math.floor(key/2097152),i=key-r*2097152;if(pair[i]!==r)continue;const j=next[i];rank[i]=r;pair[j]=-1;next[i]=next[j];if(next[j]<n)prev[next[j]]=i;parts--;link(i);if(prev[i]>=0)link(prev[i]);}
  return parts;
 }
+// Special-token strings such as <|endoftext|> are user text, not control tokens, so they are counted like any other text.
 // A quote counts the same serialized input for estimation, the primary route and its fallback; the count depends only on the text.
 export function countTokens(text:string,tokenizer:'o200k_base'|'cl100k_base'):number{
  const v=vocabulary(tokenizer);if(v.last?.text===text)return v.last.count;
- const special=text.match(v.special);if(special)throw new Error(`The text contains a special token that is not allowed: ${special[0]}`);
  let total=0;for(const match of text.matchAll(new RegExp(v.pattern,'ug')))total+=pieceTokens(v,Buffer.from(match[0],'utf8').toString('latin1'));v.last={text,count:total};return total;
 }
 export function inputTokens(input:Record<string,unknown>,tokenizer:Tokenizer,mode:TokenInputMode):number{
