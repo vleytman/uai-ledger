@@ -83,6 +83,14 @@ The default request policy allows 300 seconds and four attempts including the fi
 
 `priority: interactive` requests can use reserved capacity, but do not bypass budgets, account limits, provider rate windows or deadlines. A reserve does not preempt running work or guarantee latency. With total capacity 1, there is no physically separate interactive slot.
 
+## Maintenance cycle interval
+
+With the BullMQ backend, the maintenance worker runs one maintenance cycle at a time under a cycle lease. After a cycle that did work, the next one is scheduled after `UAI_MAINTENANCE_INTERVAL_MS` (default 1000 ms, allowed 100–60000).
+
+A cycle without work schedules the next one after `UAI_MAINTENANCE_IDLE_INTERVAL_MS` (defaults to `UAI_MAINTENANCE_INTERVAL_MS`, so behavior does not change unless it is set; allowed from that value up to 3600000). Without work means that when the lease was taken there were no requests without financial closure and no open operations, and the cycle itself did nothing: it settled no bill, closed no deadline or lease, replayed no quota, deleted no content, and processed no events, deliveries or observations. Migration 0075 adds `wake_after`: from that moment (`UAI_MAINTENANCE_INTERVAL_MS` after an idle cycle) the scheduler checks on each of its steps whether work has appeared and starts the cycle before `due_at`. Work means a request without financial closure, an open operation, a due webhook delivery, prepared credit revocation, feedback replay, observation or quota cooldown, expired content, a purge job or a deletion in progress, and monitors with enabled rules that have not run for 60 seconds. Each check reads a partial index from the same migration and is part of the scheduler's existing UPDATE, with no separate query. Deadlines, leases and settlement of new calls therefore do not wait for the long interval: they run after `UAI_MAINTENANCE_INTERVAL_MS` plus one scheduler step. A cycle with work and a cycle after an error do not set `wake_after`.
+
+While idle, the maintenance worker sends no PostgreSQL queries between cycles apart from its heartbeat (every 10 seconds); one cycle costs about 35 queries. For example, `UAI_MAINTENANCE_IDLE_INTERVAL_MS=30000` reduces idle load from about 35 queries per second to one or two per minute. Execution monitoring events (`provider.*`) recorded after the last cycle checked for work can wait until the next cycle, at most this interval. A blob deletion that keeps failing keeps the cycle active until its purge job finishes.
+
 ## Limiter slots and unknown outcomes
 
 An `outcome_unknown` attempt can retain a protective slot while the provider may still be running. This prevents new work from treating an uncertain call as completed capacity.

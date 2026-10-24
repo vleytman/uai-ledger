@@ -4,7 +4,7 @@ import {defaultRuntime} from '../../execution/src/default-runtime.js';
 import {maintenanceRuntime} from '../../execution/src/maintenance-runtime.js';
 import {replayQuotaFeedback} from '../../execution/src/quota-feedback.js';
 import {executeRequest,observeNativeRequest,schedulerTick,type WorkerDependencies} from '../../execution/src/runtime.js';
-import {executeMaintenance} from './maintenance.js';
+import {executeMaintenance,maintenanceIntervals,type MaintenanceIntervals} from './maintenance.js';
 import {providerAdmission} from './provider-admission.js';
 import {shadowAdmission} from './shadow-admission.js';
 import {ExecutionTransport,queueKinds,type QueueKind} from './transport.js';
@@ -32,6 +32,8 @@ export interface BullmqWorkerOptions extends Partial<BullmqWorkerSettings> {
  /** Log a quota shadow sample per admission (UAI_QUOTA_SHADOW). */
  shadow?:(sample:Record<string,unknown>)=>void;
  heartbeatMs?:number;
+ /** Maintenance cycle spacing; defaults to UAI_MAINTENANCE_INTERVAL_MS and UAI_MAINTENANCE_IDLE_INTERVAL_MS. */
+ maintenance?:MaintenanceIntervals;
  onTransportError?:(error:Error)=>void;
 }
 export interface BullmqWorker {
@@ -46,7 +48,7 @@ export interface BullmqWorker {
 export function startBullmqWorker(options:BullmqWorkerOptions):BullmqWorker{
  const {pool,installation,redisUrl}=options;
  if(!redisUrl||!installation)throw new Error('redis_and_installation_required');
- const settings=bullmqWorkerSettings({},options),name=options.name??id('worker'),deps=options.deps??defaultRuntime(pool);
+ const settings=bullmqWorkerSettings({},options),name=options.name??id('worker'),deps=options.deps??defaultRuntime(pool),intervals=options.maintenance??maintenanceIntervals();
  const transport=new ExecutionTransport(installation,redisUrl),quota=providerAdmission(pool,redisUrl,installation);
  const gates=new Map(settings.queues.map(kind=>[kind,new WorkerPriorityGate(settings.concurrency,settings.interactive_reserve)]));
  const activity=[...new Set(settings.queues)].map(queue_kind=>({queue_kind,concurrency:settings.concurrency,active_jobs:0}));
@@ -61,9 +63,9 @@ export function startBullmqWorker(options:BullmqWorkerOptions):BullmqWorker{
    item.active_jobs++;
    try{
     if(kind==='maintenance')return await executeMaintenance(pool,installation,delivery,async()=>{
-     await replayQuotaFeedback(pool,quota.onProviderResult);await quota.replayObservations();await quota.replayCooldowns();
-     return schedulerTick(pool,{...maintenanceRuntime(pool,deps),limits:{...deps.limits,backend:'legacy'}},undefined,`${name}-maintenance`);
-    });
+     const replayed={quota_feedback:await replayQuotaFeedback(pool,quota.onProviderResult),quota_observations:await quota.replayObservations(),quota_cooldowns:await quota.replayCooldowns()};
+     return {...replayed,...await schedulerTick(pool,{...maintenanceRuntime(pool,deps),limits:{...deps.limits,backend:'legacy'}},undefined,`${name}-maintenance`)};
+    },undefined,intervals);
     if(kind==='observe'){
      if(delivery.purpose!=='observe'||!Number.isSafeInteger(delivery.poll_count))throw new Error('unexpected_observation_delivery');
      return await observeNativeRequest(pool,{...deps,...hooks},{request_id:delivery.request_id,generation:delivery.generation,poll_count:delivery.poll_count!},undefined,`${name}-observe`);
