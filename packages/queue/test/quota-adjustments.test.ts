@@ -75,4 +75,55 @@ describe.skipIf(!pool||!url)('Confirmed quota excess',()=>{
    expect((await pool!.query('SELECT demands FROM dispatch_admissions WHERE id=$1',[first.input.id])).rows[0].demands).toEqual(first.input.demands);
   }finally{await pool!.query("UPDATE execution_requests SET execution_status='canceled',lease_expires_at=NULL WHERE organization_id=$1",[scope.organization_id]);await broker.close();await store.close();await otherStore?.close()}
  });
+ for(const coordinated of [false,true,'multi'] as const)it(`gives back the unused part of a demand once, across duplicate feedback, lost acknowledgements and Redis loss (${coordinated==='multi'?'multi-group':coordinated?'bundle':'single'})`,async()=>{
+  const scope={organization_id:id('org'),application_id:id('app'),account_id:id('account')},group=id('quota'),installation=id('test'),domain=coordinated?id('domain'):null,otherGroup=id('quota');
+  for(const g of [group,...(coordinated==='multi'?[otherGroup]:[])]){
+   await pool!.query("INSERT INTO provider_quota_groups(id,organization_id,name,provider,scope,recovery_epoch,source,coordination_domain) VALUES($1,$2,$1,'fake','{}','epoch','synthetic',$3)",[g,scope.organization_id,domain]);
+   await pool!.query("INSERT INTO provider_quota_rules(group_id,key,metric,capacity,window_ms) VALUES($1,'tokens','tokens',100,60000)",[g]);
+  }
+  const otherStore=coordinated==='multi'?new QuotaStore(url!,installation,otherGroup,JSON.stringify([scope.organization_id,domain])):null;
+  const store=new QuotaStore(url!,installation,group,domain?JSON.stringify([scope.organization_id,domain]):undefined),broker=providerAdmission(pool!,url!,installation);
+  const add=async(amount:number)=>{
+   const request=await transaction(pool!,tx=>enqueue(tx,scope,systemClock,{operation_id:id('op'),component:'text',client_request_key:id('request'),input_hash:'test',input_ref:'test',route:{primary:{connection_id:'fake',model:'fake',endpoint_scope:'fake',max_cost_units:'0'},period_budget_key:'test',request_risk_limit_units:'0',incident_risk_limit_units:'0'},max_units:'0',deadline_at:new Date(Date.now()+60000)}));
+   const lease=await transaction(pool!,tx=>leaseNext(tx,systemClock,'test',{scope,account:20,application:20},undefined,request.id));
+   const input={id:id('admission'),group_id:group,request_id:request.id,fence:String(lease.fencing_token),demands:[{key:'tokens',capacity:100,window_ms:60000,amount}]};
+   if(coordinated)await recordAdmissionBundle(pool!,`bundle-${input.id}`,[input,...(otherStore?[{...input,id:input.id+'-other',group_id:otherGroup}]:[])]);else await recordAdmissionIntent(pool!,input);
+   const result=coordinated?await acquireAdmissionBundle(pool!,url!,installation,`bundle-${input.id}`):await acquireDurable(pool!,store,input);
+   return {input,result};
+  };
+  const usedIn=async(target:QuotaStore)=>{const snapshot=await target.snapshot('epoch',[{key:'tokens',capacity:100,window_ms:60000}]);return snapshot.ready?snapshot.rules[0]!.used:snapshot.reason};
+  const used=async()=>[await usedIn(store),...(otherStore?[await usedIn(otherStore)]:[])];
+  const expected=(value:string)=>otherStore?[value,value]:[value];
+  try{
+   await store.connect();await otherStore?.connect();
+   const first=await add(80);expect(first.result.allowed).toBe(true);
+   expect((await add(30)).result).toMatchObject({allowed:false,reason:'limited'});
+   const report=(tokens:number)=>broker.onProviderResult(scope,{id:first.input.request_id},{quota_admission_id:first.input.id},{outcome:'success',output:{content_type:'text/plain'},usage:{state:'unknown',reason:'cache split missing'},limit_usage:{requests:1,tokens}});
+   await Promise.all([report(20),report(20)]);
+   expect(await used()).toEqual(expected('20'));
+   // The window holds 60 tokens that the worst case kept from other calls.
+   expect((await add(30)).result.allowed).toBe(true);
+   expect(await used()).toEqual(expected('50'));
+   await report(20);expect(await used()).toEqual(expected('50'));
+   const refunds=(await pool!.query('SELECT admission_id,admitted_units::text,actual_units::text,applied_at IS NOT NULL AS applied FROM quota_usage_refunds WHERE group_id=ANY($1::text[]) ORDER BY admission_id',[[group,otherGroup]])).rows;
+   expect(refunds).toEqual([{admission_id:first.input.id,admitted_units:'80',actual_units:'20',applied:true},...(otherStore?[{admission_id:first.input.id+'-other',admitted_units:'80',actual_units:'20',applied:true}]:[])]);
+   for(const change of ["actual_units=actual_units+1","admitted_units=admitted_units+1","observed_at=observed_at+interval '1 minute'"])
+    await expect(pool!.query(`UPDATE quota_usage_refunds SET ${change} WHERE group_id=$1`,[group])).rejects.toThrow('quota_refund_facts_immutable');
+   // Lose this test namespace: recovery restores both admissions at their admitted amounts, then the refund.
+   const tag=createHash('sha256').update(JSON.stringify([installation,domain?JSON.stringify([scope.organization_id,domain]):group])).digest('hex');const keys=await store.redis.keys(`uai-quota:{${tag}}:*`);await store.redis.del(...keys);
+   expect((await add(51)).result).toMatchObject({allowed:false,reason:'limited'});
+   expect(await used()).toEqual(expected('50'));
+   expect((await add(50)).result.allowed).toBe(true);
+   expect(await used()).toEqual(expected('100'));
+   // A lost acknowledgement leaves the refund pending; applying it again gives nothing back twice.
+   await pool!.query('UPDATE quota_usage_refunds SET applied_at=NULL WHERE group_id=ANY($1::text[])',[[group,otherGroup]]);
+   const original=QuotaStore.prototype.refund;
+   const lost=vi.spyOn(QuotaStore.prototype,'refund').mockImplementationOnce(async function(this:QuotaStore,...args){await original.apply(this,args);throw new Error('lost Redis acknowledgement')});
+   try{await expect(add(1)).rejects.toThrow('lost Redis acknowledgement')}finally{lost.mockRestore()}
+   expect((await add(1)).result).toMatchObject({allowed:false,reason:'limited'});
+   expect(await used()).toEqual(expected('100'));
+   expect((await pool!.query('SELECT bool_and(applied_at IS NOT NULL) AS applied FROM quota_usage_refunds WHERE group_id=$1',[group])).rows[0].applied).toBe(true);
+   expect((await pool!.query('SELECT demands FROM dispatch_admissions WHERE id=$1',[first.input.id])).rows[0].demands).toEqual(first.input.demands);
+  }finally{await pool!.query("UPDATE execution_requests SET execution_status='canceled',lease_expires_at=NULL WHERE organization_id=$1",[scope.organization_id]);await broker.close();await store.close();await otherStore?.close()}
+ });
 });

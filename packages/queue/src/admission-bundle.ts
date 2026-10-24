@@ -1,6 +1,6 @@
 import {backgroundSlotsFull} from './priority.js';
 import {withQuotaLocks,quotaTransaction} from './group-lock.js';
-import {applyQuotaExcess} from './quota-adjustments.js';
+import {applyQuotaUsage} from './quota-adjustments.js';
 import {refundUnusedAdmissions} from './unused-admissions.js';
 import {QuotaStore,type Admission} from './quota.js';
 import {applyQuotaHeaders} from './headers.js';
@@ -86,13 +86,13 @@ export async function acquireAdmissionBundle(pool:pg.Pool,url:string,installatio
     const prior=(await client.query("SELECT * FROM dispatch_admissions WHERE group_id=$1 AND (id<>$2 OR state='admitted') AND state<>'rejected' AND unused_at IS NULL AND created_at>now()-interval '25 hours' ORDER BY created_at",[group.id,member.id])).rows;
     const recoveryTime=await store.currentTime();
     for(const row of prior)await store.restore(row.id,row.admitted_at?new Date(row.admitted_at).getTime():recoveryTime,row.demands);
-    await applyQuotaExcess(client,store,group,true);
+    await applyQuotaUsage(client,store,group,true);
     const observations=(await client.query("SELECT * FROM quota_observations WHERE group_id=$1 AND received_at>now()-interval '25 hours' ORDER BY received_at",[group.id])).rows;
     const rules=(await client.query('SELECT key,metric,window_ms FROM provider_quota_rules WHERE group_id=$1',[group.id])).rows;
     for(const observation of observations)await applyQuotaHeaders(store,rules,{...observation,sent_at:new Date(observation.sent_at).toISOString(),received_at:new Date(observation.received_at).toISOString()});
     await store.markRestored(group.recovery_epoch);
    }
-   await applyQuotaExcess(client,store,group);
+   await applyQuotaUsage(client,store,group);
    await refundUnusedAdmissions(client,store,group);
    if(group.blocked_until&&new Date(group.blocked_until).getTime()>Date.now()){
     for(const demand of member.demands)await store.blockUntil(group.recovery_epoch,demand.key,new Date(group.blocked_until).getTime());

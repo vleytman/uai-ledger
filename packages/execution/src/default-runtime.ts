@@ -5,6 +5,7 @@ import {inputAssetIds} from '../../storage/src/index.js';
 import {apiLimitUsage} from '../../providers/src/api-limit-usage.js';
 import {createRegisteredAdapter,adapterDefinition} from '../../providers/src/registry.js';
 import {imageQuotaEstimate} from './image-quota-estimate.js';
+import {textQuotaEstimate} from './text-quota-estimate.js';
 import {createBlobStore} from '../../storage/src/blob-store.js';
 import type pg from 'pg';
 import { transaction, emit } from '../../db/src/index.js';
@@ -47,7 +48,8 @@ export function defaultRuntime(pool:pg.Pool,clock:Clock=systemClock):WorkerDepen
    else if(!input.assets&&inputAssetIds(p.input).length){input.assets=[];for(const assetId of inputAssetIds(p.input)){const a=await getAsset(pool,scope,clock,assetId,true,request.id);input.assets.push({content_type:a.media_type,bytes:await blobStore.get(a.blob_key),filename:a.id});}}
    const snapshot=c.component.calculation_snapshot;
    const limit_usage_estimate=c.component.api_snapshot?apiLimitUsage(c.component.api_snapshot.measurements):input.capability==='image.generate'&&snapshot?.model===variant.model
-    ?imageQuotaEstimate(variant.model,snapshot.breakdown,c.accepted_rate_card,{at:new Date(c.accepted_at).toISOString(),connection_id:variant.connection_id,conditions:{...Object.fromEntries(Object.entries(params).map(([k,v])=>[k,String(v)])),...c.component.conditions,model:variant.model}}):undefined;
+    ?imageQuotaEstimate(variant.model,snapshot.breakdown,c.accepted_rate_card,{at:new Date(c.accepted_at).toISOString(),connection_id:variant.connection_id,conditions:{...Object.fromEntries(Object.entries(params).map(([k,v])=>[k,String(v)])),...c.component.conditions,model:variant.model}})
+    :input.capability==='text.generate'&&snapshot?.model===variant.model?textQuotaEstimate(snapshot.breakdown,input.max_output_tokens):undefined;
    return {input,api_snapshot:c.component.api_snapshot,limit_usage_estimate,expected_output_tokens:p.parameters?.expected_output_tokens,accepted_rate_card:c.accepted_rate_card,current_rate_card:c.current_rate_card,accepted_at:new Date(c.accepted_at).toISOString(),maximum_items:variant.maximum_items??c.component.maximum_items,price_increase_allowed:!!c.component.calculation_snapshot,conditions:c.component.calculation_snapshot?{...c.component.conditions,model:variant.model}:c.component.conditions};
   },
   async observationContext(scope,request,attempt):Promise<WorkContext>{

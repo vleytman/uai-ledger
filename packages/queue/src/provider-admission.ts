@@ -1,5 +1,5 @@
 import {quotaDemands} from './quota-demands.js';
-import {recordQuotaExcess,applyQuotaExcess} from './quota-adjustments.js';
+import {recordQuotaUsage,applyQuotaUsage} from './quota-adjustments.js';
 import {transaction} from '../../db/src/index.js';
 import {recordAdmissionBundle,acquireAdmissionBundle} from './admission-bundle.js';
 import {applyQuotaHeaders} from './headers.js';
@@ -109,7 +109,7 @@ export function providerAdmission(pool:pg.Pool,url:string,installation:string){
   const ids=await memberIds(attempt.quota_admission_id);
   let adjustedGroups:any[]=[];
   const groups=await transaction(pool,async tx=>{
-   adjustedGroups=await recordQuotaExcess(tx,ids,result.limit_usage,attempt.quota_observed_at);
+   adjustedGroups=await recordQuotaUsage(tx,ids,result.limit_usage,attempt.quota_observed_at);
    if(result.outcome==='unknown')await tx.query(`UPDATE dispatch_admissions a SET slot_unknown_at=COALESCE(a.slot_unknown_at,$2::timestamptz,now()),slot_heartbeat_until=NULL,slot_expires_at=COALESCE(a.slot_unknown_at,$2::timestamptz,now())+g.unknown_hold_ms*interval '1 millisecond' FROM provider_quota_groups g WHERE a.id=ANY($1::text[]) AND a.group_id=g.id AND a.slot_released_at IS NULL AND a.slot_expires_at>now()`,[ids,attempt.quota_observed_at??null]);
    else await tx.query('UPDATE dispatch_admissions SET slot_released_at=COALESCE(slot_released_at,now()) WHERE id=ANY($1::text[])',[ids]);
    if(result.outcome==='success'||result.failure.kind!=='transient')return [];
@@ -117,7 +117,7 @@ export function providerAdmission(pool:pg.Pool,url:string,installation:string){
    await tx.query("UPDATE dispatch_admissions SET cooldown_until=COALESCE(cooldown_until,COALESCE($3::timestamptz,now())+$2*interval '1 millisecond') WHERE id=ANY($1::text[])",[ids,delay,attempt.quota_observed_at??null]);
    return (await tx.query(`UPDATE provider_quota_groups g SET blocked_until=GREATEST(g.blocked_until,a.cooldown_until),cooldown_retry_at=now() FROM dispatch_admissions a WHERE a.id=ANY($1::text[]) AND a.group_id=g.id RETURNING g.*,g.blocked_until::text AS cooldown_target`,[ids])).rows;
   });
-  for(const group of adjustedGroups)await applyQuotaExcess(pool,await storeFor(group),group);
+  for(const group of adjustedGroups)await applyQuotaUsage(pool,await storeFor(group),group);
   for(const group of groups)await applyCooldown(group);
  };
  // A confirmed remote job is held independently of the original submission lease.

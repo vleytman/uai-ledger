@@ -31,6 +31,20 @@ end
 redis.call('SET',KEYS[2],ARGV[1],'PX',90000000)
 return 1
 `;
+// The admission's own event keeps its timestamp and takes the actual amount; replaying it changes nothing.
+const refundScript=`${redisGenerationScript}
+local restore=ARGV[5]=='restore'
+if restore and quota_run_id~=ARGV[6] then return 0 end
+if not restore and redis.call('GET',KEYS[1])~=(ARGV[1]..':'..quota_run_id) then return 0 end
+local admitted=ARGV[2]..'|'..ARGV[3]
+local score=redis.call('ZSCORE',KEYS[2],admitted)
+if score then
+ redis.call('ZREM',KEYS[2],admitted)
+ if tonumber(ARGV[4])>0 then redis.call('ZADD',KEYS[2],score,ARGV[2]..'|'..ARGV[4]) end
+ redis.call('DEL',KEYS[3])
+end
+return 1
+`;
 // Each slot is one provider-account domain; every key shares a Redis Cluster hash tag.
 const restoreScript=`${redisGenerationScript}
 if quota_run_id~=ARGV[5] then return 0 end
@@ -269,6 +283,12 @@ export class QuotaStore {
   if(!epoch||!id||!demand.key||![demand.amount,demand.window_ms,at].every(Number.isSafeInteger)||demand.amount<1||demand.window_ms<1||demand.window_ms>86400000||at<0)throw new Error('invalid_quota_adjustment');
   const identity=digest(id);
   return Number(await this.redis.eval(excessScript,5,`${this.prefix}:ready`,`${this.prefix}:adjustment:${identity}`,`${this.prefix}:rule:${digest(demand.key)}`,`${this.prefix}:observed`,`${this.prefix}:rule:${digest(demand.key)}:aggregate`,epoch,identity,demand.key,demand.amount,at,demand.window_ms,restore?'restore':'apply',this.recoveryRunId??''))===1;
+ }
+ /** Gives back the unused part of an admitted demand. Provider observations are untouched: headers only ever lower availability. */
+ async refund(epoch:string,admissionId:string,demand:{key:string;admitted:number;actual:number},restore=false){
+  if(!epoch||!admissionId||!demand.key||![demand.admitted,demand.actual].every(Number.isSafeInteger)||demand.actual<0||demand.actual>=demand.admitted)throw new Error('invalid_quota_refund');
+  const rule=`${this.prefix}:rule:${digest(demand.key)}`;
+  return Number(await this.redis.eval(refundScript,3,`${this.prefix}:ready`,rule,`${rule}:aggregate`,epoch,digest(admissionId),String(demand.admitted),String(demand.actual),restore?'restore':'apply',this.recoveryRunId??''))===1;
  }
  async currentTime(){const [seconds,microseconds]=await this.redis.time();return Number(seconds)*1000+Math.floor(Number(microseconds)/1000)}
  /** Reconciler-only replay while the gate is closed; original timestamps preserve windows. */

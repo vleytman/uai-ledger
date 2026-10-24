@@ -104,11 +104,18 @@ describe.skipIf(!pool)('estimated actual usage end to end',()=>{
     expect((await pool!.query('SELECT applied_at IS NOT NULL AS applied FROM quota_result_feedback WHERE request_id=$1',[call.request_id])).rows).toEqual([{applied:true}]);
    }
    const admission=(await pool!.query('SELECT demands FROM dispatch_admissions WHERE request_id=$1 AND group_id=$2',[call.request_id,scope.organization_id])).rows[0];
-   expect(Object.fromEntries(admission.demands.map((d:any)=>[d.key,d.amount]))).toEqual({requests:1,input_tokens:1000,output_tokens:4096,tokens:5096});
+   // The input counted when the call was quoted, not the connection's 1000-token maximum.
+   const counted=Number((await pool!.query("SELECT c->>'value' AS value FROM request_authorizations a,jsonb_array_elements(a.component->'calculation_snapshot'->'breakdown'->'components') c WHERE a.request_id=$1 AND c->>'key'='input'",[call.request_id])).rows[0].value);
+   expect(counted).toBeGreaterThan(0);expect(counted).toBeLessThan(100);
+   expect(Object.fromEntries(admission.demands.map((d:any)=>[d.key,d.amount]))).toEqual({requests:1,input_tokens:counted,output_tokens:4096,tokens:counted+4096});
+   // Actual usage below the admitted estimate goes back to the window; above it, the excess is added.
+   const refunds=(await pool!.query('SELECT rule_key,admitted_units::text,actual_units::text,applied_at IS NOT NULL AS applied FROM quota_usage_refunds WHERE group_id=$1 ORDER BY rule_key',[scope.organization_id])).rows;
+   expect(refunds).toEqual([{rule_key:'input_tokens',admitted_units:String(counted),actual_units:'10',applied:true},
+    ...(outputTokens<4096?[{rule_key:'output_tokens',admitted_units:'4096',actual_units:String(outputTokens),applied:true},{rule_key:'tokens',admitted_units:String(counted+4096),actual_units:String(outputTokens+10),applied:true}]:[])]);
    const permits=(await pool!.query('SELECT state,slot_released_at IS NOT NULL AS released FROM dispatch_admissions WHERE request_id=$1',[call.request_id])).rows;
    expect(permits).toHaveLength(multi?2:1);expect(permits.every(p=>p.state==='admitted'&&p.released)).toBe(true);
    if(outputTokens>4096){
-    expect((await pool!.query('SELECT rule_key,delta_units::text,applied_at IS NOT NULL AS applied FROM quota_usage_adjustments WHERE group_id=$1 ORDER BY rule_key',[scope.organization_id])).rows).toEqual([{rule_key:'output_tokens',delta_units:String(outputTokens-4096),applied:true},{rule_key:'tokens',delta_units:String(outputTokens+10-5096),applied:true}]);
+    expect((await pool!.query('SELECT rule_key,delta_units::text,applied_at IS NOT NULL AS applied FROM quota_usage_adjustments WHERE group_id=$1 ORDER BY rule_key',[scope.organization_id])).rows).toEqual([{rule_key:'output_tokens',delta_units:String(outputTokens-4096),applied:true},{rule_key:'tokens',delta_units:String(outputTokens+10-counted-4096),applied:true}]);
     // Ensure credit remains available before testing the next quota admission.
     await transaction(pool!,tx=>grant(tx,scope,clock,{idempotency_key:'fund-next',source:'purchase',external_reference:id('fund-next'),amount_units:'10000000',expires_at:null,terms_version:'test'}));
    }
