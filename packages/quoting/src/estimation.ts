@@ -1,5 +1,5 @@
 import {inputAssetIds} from '../../storage/src/index.js';
-import {getEncoding} from 'js-tiktoken';
+import {countTokens} from '../../model-pricing/src/tokenization.js';
 import {DomainError} from '../../contracts/src/index.js';
 import type {BillableItem} from '../../providers/src/contracts.js';
 
@@ -9,7 +9,6 @@ export interface EstimateRule {
  maximum:number;expected?:number;conditions?:Record<string,string>;
 }
 export interface EstimationPolicy {version:1;tokenizer?:'o200k_base'|'cl100k_base';rules:EstimateRule[];source:string}
-const encoders=new Map<string,ReturnType<typeof getEncoding>>();
 export function validateEstimation(policy:EstimationPolicy){
  if(!policy||policy.version!==1||typeof policy.source!=='string'||!policy.source.trim()||!Array.isArray(policy.rules)||!policy.rules.length||policy.rules.length>32||policy.tokenizer&&!['o200k_base','cl100k_base'].includes(policy.tokenizer))throw new DomainError('invalid_estimation','Invalid estimation policy',422);
  for(const r of policy.rules){
@@ -26,7 +25,7 @@ export function estimateItems(policy:EstimationPolicy,payload?:{input:Record<str
  const framing=128+(Array.isArray(input?.messages)?input.messages.length*16:0);
  const byteBound=Buffer.byteLength(serial,'utf8')+framing;
  let expectedTokens=byteBound;
- if(input&&policy.tokenizer){let encoder=encoders.get(policy.tokenizer);if(!encoder){encoder=getEncoding(policy.tokenizer);encoders.set(policy.tokenizer,encoder)}expectedTokens=encoder.encode(serial).length+16+(Array.isArray(input.messages)?input.messages.length*4:0);}
+ if(input&&policy.tokenizer)expectedTokens=countTokens(serial,policy.tokenizer)+16+(Array.isArray(input.messages)?input.messages.length*4:0);
  const maximum:BillableItem[]=[],expected:BillableItem[]=[];
  for(const rule of policy.rules){
   let max=rule.maximum,forecast=rule.expected??max;

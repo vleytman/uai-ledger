@@ -1,4 +1,5 @@
 import {afterAll,describe,test,expect,vi} from 'vitest';
+import {monitorEventLoopDelay} from 'node:perf_hooks';
 import {createPool,transaction,type Tx} from '../../db/src/index.js';
 import {id,ManualClock,type Scope} from '../../contracts/src/index.js';
 import {CatalogService,type RouteDefinition} from '../../catalog/src/index.js';
@@ -31,9 +32,9 @@ async function fixture(){
  const invoke=(input:Partial<q.QuoteInput&{quote_id:string}>={})=>run(tx=>q.invoke(tx,scope,clock,{idempotency_key:id('invoke'),profile:'text',input:{messages:[{role:'user',content:'Hello'}]},parameters:{max_output_tokens:100},budget:{max_units:'3000'},...input}));
  return {scope,clock,run,def,quote,invoke,primary,fallback};
 }
-async function publishCalculated(f:Awaited<ReturnType<typeof fixture>>,options:{version?:number;rateCardId?:string;pricing?:import('../../model-pricing/src/index.js').ModelCalculation['pricing']}={}){
+async function publishCalculated(f:Awaited<ReturnType<typeof fixture>>,options:{version?:number;rateCardId?:string;inputMaximum?:string;pricing?:import('../../model-pricing/src/index.js').ModelCalculation['pricing']}={}){
   const calc:import('../../model-pricing/src/index.js').ModelCalculation={version:1,source:'synthetic test',verification:'approximate',verified_at:'2026-01-01',parameters:{max_output_tokens:{type:'number',minimum:1,maximum:100,default:100}},preparation:{max_assets:0,max_edge:512,format:'png'},pricing:options.pricing??{safety_factor:'1.1',markup_percent:'50',rounding_units:'1'},components:[
-   {key:'input',label:'Input',covers:['text_input'],maximum:'1000',result:{kind:'quantity',dimension:'input.uncached',unit:'tokens'},type:'tokens',direction:'input',tokenizer:'o200k_base',input_mode:'prompt',overhead:6,per_asset:0,per_message:0},
+   {key:'input',label:'Input',covers:['text_input'],maximum:options.inputMaximum??'1000',result:{kind:'quantity',dimension:'input.uncached',unit:'tokens'},type:'tokens',direction:'input',tokenizer:'o200k_base',input_mode:'prompt',overhead:6,per_asset:0,per_message:0},
    {key:'output',label:'Output',covers:['text_output'],maximum:'100',result:{kind:'quantity',dimension:'output.text',unit:'tokens'},type:'tokens',direction:'output',policy:'configured_expected',expected:20,limit_parameter:'max_output_tokens'}
   ],samples:[{name:'hello',input:{input:{text:'Hello'},parameters:{max_output_tokens:100},assets:[]},expected:{input:'7',output:'20'}}]};
   await f.run(async tx=>{const catalog=new CatalogService(tx,f.clock);const old=(await catalog.get(f.scope,f.def.components[0].route_version_id)).payload as RouteDefinition;const models=await catalog.createDraft(f.scope,{kind:'catalog',key:'calculated',version:options.version??1,author:'test',comment:'test',payload:{models:[{id:'fake-text',provider:'fake',capabilities:['text.generate'],allowed_parameters:['max_output_tokens'],status:'active',rate_card_version_id:options.rateCardId??f.def.components[0].rate_card_version_id,calculation:calc}]}});await catalog.publish(f.scope,models.id,1);
@@ -130,6 +131,20 @@ integration('Quoting atomic admission on PostgreSQL',()=>{
   const attempt=await f.run(tx=>e.prepareDispatch(tx,f.scope,f.clock,request.id,request.fencing_token));
   await f.run(tx=>e.observeAttempt(tx,f.scope,f.clock,{request_id:request.id,attempt_id:attempt.id,fence:request.fencing_token,observation_key:'done',outcome:'success',cost_units:'70',result_available:true},(t,sc,i)=>q.settleRequest(t,sc,f.clock,i)));
   expect(await f.run(tx=>q.getOperation(tx,f.scope,f.clock,accepted.operation_id))).toMatchObject({captured_units:'45',reserved_units:'0'});
+ });
+ test('a final price for 24 000 letters without spaces is exact and leaves the event loop free',async()=>{
+  const f=await fixture();await publishNewRate(f,'0.0001');
+  const rates=await f.run(async tx=>(await new CatalogService(tx,f.clock).list(f.scope)).find(v=>v.kind==='rate_card'&&v.key==='text-rates'&&v.version===2)!);
+  await publishCalculated(f,{rateCardId:rates.id,inputMaximum:'30000'});
+  const lag=monitorEventLoopDelay({resolution:10});lag.enable();const started=performance.now();
+  const quote=await f.quote({profile:'text',kind:'single_call',recipe:{key:'text',version:2},inputs:{},input:{text:'x'.repeat(24000)},parameters:{max_output_tokens:100}});
+  const elapsed=performance.now()-started;lag.disable();
+  // js-tiktoken encode returns 3000 tokens for this run after about 34 s; overhead 6 is configured by publishCalculated.
+  const stored=(await pool!.query('SELECT components FROM quotes WHERE id=$1',[quote.id])).rows[0].components[0];
+  expect(stored.calculation_snapshot.breakdown.components.find((r:{key:string})=>r.key==='input').value).toBe('3006');
+  expect(elapsed).toBeLessThan(1000);expect(lag.max/1e6).toBeLessThan(250);
+  const accepted=await f.invoke({quote_id:quote.id,input:{text:'x'.repeat(24000)},parameters:{max_output_tokens:100},budget:{max_units:quote.price_units}});
+  expect(await f.run(tx=>q.getOperation(tx,f.scope,f.clock,accepted.operation_id))).toMatchObject({reserved_units:quote.price_units});
  });
  test('parallel final-price admissions cannot spend the same available credits and retries are idempotent',async()=>{
   const f=await fixture();await publishCalculated(f);
