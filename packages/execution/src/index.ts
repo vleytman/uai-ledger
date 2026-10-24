@@ -23,6 +23,10 @@ const terminal=(s:string)=>['succeeded','failed','canceled','refused'].includes(
 export const UNKNOWN_SLOT_GRACE_MS=300000;
 /** Remote jobs are polled until the deadline plus this window. */
 export const REMOTE_OBSERVATION_WINDOW_MS=3600000;
+/** A call is not started with less than this left before its deadline: it could not finish, and the deadline would cut it
+ * at once, leaving an unknown outcome where there should be a request that never ran. */
+export const START_MARGIN_MS=10000;
+const tooLateToStart=(r:any,clock:Clock)=>new Date(r.deadline_at).getTime()-clock.now().getTime()<START_MARGIN_MS;
 /** An unknown outcome keeps its protective limiter slot only while a result can still land. */
 export const unknownSlotHeld=(attempt:string,request:string,now:string)=>`(${attempt}.status='outcome_unknown' AND ${request}.financial_closed_at IS NULL AND ${request}.deadline_at+CASE WHEN ${attempt}.remote_job_id IS NULL THEN ${UNKNOWN_SLOT_GRACE_MS} ELSE ${REMOTE_OBSERVATION_WINDOW_MS} END*interval '1 millisecond'>${now})`;
 // Closing a request that never reached the provider: name what kept it waiting, not a slow model.
@@ -89,7 +93,7 @@ export async function leaseNext(tx:Tx,clock:Clock,worker:string,limits:LeaseLimi
  for(const r of candidates.rows){
   if(!deferred&&!await tryLockExecutionAccount(tx,scopeOf(r)))continue;
   const waited=clock.now().getTime()-new Date(r.enqueued_at).getTime()-Number(r.recovery_wait_ms)-(r.recovery_wait_started_at?clock.now().getTime()-new Date(r.recovery_wait_started_at).getTime():0);
-  if(new Date(r.deadline_at)<=clock.now() || (!r.first_dispatched_at&&waited>=r.initial_queue_budget_ms)){if(deferred)throw new DomainError('execution_closure_required');await closeUnsent(tx,r,clock,unsentDeadlineReason(r),settle);continue;}
+  if(tooLateToStart(r,clock) || (!r.first_dispatched_at&&waited>=r.initial_queue_budget_ms)){if(deferred)throw new DomainError('execution_closure_required');await closeUnsent(tx,r,clock,unsentDeadlineReason(r),settle);continue;}
   const appCount=counts.filter(c=>c.application_id===r.application_id&&c.organization_id===r.organization_id).reduce((n,c)=>n+c.count,0);
   const accountCount=counts.filter(c=>c.account_id===r.account_id&&c.application_id===r.application_id&&c.organization_id===r.organization_id).reduce((n,c)=>n+c.count,0);
   if(appCount>=(limits.application??8)||accountCount>=(limits.account??2))continue;
@@ -124,7 +128,7 @@ export async function closeUnsentIfRequired(tx:Tx,clock:Clock,requestId:string,l
  if(limits.generation!==undefined&&r.dispatch_generation!==limits.generation)return false;
  if(limits.scope&&scopeValues(limits.scope).some((value,index)=>value!==scopeValues(scopeOf(r))[index]))return false;
  const waited=clock.now().getTime()-new Date(r.enqueued_at).getTime()-Number(r.recovery_wait_ms)-(r.recovery_wait_started_at?clock.now().getTime()-new Date(r.recovery_wait_started_at).getTime():0);
- let reason=new Date(r.deadline_at)<=clock.now()||(!r.first_dispatched_at&&waited>=r.initial_queue_budget_ms)?unsentDeadlineReason(r):null;
+ let reason=tooLateToStart(r,clock)||(!r.first_dispatched_at&&waited>=r.initial_queue_budget_ms)?unsentDeadlineReason(r):null;
  if(!reason){const incident=(await tx.query("SELECT status FROM execution_incidents WHERE organization_id=$1 AND failure_scope=$2 FOR UPDATE",[r.organization_id,r.route.primary.endpoint_scope])).rows[0];if(incident?.status==='locked')reason='provider_recovery_exhausted';}
  if(!reason)return false;
  await closeUnsent(tx,r,clock,reason,settle);return true;
@@ -153,7 +157,7 @@ export async function prepareDispatch(tx:Tx,scope:Scope,clock:Clock,requestId:st
  // Independent accounts may prepare concurrently; endpoint and budget locks protect shared resources.
  await lockExecutionAccount(tx,scope,'shared');
  const r=await lockedRequest(tx,scope,requestId);assertFence(r,fence,clock);
- if(r.execution_status!=='leased'||r.cancel_requested_at||new Date(r.deadline_at)<=clock.now())throw new DomainError('dispatch_not_allowed');
+ if(r.execution_status!=='leased'||r.cancel_requested_at||tooLateToStart(r,clock))throw new DomainError('dispatch_not_allowed');
  const policy=resolveExecutionPolicy(r.route.execution);const limits=await executionLimits(tx);
  if(new Date(r.created_at).getTime()+limits.max_deadline_seconds*1000<=clock.now().getTime())throw new DomainError('execution_limit_changed');
  if(r.attempt_count>=Math.min(policy.max_attempts,limits.max_attempts))throw new DomainError('attempt_limit');

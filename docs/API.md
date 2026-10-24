@@ -279,6 +279,8 @@ For waiting_recovery, the response contains recovery_incident_id, cycle_index, a
 
 A request that expires before its first attempt receives execution_status=canceled, attempt_count=0, and a reason indicating no model call started: `rate_limit_starved` if it waited for provider concurrency or a limiter window, and `admission_timeout` for other admission waits. `deadline_exceeded` remains the reason for requests with a prior attempt, and for paused and waiting_recovery requests. Such a request is not charged.
 
+An attempt does not start when less than 10 seconds remain before the request deadline (`START_MARGIN_MS`): the call could not answer in time, and the deadline would cut it at once and leave an unknown outcome. Such a request closes the same way as an expired one: `rate_limit_starved` or `admission_timeout` without a first attempt, `deadline_exceeded` after one. This also covers a request woken by the limiter just before its deadline because the limiter window ended together with the deadline.
+
 ## Content Delivery and Deletion
 
 After saving text and all files in its own durable storage, the application calls POST /requests/req_123/acknowledge with Idempotency-Key:

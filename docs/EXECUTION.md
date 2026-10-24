@@ -174,6 +174,8 @@ After lease expiry:
 
 A worker can fail after recording submission intent but before making the call. That still leaves uncertainty: without a provider contract that lets UAI check or safely repeat the call, it cannot know which side of submission the failure occurred on. Exactly-once execution at an external provider cannot be guaranteed.
 
+A new attempt does not start when less than 10 seconds remain before the request deadline: such a request closes as expired, without a provider call (see [API](API.md)).
+
 `attempt_timeout_seconds` limits a single attempt. Whichever comes first, that timeout or the request deadline, ends the wait. For synchronous HTTP, cancellation closes the connection; a native job continues to be observed under the existing rules. UAI records `timed_out_at`, leaves cost unknown, and resolves it through reconciliation.
 
 A retry is allowed when the adapter declares idempotency: a new attempt on the same connection and model reuses the previous key (`AdapterContext.idempotency_key`). Policy can also permit `timeout_retry: "accept_duplicate_cost"`, explicitly accepting the risk of a second provider charge within the platform risk budget. Otherwise, the request becomes outcome_unknown immediately after timeout. If output has already been displayed, `retry_after_output` also applies.

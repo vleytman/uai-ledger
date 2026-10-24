@@ -14,6 +14,8 @@ import {enqueue,configureBudget,configureLimiter,leaseNext,prepareDispatch,obser
 // 4. financial absorption leaves the attempt non-terminal, so rows must be edited by hand;
 // 5. an operator has no audited way to resolve an unknown attempt (charged or not);
 // 6. a request starved by the limiter is reported as deadline_exceeded with zero attempts.
+// 7. a request woken by its limiter a moment before its deadline starts a call the deadline cuts at once,
+//    leaving an unknown outcome instead of a request that never ran (LogoPanel real_projects, 2026-10-22).
 const database=isolatedTestDatabase(process.env.DATABASE_URL);
 beforeAll(async()=>{if(process.env.DATABASE_URL)await database.initialize()});
 afterAll(()=>database.close());
@@ -156,6 +158,25 @@ describe.skipIf(!process.env.DATABASE_URL)('unknown outcomes and limiter slots',
   expect(await f.attempt(attempt.id)).toMatchObject({status:'abandoned',cost_units:'0'});
   expect(await f.budget('provider')).toEqual({reserved_units:'0',spent_units:'0'});
   await expect(resolveUnknownAttempt(f.s,f.clock,{request_id:lost.id,attempt_id:attempt.id,actor_id:'operator',reason:'Second look',provider_charged:true,cost_units:'3'},f.settle)).rejects.toMatchObject({code:'observation_conflict'});
+ });
+
+ it('does not start a call with too little time left to finish: the request closes as one that never ran',async()=>{
+  const f=await setup(1);
+  const holder=await f.add();await f.unknown(holder.id);
+  const late=await f.add(600000),leasedEarly=await f.add(35000,{priority:20});
+  expect(await f.dispatch(late.id)).toBeNull();
+  // Leased while there was time; its call is prepared only once the margin has begun, its lease still held.
+  const lease=(await f.lease(leasedEarly.id))!;
+  f.clock.advance(35000-execution.START_MARGIN_MS+1);
+  await expect(db(t=>prepareDispatch(t,f.s,f.clock,lease.id,lease.fencing_token))).rejects.toMatchObject({code:'dispatch_not_allowed'});
+  // The limiter wakes the waiting request a moment before its deadline: inside the margin it must not reach the provider.
+  f.to(new Date(late.deadline_at).getTime()-execution.START_MARGIN_MS+1);
+  expect(await f.dispatch(late.id)).toBeNull();
+  const row=await getRequest(database.pool!,f.s,late.id);
+  expect([row.execution_status,row.reason,row.attempt_count]).toEqual(['canceled','rate_limit_starved',0]);
+  const attempts=(await sql('SELECT count(*)::int AS n FROM execution_attempts WHERE request_id=ANY($1)',[[late.id,leasedEarly.id]])).rows[0].n;
+  expect(attempts).toBe(0);
+  expect(f.charges).toEqual(['0']);
  });
 
  it('reports requests that never got a slot by their own reason instead of deadline_exceeded',async()=>{
