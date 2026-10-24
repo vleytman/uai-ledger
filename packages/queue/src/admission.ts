@@ -6,11 +6,16 @@ import {applyQuotaHeaders} from './headers.js';
 import type pg from 'pg';
 import {transaction,type Tx} from '../../db/src/index.js';
 import {DomainError,hash} from '../../contracts/src/index.js';
-import {QuotaStore,type Admission,type QuotaDemand} from './quota.js';
+import {QuotaStore,type Admission,type QuotaDemand,type QuotaWaiter} from './quota.js';
 
 // Slot expiry is a safety hold, not a promised release time. Poll for a known
 // completion without shortening the hold or allowing an extra provider call.
 export function concurrencyRetryAt(expiresAt:Date|string){return Math.min(new Date(expiresAt).getTime(),Date.now()+1000)}
+/** Calls wait for a quota group in the order they were enqueued. */
+export async function quotaWaiter(db:{query:pg.Pool['query']},requestId:string):Promise<QuotaWaiter|undefined>{
+ const row=(await db.query('SELECT enqueued_at FROM execution_requests WHERE id=$1',[requestId])).rows[0];
+ return row?{id:requestId,since:new Date(row.enqueued_at).getTime()}:undefined;
+}
 export type AdmissionInput={id:string;group_id:string;request_id:string;fence:string;demands:QuotaDemand[]};
 export async function validateIntent(tx:Tx,input:AdmissionInput){
  const group=(await tx.query('SELECT * FROM provider_quota_groups WHERE id=$1 FOR SHARE',[input.group_id])).rows[0];if(!group)throw new DomainError('quota_group_missing');
@@ -61,7 +66,7 @@ export async function acquireDurable(pool:pg.Pool,store:QuotaStore,input:Admissi
   if(group.blocked_until&&new Date(group.blocked_until).getTime()>Date.now()){for(const demand of input.demands)await store.blockUntil(group.recovery_epoch,demand.key,new Date(group.blocked_until).getTime());}
   await applyQuotaUsage(client,store,group);
   await refundUnusedAdmissions(client,store,group);
-  const result=await store.acquire(group.recovery_epoch,input.id,input.demands);
+  const result=await store.acquire(group.recovery_epoch,input.id,input.demands,await quotaWaiter(client,input.request_id));
   // A missing epoch or conflicting cache cannot disprove an earlier acquire with a lost reply.
   // Keep the journal entry recoverable, just as multi-group admission does.
   if(!result.allowed&&(result.reason==='not_ready'||result.reason==='conflict'))return result;

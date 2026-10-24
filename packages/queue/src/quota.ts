@@ -6,7 +6,9 @@ import {redisConnection,redisClientPrefix} from './transport.js';
 import {quotaSnapshotScript,type QuotaSnapshot} from './quota-snapshot.js';
 
 export interface QuotaDemand {key:string;capacity:number;amount:number;window_ms:number}
-export interface QuotaDenialDetails {group_id:string;rule:string;demand:string;available:string|null;capacity:string;window_ms:number|null;checked_at:number}
+export interface QuotaDenialDetails {group_id:string;rule:string;demand:string;available:string|null;capacity:string;window_ms:number|null;checked_at:number;ahead?:number}
+/** A call's seniority in a group's waiting list: older waiters are admitted first. */
+export interface QuotaWaiter {id:string;since:number}
 export type Admission={allowed:true;at:number;replayed:boolean}|{allowed:false;reason:'not_ready'|'conflict'|'too_large'|'limited';rule?:string;retry_at?:number;details?:QuotaDenialDetails};
 /** Observation only: never accepted as an admission proof. null means insufficient state. */
 export type QuotaPreview={would_allow:true}|{would_allow:false;reason:'too_large'|'limited';rule?:string;retry_at?:number}|{would_allow:null;reason:'not_ready'|'conflict'|'too_many_events'};
@@ -92,9 +94,30 @@ end
 if cachedCount==#groups then return cjson.encode({allowed=true,at=replayAt,replayed=true}) end
 if cachedCount>0 then return cjson.encode({allowed=false,reason='conflict'}) end
 local blockedRule=nil;local blockedDetails=nil;local retry=now
+-- A call refused for a window waits in the list of each group that refused it; older live waiters keep their demand reserved.
+local grace=tonumber(ARGV[3] or '15000')
+for _,group in ipairs(groups) do
+ group.reserved={};group.older_retry=nil;group.ahead=0
+ local entries=redis.call('ZRANGE',KEYS[group.waiters],0,63,'WITHSCORES')
+ for j=1,#entries,2 do
+  local member=entries[j];local score=tonumber(entries[j+1])
+  local mine=group.waiter and member==group.waiter.id
+  if not mine and (not group.waiter or score<group.waiter.since or (score==group.waiter.since and member<group.waiter.id)) then
+   local raw=redis.call('HGET',KEYS[group.waiting],member)
+   local info=raw and cjson.decode(raw)
+   if info and info.expires>now then
+    group.ahead=group.ahead+1
+    for key,amount in pairs(info.demands) do group.reserved[key]=(group.reserved[key] or 0)+amount end
+    if not group.older_retry or info.retry<group.older_retry then group.older_retry=info.retry end
+   elseif not preview then redis.call('ZREM',KEYS[group.waiters],member);redis.call('HDEL',KEYS[group.waiting],member) end
+  end
+ end
+end
 for _,group in ipairs(groups) do
  for i,rule in ipairs(group.rules) do
   local key=KEYS[group.rule_keys[i]]
+  local reserved=group.reserved[rule.key] or 0
+  local amount=rule.amount+reserved
   if rule.amount>rule.capacity then return cjson.encode({allowed=false,reason='too_large',rule=rule.key,details={group_id=group.group_id,rule=rule.key,demand=string.format('%.0f',rule.amount),capacity=string.format('%.0f',rule.capacity),available=cjson.null,window_ms=rule.window_ms,checked_at=now}}) end
   local used=0;local availableAt=now
   if preview then
@@ -103,19 +126,23 @@ for _,group in ipairs(groups) do
    if #events/2>previewLeft then return cjson.encode({allowed=false,reason='too_many_events'}) end
    previewLeft=previewLeft-#events/2
    for j=1,#events,2 do used=used+tonumber(string.match(events[j],'|(%d+)$')) end
-   local remaining=used
-   if remaining+rule.amount>rule.capacity then
+   local remaining=used;local wanted=math.min(amount,rule.capacity)
+   if remaining+wanted>rule.capacity then
     for j=1,#events,2 do
      remaining=remaining-tonumber(string.match(events[j],'|(%d+)$'))
      availableAt=tonumber(events[j+1])+rule.window_ms
-     if remaining+rule.amount<=rule.capacity then break end
+     if remaining+wanted<=rule.capacity then break end
     end
    end
   else
-   local prepared=prepareRule(key,KEYS[group.aggregate_keys[i]],rule,now)
+   local wanted=rule
+   if reserved>0 then wanted={key=rule.key,capacity=rule.capacity,window_ms=rule.window_ms,amount=math.min(amount,rule.capacity)} end
+   local prepared=prepareRule(key,KEYS[group.aggregate_keys[i]],wanted,now)
    if not prepared then return cjson.encode({allowed=false,reason='preparing'}) end
    used=prepared.used;availableAt=prepared.available_at
   end
+  -- Older waiters alone may need more than the window holds: come back after the oldest is due.
+  if amount>rule.capacity or (reserved>0 and used+amount>rule.capacity) then availableAt=math.max(availableAt,now+500,(group.older_retry or now)+500) end
   local available=math.max(0,rule.capacity-used)
   local cooldown=tonumber(redis.call('HGET',KEYS[group.blocked],rule.key) or '0')
   availableAt=math.max(availableAt,cooldown)
@@ -124,17 +151,38 @@ for _,group in ipairs(groups) do
   if snapshot then local observation=cjson.decode(snapshot)
    if observation.reset_at>now then
     available=math.min(available,observation.remaining)
-    if observation.remaining<rule.amount then availableAt=math.max(availableAt,observation.reset_at) end
+    if observation.remaining<amount then availableAt=math.max(availableAt,observation.reset_at) end
    end
   end
+  if availableAt>now then group.refused=true end
   if availableAt>retry then
    retry=availableAt;blockedRule=rule.key
    blockedDetails={group_id=group.group_id,rule=rule.key,demand=string.format('%.0f',rule.amount),capacity=string.format('%.0f',rule.capacity),available=string.format('%.0f',available),window_ms=rule.window_ms,checked_at=now}
+   if group.ahead>0 then blockedDetails.ahead=group.ahead end
   end
  end
 end
-if blockedRule then return cjson.encode({allowed=false,reason='limited',rule=blockedRule,retry_at=retry,details=blockedDetails}) end
+if blockedRule then
+ if not preview then
+  for _,group in ipairs(groups) do
+   if group.waiter and group.refused then
+    local demands={}
+    for _,rule in ipairs(group.rules) do if rule.amount>0 then demands[rule.key]=rule.amount end end
+    local ttl=string.format('%.0f',retry+grace-now+60000)
+    redis.call('ZADD',KEYS[group.waiters],string.format('%.0f',group.waiter.since),group.waiter.id)
+    redis.call('HSET',KEYS[group.waiting],group.waiter.id,cjson.encode({retry=retry,expires=retry+grace,demands=demands}))
+    for _,waitKey in ipairs({KEYS[group.waiters],KEYS[group.waiting]}) do
+     if redis.call('PTTL',waitKey)<tonumber(ttl) then redis.call('PEXPIRE',waitKey,ttl) end
+    end
+   end
+  end
+ end
+ return cjson.encode({allowed=false,reason='limited',rule=blockedRule,retry_at=retry,details=blockedDetails})
+end
 if preview then return cjson.encode({allowed=true}) end
+for _,group in ipairs(groups) do
+ if group.waiter then redis.call('ZREM',KEYS[group.waiters],group.waiter.id);redis.call('HDEL',KEYS[group.waiting],group.waiter.id) end
+end
 for _,group in ipairs(groups) do
  local maxWindow=0
  for i,rule in ipairs(group.rules) do
@@ -197,6 +245,8 @@ return 1
 `;
 export class QuotaStore {
  readonly redis:Redis;
+ /** How long after its retry time a refused call keeps its place and its reserved demand. */
+ static waiterGraceMs=15000;
  private readonly prefix:string;
  private recoveryRunId:string|undefined;
  private readonly coordination:string;
@@ -213,24 +263,24 @@ export class QuotaStore {
  /** Only the durable reconciler may open this gate AFTER restoring recent admissions/holds. */
  async markRestored(epoch:string){if(!epoch)throw new Error('quota_epoch_required');const opened=await this.redis.eval(`${redisGenerationScript}if quota_run_id~=ARGV[2] then return 0 end;redis.call('SET',KEYS[1],ARGV[1]..':'..quota_run_id);return 1`,1,`${this.prefix}:ready`,epoch,this.recoveryRunId??'');if(Number(opened)!==1)throw new Error('quota_redis_generation_changed')}
  async closeGate(){await this.redis.del(`${this.prefix}:ready`)}
- async acquire(epoch:string,admissionId:string,demands:QuotaDemand[]):Promise<Admission>{
-  return QuotaStore.acquireMany([{store:this,epoch,admissionId,demands}]);
+ async acquire(epoch:string,admissionId:string,demands:QuotaDemand[],waiter?:QuotaWaiter):Promise<Admission>{
+  return QuotaStore.acquireMany([{store:this,epoch,admissionId,demands,waiter}]);
  }
  /** All groups must explicitly share a provider-account coordination domain. */
- static async acquireMany(inputs:Array<{store:QuotaStore;epoch:string;admissionId:string;demands:QuotaDemand[]}>):Promise<Admission>{
+ static async acquireMany(inputs:Array<{store:QuotaStore;epoch:string;admissionId:string;demands:QuotaDemand[];waiter?:QuotaWaiter}>):Promise<Admission>{
   const {first,keys,groups}=QuotaStore.prepareMany(inputs);
   // A preparation pass only maintains derived totals, never consumes permits.
   // Every final pass rechecks all rules, epochs, observations and cached permits.
   const deadline=performance.now()+20000;
   do {
-   const result=JSON.parse(String(await first.redis.eval(acquireScript,keys.length,...keys,JSON.stringify(groups)))) as Admission|{allowed:false;reason:'preparing'};
+   const result=JSON.parse(String(await first.redis.eval(acquireScript,keys.length,...keys,JSON.stringify(groups),'acquire',String(QuotaStore.waiterGraceMs)))) as Admission|{allowed:false;reason:'preparing'};
    if(!result.allowed&&result.reason==='preparing')continue;
    return result;
   }while(performance.now()<deadline);
   return {allowed:false,reason:'not_ready'};
  }
  /** Same weighted-window/headers/cooldown calculation, enforced read-only by Redis. */
- static async previewMany(inputs:Array<{store:QuotaStore;epoch:string;demands:QuotaDemand[]}>):Promise<QuotaPreview>{
+ static async previewMany(inputs:Array<{store:QuotaStore;epoch:string;demands:QuotaDemand[];waiter?:QuotaWaiter}>):Promise<QuotaPreview>{
   const {first,keys,groups}=QuotaStore.prepareMany(inputs.map(input=>({...input,admissionId:'shadow-no-permit'})));
   const result=JSON.parse(String(await first.redis.call('EVAL_RO',acquireScript,keys.length,...keys,JSON.stringify(groups),'preview')));
   if(result.allowed)return {would_allow:true};
@@ -243,14 +293,15 @@ export class QuotaStore {
   const {first,keys,groups}=QuotaStore.prepareMany(inputs);
   return Number(await first.redis.eval(discardUnsentScript,keys.length,...keys,JSON.stringify(groups)))===1;
  }
- private static prepareMany(inputs:Array<{store:QuotaStore;epoch:string;admissionId:string;demands:QuotaDemand[]}>){
+ private static prepareMany(inputs:Array<{store:QuotaStore;epoch:string;admissionId:string;demands:QuotaDemand[];waiter?:QuotaWaiter}>){
   if(!inputs.length||inputs.length>16)throw new Error('invalid_quota_groups');
   const first=inputs[0]!.store;
   if(inputs.some(input=>input.store.coordination!==first.coordination))throw new Error('quota_domains_must_match');
   if(new Set(inputs.map(input=>input.store.prefix)).size!==inputs.length)throw new Error('duplicate_quota_group');
   const keys:string[]=[];
   const add=(key:string)=>{keys.push(key);return keys.length};
-  const groups=inputs.map(({store,epoch,admissionId,demands})=>{
+  const groups=inputs.map(({store,epoch,admissionId,demands,waiter})=>{
+   if(waiter&&(!waiter.id||!Number.isSafeInteger(waiter.since)||waiter.since<0))throw new Error('invalid_quota_waiter');
    if(!epoch||!admissionId||!demands.length||demands.length>32)throw new Error('invalid_quota_admission');
    const rules=demands.map(({key,capacity,amount,window_ms})=>({key,capacity,amount,window_ms})).sort((a,b)=>a.key.localeCompare(b.key));
    if(new Set(rules.map(r=>r.key)).size!==rules.length)throw new Error('duplicate_quota_rule');
@@ -258,7 +309,8 @@ export class QuotaStore {
    const identity=digest(admissionId),prefix=store.prefix;
    return {group_id:store.domain,epoch,identity,fingerprint:digest(JSON.stringify(rules)),rules,
     ready:add(`${prefix}:ready`),admission:add(`${prefix}:admission:${identity}`),
-    rule_keys:rules.map(rule=>add(`${prefix}:rule:${digest(rule.key)}`)),aggregate_keys:rules.map(rule=>add(`${prefix}:rule:${digest(rule.key)}:aggregate`)),blocked:add(`${prefix}:blocked`),observed:add(`${prefix}:observed`)};
+    rule_keys:rules.map(rule=>add(`${prefix}:rule:${digest(rule.key)}`)),aggregate_keys:rules.map(rule=>add(`${prefix}:rule:${digest(rule.key)}:aggregate`)),blocked:add(`${prefix}:blocked`),observed:add(`${prefix}:observed`),
+    waiters:add(`${prefix}:waiters`),waiting:add(`${prefix}:waiting`),...(waiter?{waiter:{id:digest(waiter.id),since:waiter.since}}:{})};
   });
   return {first,keys,groups};
  }
@@ -290,6 +342,8 @@ export class QuotaStore {
   const rule=`${this.prefix}:rule:${digest(demand.key)}`;
   return Number(await this.redis.eval(refundScript,3,`${this.prefix}:ready`,rule,`${rule}:aggregate`,epoch,digest(admissionId),String(demand.admitted),String(demand.actual),restore?'restore':'apply',this.recoveryRunId??''))===1;
  }
+ /** A call that stops waiting without admission leaves the list at once instead of when its registration lapses. */
+ async leave(waiterId:string){const member=digest(waiterId);await this.redis.multi().zrem(`${this.prefix}:waiters`,member).hdel(`${this.prefix}:waiting`,member).exec()}
  async currentTime(){const [seconds,microseconds]=await this.redis.time();return Number(seconds)*1000+Math.floor(Number(microseconds)/1000)}
  /** Reconciler-only replay while the gate is closed; original timestamps preserve windows. */
  async restore(admissionId:string,at:number,demands:QuotaDemand[]){

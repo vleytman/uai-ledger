@@ -7,7 +7,7 @@ import type pg from 'pg';
 import {DomainError,id,hash} from '../../contracts/src/index.js';
 import type {WorkerDependencies} from '../../execution/src/runtime.js';
 import {QuotaStore} from './quota.js';
-import {recordAdmissionIntent,acquireDurable} from './admission.js';
+import {recordAdmissionIntent,acquireDurable,quotaWaiter} from './admission.js';
 
 export function providerAdmission(pool:pg.Pool,url:string,installation:string){
  const stores=new Map<string,QuotaStore>();
@@ -45,7 +45,7 @@ export function providerAdmission(pool:pg.Pool,url:string,installation:string){
  };
 
  /** Advisory snapshot. No intent, permit, gate recovery or provider call is made here. */
- const preview=async(...[scope,_request,variant,context,adapter]:Parameters<NonNullable<WorkerDependencies['admit']>>)=>{
+ const preview=async(...[scope,request,variant,context,adapter]:Parameters<NonNullable<WorkerDependencies['admit']>>)=>{
   const unknown=(reason:string)=>({mode:'shadow' as const,would_allow:null,reason});
   const read=async()=>(await pool.query(`SELECT g.*,
    (SELECT COALESCE(jsonb_agg(jsonb_build_object('key',r.key,'metric',r.metric,'capacity',r.capacity::text,'window_ms',r.window_ms) ORDER BY r.key),'[]') FROM provider_quota_rules r WHERE r.group_id=g.id) AS rules,
@@ -60,7 +60,8 @@ export function providerAdmission(pool:pg.Pool,url:string,installation:string){
    if(groups.some(group=>!group.rules.length))return unknown('quota_rules_missing');
    if(groups.some(group=>group.pending_reconciliation))return unknown('pending_reconciliation');
    const quantities=context.limit_usage_estimate??adapter.estimateLimitUsage(context.input,{expected_output_tokens:context.expected_output_tokens});
-   const inputs=await Promise.all(groups.map(async group=>({store:await storeFor(group),epoch:group.recovery_epoch,demands:quotaDemands(group.rules,quantities)})));
+   const waiter=await quotaWaiter(pool,request.id);
+   const inputs=await Promise.all(groups.map(async group=>({store:await storeFor(group),epoch:group.recovery_epoch,demands:quotaDemands(group.rules,quantities),waiter})));
    const result=await QuotaStore.previewMany(inputs);
    // SQL configuration/slots and Redis are not a joint atomic snapshot. Detect visible changes;
    // even an unchanged observation grants no external-send permission.

@@ -38,6 +38,8 @@ describe.skipIf(!pool||!url)('Confirmed quota excess',()=>{
    const input={id:id('admission'),group_id:group,request_id:request.id,fence:String(lease.fencing_token),demands:[{key:'tokens',capacity:100,window_ms:60000,amount}]};
    if(coordinated)await recordAdmissionBundle(pool!,`bundle-${input.id}`,[input,...(otherStore?[{...input,id:input.id+'-other',group_id:otherGroup}]:[])]);else await recordAdmissionIntent(pool!,input);
    const result=coordinated?await acquireAdmissionBundle(pool!,url!,installation,`bundle-${input.id}`):await acquireDurable(pool!,store,input);
+   // These probes never come back for their turn, so a refused one leaves the waiting list.
+   if(!result.allowed&&result.reason==='limited')for(const target of [store,otherStore])await target?.leave(request.id);
    return {input,result};
   };
   try{
@@ -89,6 +91,8 @@ describe.skipIf(!pool||!url)('Confirmed quota excess',()=>{
    const input={id:id('admission'),group_id:group,request_id:request.id,fence:String(lease.fencing_token),demands:[{key:'tokens',capacity:100,window_ms:60000,amount}]};
    if(coordinated)await recordAdmissionBundle(pool!,`bundle-${input.id}`,[input,...(otherStore?[{...input,id:input.id+'-other',group_id:otherGroup}]:[])]);else await recordAdmissionIntent(pool!,input);
    const result=coordinated?await acquireAdmissionBundle(pool!,url!,installation,`bundle-${input.id}`):await acquireDurable(pool!,store,input);
+   // These probes never come back for their turn, so a refused one leaves the waiting list.
+   if(!result.allowed&&result.reason==='limited')for(const target of [store,otherStore])await target?.leave(request.id);
    return {input,result};
   };
   const usedIn=async(target:QuotaStore)=>{const snapshot=await target.snapshot('epoch',[{key:'tokens',capacity:100,window_ms:60000}]);return snapshot.ready?snapshot.rules[0]!.used:snapshot.reason};

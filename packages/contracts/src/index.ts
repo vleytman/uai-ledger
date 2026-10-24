@@ -33,4 +33,6 @@ export interface WalletSnapshot { id: string; revision: number; balance_units: U
 export interface QuotaWaitDetails {
  group_id:string;group_name:string;rule:string;metric:string;window_ms:number|null;
  demand:string;available:string|null;capacity:string;checked_at:string;
+ /** Older calls waiting for the same group, admitted before this one. */
+ ahead?:number;
 }

@@ -7,7 +7,7 @@ import {applyQuotaHeaders} from './headers.js';
 import type pg from 'pg';
 import {transaction} from '../../db/src/index.js';
 import {DomainError,hash} from '../../contracts/src/index.js';
-import {concurrencyRetryAt,validateIntent,type AdmissionInput} from './admission.js';
+import {concurrencyRetryAt,quotaWaiter,validateIntent,type AdmissionInput} from './admission.js';
 
 /** One committed intent records the complete set before any multi-group Redis call. */
 export async function recordAdmissionBundle(pool:pg.Pool,bundleId:string,inputs:AdmissionInput[]){
@@ -98,7 +98,8 @@ export async function acquireAdmissionBundle(pool:pg.Pool,url:string,installatio
     for(const demand of member.demands)await store.blockUntil(group.recovery_epoch,demand.key,new Date(group.blocked_until).getTime());
    }
   }
-  const permits=members.map((member,index)=>({store:stores[index]!,epoch:groups[index].recovery_epoch,admissionId:member.id,demands:member.demands}));
+  const waiter=await quotaWaiter(client,bundle.request_id);
+  const permits=members.map((member,index)=>({store:stores[index]!,epoch:groups[index].recovery_epoch,admissionId:member.id,demands:member.demands,waiter}));
   let result=await QuotaStore.acquireMany(permits);
   if(!result.allowed&&result.reason==='conflict'&&members.every(member=>member.state==='intent')){
    const submitted=await client.query('SELECT 1 FROM execution_attempts WHERE request_id=$1 AND fencing_token=$2 LIMIT 1',[bundle.request_id,bundle.fencing_token]);
