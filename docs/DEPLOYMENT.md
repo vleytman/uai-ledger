@@ -64,6 +64,18 @@ Migrations are run explicitly, not by each worker at startup. The scheduler publ
 
 Use `--scale generation=N` to add execution replicas. Account for the total PostgreSQL connection count across all replicas. Compose waits 45 seconds for shutdown; the worker's internal grace period is 30 seconds. Forced shutdown does not mean the provider request was canceled.
 
+## Worker and scheduler inside another process
+
+`apps/worker` and `apps/scheduler` are thin calls to two functions from `packages/queue`. An application that runs UAI in its own processes calls the same functions instead of repeating the worker composition.
+
+`startBullmqWorker(options)` from `packages/queue/src/worker.ts` builds the whole BullMQ worker: transport, quota admission, priority gates, telemetry, heartbeat, and the `maintenance` and `observe` queues. Required fields: `pool`, `installation`, `redisUrl`. Optional: `deps` (default `defaultRuntime(pool)`), `queues`, `concurrency`, `interactive_reserve`, `name` (worker_id in the heartbeat), `heartbeatMs` (10000), `shadow` (shadow quota admission journal), `onTransportError`. To substitute your own provider, pass `deps` with a replaced `adapter`: the rest of the composition stays the same as in `apps/worker`. The function returns `{name, queues, pause(), close()}`. `pause()` stops taking jobs and switches the heartbeat to `draining`; jobs in progress finish. `close()` calls `pause()`, waits for jobs in progress, and closes Redis and the heartbeat. The PostgreSQL pool stays with the calling code, which closes it.
+
+`bullmqWorkerSettings(env, defaults)` reads `UAI_WORKER_QUEUES`, `UAI_WORKER_CONCURRENCY` and `UAI_WORKER_INTERACTIVE_RESERVE` with the same checks as `apps/worker` (`invalid_execution_queue`, `invalid_worker_concurrency`). A value from the environment takes precedence over `defaults`.
+
+`startScheduler(options)` from `packages/queue/src/scheduler-loop.ts` runs the scheduler loop: `backend: 'bullmq'` publishes work to the installation queues (requires `installation` and `redisUrl`), `'legacy'` performs maintenance itself. The loop waits for the `uai_scheduler` notification for at most `intervalMs` (1000). `once` runs a single step. It returns `{name, done, stop()}`: `stop()` waits for the current step and closes the listener and Redis; the pool stays with the calling code.
+
+Signals and the graceful shutdown deadline (`installWorkerShutdown`, `UAI_WORKER_SHUTDOWN_GRACE_MS`) remain with the process: the functions do not install them.
+
 ## Updates and rollback
 
 For an update, prepare a new image digest and validate it on staging. Take a verifiable PostgreSQL backup and check access to shared S3, then apply additive migrations and update scheduler, API, and workers by role. Follow the generation transition before moving a request between backends; never let old and new backends execute it together. Rehearse that transition on staging and keep database and storage state consistent if you roll back.
