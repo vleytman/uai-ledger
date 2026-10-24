@@ -55,6 +55,13 @@ integration('Quoting atomic admission on PostgreSQL',()=>{
  test('distributed admission initializes the approved limits for a new application',async()=>{
   const f=await fixture();vi.stubEnv('UAI_EXECUTION_BACKEND','bullmq');
   try{
+   // BullMQ admits a call only through quota groups: every target of the route needs one with rules.
+   const connections=(await pool!.query("SELECT id,name FROM provider_connections WHERE organization_id=$1 ORDER BY name='primary' DESC",[f.scope.organization_id])).rows,group=id('group');
+   await pool!.query("INSERT INTO provider_quota_groups(id,organization_id,name,provider,scope,recovery_epoch,source,concurrency_limit) VALUES($1,$2,$1,'fake','{}','epoch','fixture',4)",[group,f.scope.organization_id]);
+   await pool!.query("INSERT INTO provider_quota_rules(group_id,key,metric,capacity,window_ms) VALUES($1,'requests','requests',100,60000)",[group]);
+   await pool!.query("INSERT INTO provider_quota_bindings(connection_id,model,group_id) VALUES($1,'fake-text',$2)",[connections[0].id,group]);
+   await expect(f.invoke({idempotency_key:'fallback-without-quota'})).rejects.toMatchObject({code:'quota_group_missing',details:{connection_id:connections[1].id,model:'fake-text'}});
+   await pool!.query("INSERT INTO provider_quota_bindings(connection_id,model,group_id) VALUES($1,'fake-text',$2)",[connections[1].id,group]);
    const result=await f.invoke();
    expect((await pool!.query('SELECT account_limit,application_limit,max_queue_age_ms FROM execution_admission_policies WHERE organization_id=$1 AND application_id=$2',[f.scope.organization_id,f.scope.application_id])).rows[0]).toEqual({account_limit:20,application_limit:200,max_queue_age_ms:900000});
    expect((await pool!.query('SELECT execution_backend FROM execution_requests WHERE id=$1',[result.request_id])).rows[0].execution_backend).toBe('bullmq');

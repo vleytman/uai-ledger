@@ -31,7 +31,8 @@ export interface WorkerDependencies {
  renewAdmission?(request:any,attempt:any):Promise<void>;
  onNativePending?(request:any,attempt:any):Promise<void>;
  onProviderResult?(scope:Scope,request:any,attempt:any,result:ProviderResult):Promise<void>;
- admit?(scope:Scope,request:any,variant:RouteVariant,context:WorkContext,adapter:ProviderAdapter):Promise<{allowed:true;admission_id:string}|{allowed:false;reason:string;retry_at?:Date;quota_wait?:QuotaWaitDetails}>;
+ /** A refusal marked final is a configuration that can never admit the call: the request fails at once instead of waiting. */
+ admit?(scope:Scope,request:any,variant:RouteVariant,context:WorkContext,adapter:ProviderAdapter):Promise<{allowed:true;admission_id:string}|{allowed:false;reason:string;retry_at?:Date;quota_wait?:QuotaWaitDetails;final?:boolean}>;
  onRateLimits?(scope:Scope,request:any,attempt:any,observation:import('../../providers/src/contracts.js').RateLimitObservation):Promise<void>;
  blobStore:BlobStore;
  context(scope:Scope,request:any,variant:RouteVariant):Promise<WorkContext>;
@@ -96,6 +97,7 @@ async function executeLeasedRequest(pool:pg.Pool,deps:WorkerDependencies,clock:C
  if(deps.admit&&request.execution_backend==='bullmq'){
   let admission:Awaited<ReturnType<NonNullable<WorkerDependencies['admit']>>>;
   try{admission=await deps.admit(scope,request,selected,context,adapter)}catch(error){admission={allowed:false,reason:error instanceof DomainError?error.code:'quota_infrastructure_unavailable',retry_at:new Date(clock.now().getTime()+5000)}}
+  if(!admission.allowed&&admission.final){await transaction(pool,t=>observePreDispatchFailure(t,scope,clock,request,new DomainError(admission.reason),deps.settle));return {worked:true,request_id:request.id,state:'failed'};}
   if(!admission.allowed){
    await transaction(pool,async tx=>{
     const updated=await tx.query(`UPDATE execution_requests SET execution_status=$3,reason=$4,not_before=$5,lease_owner=NULL,lease_expires_at=NULL,quota_wait=$6 WHERE id=$1 AND fencing_token=$2 AND execution_status='leased' RETURNING id`,[request.id,request.fencing_token,admission.retry_at?'waiting_retry':'paused',admission.reason,admission.retry_at??clock.now(),admission.quota_wait??null]);

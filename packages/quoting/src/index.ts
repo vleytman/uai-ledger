@@ -17,6 +17,7 @@ import {quoteAllowance,releaseUnsentAllowance} from '../../allowance/src/executi
 import {assertDatabaseManaged,activeFileReleases,type FileSource} from '../../configuration/src/ownership.js';
 import {lockExecutionAccount,forAvailableExecutionAccounts} from '../../db/src/execution-lock.js';
 import {checkAdmissionBackpressure} from './backpressure.js';
+import {assertQuotaGroupsReady} from './quota-readiness.js';
 import {priceModel,normalizeParameters,type InputAsset,type ModelCalculation} from '../../model-pricing/src/index.js';
 import {prepareModelAssets,type PreparedAsset} from './prepare-model-assets.js';
 import {fixedPrice,validateFixedPricing,parameterBounds,type FixedPricing} from './fixed-pricing.js';
@@ -351,6 +352,7 @@ async function availableRoutes(tx:Tx,scope:Scope,components:QuotedComponent[]) {
    if(connection?.status==='enabled'&&(connection.provider==='fake'||['configured','verified'].includes(connection.credential_status))&&!['locked','auth_failed','budget_exhausted'].includes(incident?.status)&&budget&&BigInt(budget.limit_units)-BigInt(budget.reserved_units)-BigInt(budget.spent_units)>=BigInt(target.max_cost_units))eligible=true;
   }
   if(!eligible)throw new DomainError('provider_unavailable_before_acceptance','No funded unlocked route',503);
+  await assertQuotaGroupsReady(tx,scope,[c.route.primary,...(c.route.fallback?[c.route.fallback]:[])]);
  }
 }
 async function rawOperation(tx:Tx,scope:Scope,operationId:string,forUpdate=false) {const row=(await tx.query(`SELECT * FROM operations WHERE ${scoped} AND id=$4 ${forUpdate?'FOR UPDATE':''}`,[...sv(scope),operationId])).rows[0];if(!row)throw new DomainError('not_found','Operation not found',404);return row;}

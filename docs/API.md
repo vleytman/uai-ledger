@@ -281,6 +281,8 @@ A request that expires before its first attempt receives execution_status=cancel
 
 An attempt does not start when less than 10 seconds remain before the request deadline (`START_MARGIN_MS`): the call could not answer in time, and the deadline would cut it at once and leave an unknown outcome. Such a request closes the same way as an expired one: `rate_limit_starved` or `admission_timeout` without a first attempt, `deadline_exceeded` after one. This also covers a request woken by the limiter just before its deadline because the limiter window ended together with the deadline.
 
+With `UAI_EXECUTION_BACKEND=bullmq`, a call is sent only after admission through the quota groups bound to its connection and model. Quote acceptance, `POST /v1/invocations`, a call in a reserve pool, and amend check every route target (primary and fallback) before reserving credits. A target without a group receives `409 quota_group_missing`; a target whose group has no rules receives `409 quota_rules_missing`. `details` contains `connection_id`, `model` and, in the second case, `group_id`. No operation or reservation is created. The legacy backend does not require quota groups and performs no check. If the binding or rules are removed after acceptance, the worker does not pause the call: the request immediately receives execution_status=failed with the same reason, attempt_count=0 and settlement_status=settled without a charge. The `quota_rules_missing` reason also covers a group whose rules measure none of this call's metrics.
+
 ## Content Delivery and Deletion
 
 After saving text and all files in its own durable storage, the application calls POST /requests/req_123/acknowledge with Idempotency-Key:
@@ -473,6 +475,7 @@ SDK: `client.admin.creditSummary({period_start, period_end, account_id, expiring
 | 404 | not_found, including another party’s inaccessible resource |
 | 409 | idempotency_conflict, quote_expired, quote_already_bound, budget_conflict, revocation_unavailable |
 | 409 | result_version_conflict, operation_admission_closed, content_scope_deleted |
+| 409 | quota_group_missing, quota_rules_missing (BullMQ backend, before reservation) |
 | 410 | content_unavailable |
 | 429 | platform_rate_limited, with Retry-After when available |
 | 503 | platform_unavailable, provider_unavailable_before_acceptance, provider_locked, platform_risk_budget_exhausted |

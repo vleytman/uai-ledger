@@ -57,7 +57,7 @@ Corrections create additional financial records; they do not rewrite immutable h
 
 ## Provider quota group settings
 
-Put connections and models in a common quota group when they share a provider limit. Multiple keys for the same account need the appropriate shared group. Check whether aliases share a quota pool rather than guessing from similar numbers.
+Put connections and models in a common quota group when they share a provider limit. Multiple keys for the same account need the appropriate shared group. Check whether aliases share a quota pool rather than guessing from similar numbers. With the BullMQ backend, a connection and model without a bound group are refused at acceptance with `409 quota_group_missing`, and already accepted calls fail at once with that reason and without a charge instead of waiting paused until their deadline ([API](API.md#errors)).
 
 Each group can define several rules, with a metric, time window and capacity, plus concurrency and interactive reserve. The `provider_capacity` represents the confirmed provider limit; a lower local capacity can keep operational headroom. Model price markup does not change provider quota.
 

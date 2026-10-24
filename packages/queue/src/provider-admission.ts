@@ -20,7 +20,8 @@ export function providerAdmission(pool:pg.Pool,url:string,installation:string){
  };
  const admit:NonNullable<WorkerDependencies['admit']>=async(scope,request,variant,context,adapter)=>{
   const boundGroups=(await pool.query(`SELECT g.* FROM provider_quota_groups g JOIN provider_quota_bindings b ON b.group_id=g.id WHERE b.connection_id=$1 AND b.model=$2 AND g.organization_id=$3 ORDER BY g.id`,[variant.connection_id,variant.model,scope.organization_id])).rows;
-  if(!boundGroups.length)return {allowed:false,reason:'quota_group_missing'};
+  // Without a group or its rules the call can never be admitted: it fails now instead of waiting for its deadline.
+  if(!boundGroups.length)return {allowed:false,reason:'quota_group_missing',final:true};
   const quantities=context.limit_usage_estimate??adapter.estimateLimitUsage(context.input,{expected_output_tokens:context.expected_output_tokens});
   const ruleMetrics=new Map<string,Record<string,string>>();
   const inputs=[];const bundleId=`quota-${request.id}-${request.fencing_token}`;
@@ -28,7 +29,7 @@ export function providerAdmission(pool:pg.Pool,url:string,installation:string){
    const rules=(await pool.query('SELECT * FROM provider_quota_rules WHERE group_id=$1 ORDER BY key',[group.id])).rows;
    ruleMetrics.set(group.id,Object.fromEntries(rules.map(rule=>[rule.key,rule.metric])));
    const demands=quotaDemands(rules,quantities);
-   if(!demands.length)return {allowed:false,reason:'quota_rules_missing'};
+   if(!demands.length)return {allowed:false,reason:'quota_rules_missing',final:true};
    inputs.push({id:boundGroups.length===1?bundleId:`${bundleId}-${hash(group.id)}`,group_id:group.id,request_id:request.id,fence:String(request.fencing_token),demands});
   }
   let result;
