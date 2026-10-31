@@ -10,10 +10,19 @@ export function maintenanceIntervals(env:NodeJS.ProcessEnv=process.env):Maintena
  if(!Number.isSafeInteger(idle_interval_ms)||idle_interval_ms<interval_ms||idle_interval_ms>3600000)throw new Error('invalid_maintenance_idle_interval');
  return {interval_ms,idle_interval_ms};
 }
-/** Open requests and operations keep maintenance at its interval: deadlines, leases and settlement are theirs. */
-const openWork=`(EXISTS(SELECT 1 FROM execution_requests WHERE financial_closed_at IS NULL) OR EXISTS(SELECT 1 FROM operations WHERE admission_status='open'))`;
+/**
+ * Open requests and operations keep maintenance at its interval: deadlines, leases and settlement are theirs.
+ * A request with an unknown outcome waits for resolution, often for long: it counts only when one of its times is due.
+ */
+const openWork=`(EXISTS(SELECT 1 FROM execution_requests WHERE financial_closed_at IS NULL AND execution_status<>'outcome_unknown') OR EXISTS(SELECT 1 FROM operations WHERE admission_status='open'))`;
+/** Its deadline (marked once), the closing of an unresolved outcome after an hour, and a due legacy remote lookup. */
+const unknownOutcomeDue=`EXISTS(SELECT 1 FROM execution_requests r WHERE r.financial_closed_at IS NULL AND r.execution_status='outcome_unknown'
+  AND ((r.deadline_at<=$2 AND r.cancel_requested_at IS NULL) OR r.unresolved_at<=$2::timestamptz-interval '1 hour'
+   OR (r.execution_backend='legacy' AND r.deadline_at+interval '1 hour'>$2 AND EXISTS(SELECT 1 FROM execution_attempts a WHERE a.request_id=r.id AND a.number=r.attempt_count
+    AND a.remote_job_id IS NOT NULL AND (a.next_poll_at IS NULL OR a.next_poll_at<=$2)))))`;
 /** Anything a cycle would act on now. Each probe reads a partial index; $2 is the clock. */
 const workDue=`(${openWork}
+ OR ${unknownOutcomeDue}
  OR EXISTS(SELECT 1 FROM notification_deliveries WHERE (status='pending' AND next_attempt_at<=$2) OR (status='sending' AND lease_expires_at<=$2))
  OR EXISTS(SELECT 1 FROM grant_revocations r WHERE r.status='prepared' AND r.reconcile_after<=$2 AND NOT EXISTS(SELECT 1 FROM revocation_incidents i WHERE i.revocation_id=r.id))
  OR EXISTS(SELECT 1 FROM quota_result_feedback WHERE applied_at IS NULL AND retry_at<=$2)
@@ -61,7 +70,12 @@ export async function executeMaintenance(pool:pg.Pool,installation:string,delive
  const owner=id('maintenance');
  const lease=(await pool.query(`UPDATE execution_maintenance_cycles SET lease_owner=$3,lease_until=$4 WHERE installation_id=$1 AND generation=$5
   AND ${cycleDue} AND (lease_until IS NULL OR lease_until<=$2) RETURNING generation,${openWork} AS open_work`,[installation,clock.now(),owner,new Date(clock.now().getTime()+30000),delivery.generation])).rows[0];
- if(!lease)return {worked:false};
+ if(!lease){
+  // Work seen by the relay may be gone by now. Its five-second publish backoff must not delay work that comes due next.
+  await pool.query(`UPDATE execution_maintenance_cycles SET relay_after=LEAST(relay_after,$3) WHERE installation_id=$1 AND generation=$2
+   AND (lease_until IS NULL OR lease_until<=$3)`,[installation,delivery.generation,clock.now()]);
+  return {worked:false};
+ }
  let renewal:Promise<void>|undefined,lost=false;
  const heartbeat=setInterval(()=>{
   if(renewal)return;

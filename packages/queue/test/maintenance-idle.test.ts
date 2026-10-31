@@ -30,7 +30,7 @@ describe('maintenance interval settings',()=>{
 });
 
 describe.skipIf(!enabled)('idle maintenance',()=>{
- it('slows down without work, wakes for a new call, expires it at its deadline and slows down again',async()=>{
+ it('slows down without work, wakes for a new call, expires it at its deadline, slows down again and stays idle beside an unresolved call until its time',async()=>{
   vi.stubEnv('UAI_EXECUTION_BACKEND','bullmq');vi.stubEnv('UAI_ALLOW_REAL_PROVIDERS','false');
   const pool=database.pool!,installation=id('idle'),fixture=await seedLoadFixture(pool,1),api=createApi(pool);
   // The worker has its own pool, so every query it sends is counted.
@@ -73,7 +73,23 @@ describe.skipIf(!enabled)('idle maintenance',()=>{
    const idleAgain=await window(2500);
    expect(idleAgain.cycles).toBe(0);
    expect(idleAgain.queries_per_second).toBeLessThan(busy.queries_per_second/10);
-   const report={installation,intervals:{interval_ms:200,idle_interval_ms:30000},scheduler_tick_ms:100,idle,wake_after_invocation_ms:wakeMs,busy,deadline_closed_after_ms:closedMs,idle_again:idleAgain};
+
+   // A cut-off call waits for resolution with an unknown outcome: maintenance stays idle meanwhile.
+   const second=await api.inject({method:'POST',url:'/v1/invocations',headers:{authorization:`Bearer ${fixture.token}`,'idempotency-key':id('invoke')},payload:{account_id:fixture.scope.account_id,budget:{max_units:'24000000'},profile:'text.standard',input:{text:'Unknown outcome'},parameters:{max_output_tokens:100}}});
+   expect(second.statusCode,second.body).toBe(202);const unknown=second.json();
+   await pool.query("UPDATE execution_requests SET execution_status='outcome_unknown',reason='outcome_unknown',settlement_status='unresolved',unresolved_at=now() WHERE id=$1",[unknown.request_id]);
+   await pool.query("UPDATE operations SET admission_status='closed' WHERE id=$1",[unknown.operation_id]);
+   await expect.poll(async()=>(await cycle()).wake_after,{timeout:5000}).not.toBeNull();
+   const idleWithUnknown=await window(2500);
+   expect(idleWithUnknown.cycles).toBe(0);
+   // Its own time still comes on time: an hour after it became unresolved it is closed, without waiting for the idle interval.
+   const due=Date.now()+1000;
+   await pool.query("UPDATE execution_requests SET unresolved_at=$2::timestamptz-interval '1 hour' WHERE id=$1",[unknown.request_id,new Date(due)]);
+   await expect.poll(async()=>(await pool.query('SELECT settlement_status,financial_closed_at FROM execution_requests WHERE id=$1',[unknown.request_id])).rows[0],{timeout:5000,interval:50})
+    .toMatchObject({settlement_status:'platform_absorbed',financial_closed_at:expect.any(Date)});
+   const unresolvedClosedMs=Date.now()-due;
+   expect(unresolvedClosedMs).toBeLessThan(1500);
+   const report={installation,intervals:{interval_ms:200,idle_interval_ms:30000},scheduler_tick_ms:100,idle,wake_after_invocation_ms:wakeMs,busy,deadline_closed_after_ms:closedMs,idle_again:idleAgain,idle_with_unresolved_call:idleWithUnknown,unresolved_closed_after_ms:unresolvedClosedMs};
    await mkdir('.data/test-reports',{recursive:true});await writeFile('.data/test-reports/maintenance-idle.json',JSON.stringify(report,null,2)+'\n');
   }finally{await worker.close();await scheduler.stop();await workerPool.end()}
  },60000);
