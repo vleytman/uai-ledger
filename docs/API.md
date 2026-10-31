@@ -512,6 +512,8 @@ SDK: `client.admin.creditSummary({period_start, period_end, account_id, expiring
 | 429 | platform_rate_limited, with Retry-After when available |
 | 503 | platform_unavailable, provider_unavailable_before_acceptance, provider_locked, platform_risk_budget_exhausted |
 
+`platform_unavailable` with `retryable: true` and HTTP 503 means the database is temporarily unavailable: the pool gave no connection in time, a connection broke, or a transaction rolled back on a deadlock, a serialization conflict or a lock wait timeout. Repeat the command with the same Idempotency-Key.
+
 A provider rate limit for an accepted job is usually reflected in queue state, rather than forcing the client to repeat operation creation. The retryable field does not authorize creating a new financial operation with a new key.
 
 ## Interface Clients

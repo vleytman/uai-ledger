@@ -4,6 +4,7 @@ import {randomUUID} from 'node:crypto';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {setTimeout as delay} from 'node:timers/promises';
 import {afterAll,beforeAll,describe,it,expect,vi} from 'vitest';
+import pg from 'pg';
 import {isolatedTestDatabase} from '../../db/test/isolated-database.js';
 import {createPool} from '../../db/src/index.js';
 import {id} from '../../contracts/src/index.js';
@@ -19,15 +20,22 @@ const database=isolatedTestDatabase(process.env.DATABASE_URL),exec=promisify(exe
 beforeAll(async()=>{if(enabled)await database.initialize()});
 afterAll(async()=>{if(enabled)await exec('docker',['rm','-f',name]).catch(()=>{});await database.close()});
 
-describe.skipIf(!enabled)('UAI through PgBouncer in transaction mode',()=>{
- it('admits quota calls with group locks, wakes the scheduler through its own LISTEN and keeps server connections within the pooler',async()=>{
+// One PgBouncer container for the file, started on first use.
+let started:Promise<URL>|undefined;
+const pooler=()=>started??=(async()=>{
   const direct=new URL(database.url!),port=String(40000+Math.floor(Math.random()*20000));
   const host=['127.0.0.1','localhost'].includes(direct.hostname)?'host.docker.internal':direct.hostname;
   await exec('docker',['run','-d','--pull=never','--name',name,'-p',`127.0.0.1:${port}:5432`,
    '-e',`DB_HOST=${host}`,'-e',`DB_PORT=${direct.port||'5432'}`,'-e',`DB_USER=${decodeURIComponent(direct.username)}`,'-e',`DB_PASSWORD=${decodeURIComponent(direct.password)}`,
-   '-e','POOL_MODE=transaction','-e','AUTH_TYPE=scram-sha-256','-e',`DEFAULT_POOL_SIZE=${serverPoolSize}`,'-e','MAX_CLIENT_CONN=200',
+   '-e','POOL_MODE=transaction','-e','AUTH_TYPE=scram-sha-256','-e',`DEFAULT_POOL_SIZE=${serverPoolSize}`,'-e','MAX_CLIENT_CONN=200','-e',`ADMIN_USERS=${decodeURIComponent(direct.username)}`,
    process.env.UAI_TEST_PGBOUNCER_IMAGE??'edoburu/pgbouncer:latest'],{timeout:60000});
   const pooled=new URL(database.url!);pooled.hostname='127.0.0.1';pooled.port=port;
+  return pooled;
+})();
+
+describe.skipIf(!enabled)('UAI through PgBouncer in transaction mode',()=>{
+ it('admits quota calls with group locks, wakes the scheduler through its own LISTEN and keeps server connections within the pooler',async()=>{
+  const pooled=await pooler();
   vi.stubEnv('UAI_EXECUTION_BACKEND','bullmq');vi.stubEnv('UAI_ALLOW_REAL_PROVIDERS','false');vi.stubEnv('DATABASE_DIRECT_URL',database.url!);
   const admin=database.pool!,pool=createPool(pooled.href,'worker');
   await vi.waitFor(async()=>expect((await pool.query('SELECT 1 AS ok')).rows[0].ok).toBe(1),{timeout:15000,interval:250});
@@ -71,4 +79,33 @@ describe.skipIf(!enabled)('UAI through PgBouncer in transaction mode',()=>{
    expect(report.total_ms).toBeLessThan(30000);
   }finally{sampling=false;await sample;await worker.close();await scheduler.stop();await pool.end()}
  },120000);
+ it('admits 64 calls of one quota group at once through a server pool of four without a deadlock',async()=>{
+  const pooled=await pooler();
+  vi.stubEnv('UAI_EXECUTION_BACKEND','bullmq');vi.stubEnv('UAI_ALLOW_REAL_PROVIDERS','false');vi.stubEnv('DATABASE_DIRECT_URL',database.url!);vi.stubEnv('UAI_DB_POOL_MAX_WORKER','72');
+  const admin=database.pool!,pool=createPool(pooled.href,'worker');
+  const fixture=await seedLoadFixture(admin,8,200),installation=id('pgbouncer-crowd'),api=createApi(pool);
+  await admin.query('UPDATE execution_dispatch_policies SET account_limit=200,application_limit=200,queue_limit=200,active_account_limit=200,active_application_limit=200,active_queue_limit=200,interactive_reserve=0');
+  await admin.query('UPDATE execution_admission_policies SET account_limit=1000,application_limit=1000').catch(()=>{});
+  const scheduler=startScheduler({pool,backend:'bullmq',installation,redisUrl:process.env.REDIS_URL!,intervalMs:200});
+  const worker=startBullmqWorker({pool,installation,redisUrl:process.env.REDIS_URL!,name:'pgbouncer-crowd',queues:['text','maintenance'],concurrency:64,interactive_reserve:0,heartbeatMs:60000,maintenance:{interval_ms:200,idle_interval_ms:200}});
+  const started=Date.now();
+  try{
+   const responses=await Promise.all(Array.from({length:64},(_,n)=>api.inject({method:'POST',url:'/v1/invocations',headers:{authorization:`Bearer ${fixture.token}`,'idempotency-key':id('invoke')},payload:{account_id:fixture.accounts[n%8]!.account_id,budget:{max_units:'24000000'},profile:'text.standard',input:{text:`Crowd ${n}`},parameters:{max_output_tokens:100}}})));
+   expect(responses.map(r=>r.statusCode).filter(code=>code!==202),responses.find(r=>r.statusCode!==202)?.body).toEqual([]);
+   const ids=responses.map(r=>r.json().request_id);
+   await expect.poll(async()=>(await admin.query("SELECT count(*)::int AS n FROM execution_requests WHERE id=ANY($1::text[]) AND execution_status='succeeded'",[ids])).rows[0].n,{timeout:60000,interval:200}).toBe(64);
+   // PgBouncer's own view: how long clients waited for a server connection, and whether any still wait.
+   const console=new URL(pooled.href);console.pathname='/pgbouncer';
+   const bouncer=new pg.Client({connectionString:console.href});await bouncer.connect();
+   const stats=(await bouncer.query('SHOW STATS')).rows.find((row:any)=>row.database===new URL(database.url!).pathname.slice(1));
+   const pools=(await bouncer.query('SHOW POOLS')).rows.find((row:any)=>row.database===new URL(database.url!).pathname.slice(1));
+   await bouncer.end();
+   const admission=(await admin.query(`SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM a.submission_intent_at-d.first_leased_at)*1000) AS median,max(EXTRACT(EPOCH FROM a.submission_intent_at-d.first_leased_at)*1000) AS max
+    FROM execution_requests r JOIN execution_dispatches d ON d.request_id=r.id AND d.generation=r.dispatch_generation JOIN execution_attempts a ON a.request_id=r.id AND a.number=1 WHERE r.id=ANY($1::text[])`,[ids])).rows[0];
+   const report={calls:64,worker_concurrency:64,uai_pool:72,pooler_server_connections:serverPoolSize,total_ms:Date.now()-started,
+    lease_to_sent_median_ms:Math.round(admission.median),lease_to_sent_max_ms:Math.round(admission.max),
+    pooler_avg_wait_us:Number(stats?.avg_wait_time??NaN),pooler_total_wait_ms:Math.round(Number(stats?.total_wait_time??NaN)/1000),pooler_clients_waiting_after:Number(pools?.cl_waiting??NaN)};
+   await mkdir('.data/test-reports',{recursive:true});await writeFile('.data/test-reports/pgbouncer-crowd.json',JSON.stringify(report,null,2)+'\n');
+  }finally{await worker.close();await scheduler.stop();await pool.end()}
+ },150000);
 });

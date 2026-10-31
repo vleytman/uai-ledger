@@ -60,7 +60,11 @@ export function createApi(pool:pg.Pool,clock:Clock=systemClock){
   if(error instanceof z.ZodError)return reply.code(422).send({error:{code:'invalid_input',message:'Проверьте поля запроса.',retryable:false,correlation_id:request.id,details:{issues:error.issues.map(i=>({path:i.path,message:i.message}))}}});
   if(error instanceof DomainError)return reply.code(error.status).send({error:{code:error.code,message:error.message,retryable:false,correlation_id:request.id,details:error.details}});
   const infrastructureCode=typeof error==='object'&&error!==null&&'code' in error?String(error.code):'';
-  const infrastructureUnavailable=/^08[A-Z0-9]{3}$/.test(infrastructureCode)||['57P01','57P02','57P03','53300','ECONNREFUSED','ECONNRESET','ETIMEDOUT','EHOSTUNREACH','ENETUNREACH'].includes(infrastructureCode);
+  // Without a SQLSTATE: the pool found no connection in time, or the connection broke mid-command.
+  const message=error instanceof Error?error.message:'';
+  const connectionLost=!infrastructureCode&&/^(timeout exceeded when trying to connect|Connection terminated|Client has encountered a connection error|Client was closed and is not queryable)/.test(message);
+  // A deadlock, a serialization conflict or a lock wait past its timeout rolls back; the same command may be retried.
+  const infrastructureUnavailable=connectionLost||/^08[A-Z0-9]{3}$/.test(infrastructureCode)||['57P01','57P02','57P03','53300','40001','40P01','55P03','ECONNREFUSED','ECONNRESET','ETIMEDOUT','EHOSTUNREACH','ENETUNREACH'].includes(infrastructureCode);
   if(infrastructureUnavailable)return reply.code(503).send({error:{code:'platform_unavailable',message:'Сервис временно недоступен. Повторите запрос с тем же ключом идемпотентности.',retryable:true,correlation_id:request.id}});
   const status=typeof error==='object'&&error!==null&&'statusCode' in error?Number(error.statusCode):500;
   return reply.code(status>=400&&status<500?status:500).send({error:{code:status<500?'invalid_input':'platform_unavailable',message:status<500?'Некорректный запрос.':'Не удалось выполнить команду.',retryable:false,correlation_id:request.id}});

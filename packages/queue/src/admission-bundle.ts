@@ -44,8 +44,7 @@ export async function recordAdmissionBundle(pool:pg.Pool,bundleId:string,inputs:
 /** Group locks serialize concurrency, recovery and the acknowledgement of one atomic Redis result. */
 export async function acquireAdmissionBundle(pool:pg.Pool,url:string,installation:string,bundleId:string):Promise<Admission>{
  const stores:QuotaStore[]=[];
- try{return await withQuotaLocks(pool,async(client,lock)=>{
-  await lock(bundleId,8193);
+ try{return await withQuotaLocks(pool,{key:bundleId,namespace:8193},async(client,lock)=>{
   const bundle=(await client.query('SELECT * FROM dispatch_admission_bundles WHERE id=$1',[bundleId])).rows[0];
   if(!bundle)throw new DomainError('quota_bundle_missing');
   let members=(await client.query(`SELECT a.*,a.slot_heartbeat_until>now() AS slot_live FROM dispatch_admission_bundle_members m
