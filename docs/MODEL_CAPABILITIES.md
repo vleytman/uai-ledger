@@ -34,6 +34,20 @@ When a schema needs transformation, UAI buffers deltas until it can restore and 
 
 The catalog may declare `text_features.forced_tool_choice: false` or `tools: false, schema: true`. UAI automatically requests a structured single-tool-call envelope, validates the name, arguments, and call count, and returns a standard `tool_call` with `execution_method: schema`. Native tools use `native`. For registered Anthropic Opus 5.5, Fable 5.1, and Mythos 5.1 families, forced calls switch to schema mode. Published structured-output capability is required. A refusal remains a refusal; emulation neither creates an extra attempt nor executes the tool itself.
 
+Native Anthropic tools are sent with `strict: true`, so call arguments follow the tool schema: `enum` values and required fields are enforced by the provider, not only by UAI's check after the response. Anthropic receives the wire schema described above, which contains only the subset strict mode supports (`type`, `enum`, `anyOf`, `required`, `additionalProperties: false`); UAI checks string and numeric constraints after restoring the result. Anthropic limits the complexity of strict schemas per request: at most 20 strict tools and 16 parameters with union types, counting the response schema. Every optional field becomes an `anyOf`, so a schema with many optional fields can get a provider 400 `Schema is too complex for compilation`. Claude Opus 5.5, Claude Fable 5.1 and Claude Mythos 5.1, which do not accept a forced tool choice, and models with `text_features.forced_tool_choice: false` still receive a tool call through the structured envelope.
+
+### Claude Haiku 5.5 reasoning
+
+`claude-haiku-5-5` accepts a `reasoning_effort` parameter with the values `none`, `low`, `medium`, `high`, `xhigh` and `max`. The parameter must be listed in the catalog model's `allowed_parameters`.
+
+| Value | Anthropic request body |
+|---|---|
+| not set | Unchanged; the model reasons at its own default (`medium`) |
+| `low` … `max` | `output_config.effort`; with a response schema, in the same `output_config` object as `format` |
+| `none` | `thinking: {"type": "disabled"}` without `effort`; Anthropic allows disabled thinking only at effort `high` or below |
+
+An unknown value, or the parameter on any other Anthropic model, is rejected before sending with `invalid_reasoning_effort`, as for `gpt-6-luna`.
+
 ## Priority and Concurrency Reserve
 
 Choose `priority: interactive | background` in the quote or invocation; the default is `background`. Mark user-driven requests explicitly. Once you have a quote, its priority is fixed.

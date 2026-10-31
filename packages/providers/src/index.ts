@@ -146,11 +146,20 @@ export class OpenAIAdapter extends HttpAdapter {
 export class AnthropicAdapter extends HttpAdapter {
   readonly id='anthropic';readonly capabilities={...caps(['text.generate'],true),text_usage:{estimated_actual:true,output_limit:'required' as const}};
   allowedParameters(){return [...providerParameters(this.id,'text.generate')!];}
+  validate(input:ProviderInput){
+   super.validate(input);
+   // Only models whose effort and disabled thinking were checked accept the parameter.
+   const effort=input.parameters?.reasoning_effort;
+   if(effort!==undefined&&(input.model!=='claude-haiku-5-5'||!['none','low','medium','high','xhigh','max'].includes(String(effort))))throw new DomainError('invalid_reasoning_effort');
+  }
   acceptsAssets(input:ProviderInput){return input.capability==='text.generate'&&!!input.assets?.length&&input.assets.length<=100&&input.assets.every(a=>['image/png','image/jpeg','image/webp'].includes(a.content_type)&&a.bytes.length>0&&a.bytes.length<=5000000);}
   request(input:ProviderInput,stream:boolean){
    const messages=input.messages?.filter(m=>m.role!=='system').map(m=>({role:m.role,content:anthropicContent(input,m.content)}))??[{role:'user',content:[{type:'text',text:input.input}]}];
    const system=[...(input.instructions?[{type:'text',text:input.instructions}]:[]),...(input.messages?.filter(m=>m.role==='system').flatMap(m=>anthropicContent(input,m.content))??[])];
-   return {url:`${this.options.baseUrl??'https://api.anthropic.com'}/v1/messages`,headers:{'x-api-key':this.options.apiKey,'anthropic-version':'2023-06-01','content-type':'application/json'},body:{...input.parameters,model:input.model,messages,...(system.length?{system}:{}),max_tokens:input.max_output_tokens,stream,...(input.response_schema?{output_config:{format:{type:'json_schema',schema:input.response_schema.schema}}}:{}),...(input.tools?{tools:input.tools.map(tool=>({name:tool.name,description:tool.description,input_schema:tool.parameters})),tool_choice:{...(input.tool_choice?.type==='named'?{type:'tool',name:input.tool_choice.name}:{type:'any'}),disable_parallel_tool_use:true}}:{})}};
+   // none disables thinking and sends no effort: the API accepts disabled thinking only at effort high or below.
+   const {reasoning_effort,...parameters}=input.parameters??{};
+   const output_config={...(reasoning_effort!==undefined&&reasoning_effort!=='none'?{effort:reasoning_effort}:{}),...(input.response_schema?{format:{type:'json_schema',schema:input.response_schema.schema}}:{})};
+   return {url:`${this.options.baseUrl??'https://api.anthropic.com'}/v1/messages`,headers:{'x-api-key':this.options.apiKey,'anthropic-version':'2023-06-01','content-type':'application/json'},body:{...parameters,model:input.model,messages,...(system.length?{system}:{}),max_tokens:input.max_output_tokens,stream,...(reasoning_effort==='none'?{thinking:{type:'disabled'}}:{}),...(Object.keys(output_config).length?{output_config}:{}),...(input.tools?{tools:input.tools.map(tool=>({name:tool.name,description:tool.description,input_schema:tool.parameters,strict:true})),tool_choice:{...(input.tool_choice?.type==='named'?{type:'tool',name:input.tool_choice.name}:{type:'any'}),disable_parallel_tool_use:true}}:{})}};
   }
   refusal(body:Record<string,any>){return body.stop_reason==='refusal'?(body.content??[]).filter((v:any)=>v.type==='text').map((v:any)=>v.text).join('\n')||'Model refused':undefined;}
   normalizeUsage(raw:unknown){return normalizeAnthropic(raw);}

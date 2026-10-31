@@ -9,7 +9,7 @@ const supported:Record<string,Partial<Record<Capability,readonly string[]>>>={
  quiver:{'image.generate':['max_output_tokens','reasoning_effort','temperature','top_p'],'image.vectorize':['max_output_tokens','auto_crop','temperature','top_p']},
  voyage:{'embeddings.generate':['dimensions','input_type']},
  openai:{'embeddings.generate':['dimensions'],'text.generate':['temperature','service_tier','reasoning','reasoning_effort','prompt_cache_retention','prompt_cache_key'],'image.generate':['size','quality','background','output_format']},
- anthropic:{'text.generate':['temperature','service_tier']},
+ anthropic:{'text.generate':['temperature','service_tier','reasoning_effort']},
  cartesia:{'speech.synthesize':['voice','output_format','language','generation_config']},
  serper:{search:['gl','hl','num','page']},
 };
