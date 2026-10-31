@@ -1,6 +1,6 @@
 import {lockExecutionAccount,forAvailableExecutionAccounts} from '../../db/src/execution-lock.js';
 import { CREDIT_UNIT, DomainError, hash, id, units, type Clock, type Scope, type WalletSnapshot } from '../../contracts/src/index.js';
-import { emit, type Tx } from '../../db/src/index.js';
+import { emit, oncePerTransaction, type Tx } from '../../db/src/index.js';
 
 type Bucket = 'available'|'reserved'|'revocation_reserved'|'consumed'|'expired'|'revoked';
 type Posting = { lot_id: string|null; bucket: Bucket|'issuance'|'debt'|'debt_consumed'; amount: bigint };
@@ -12,7 +12,11 @@ const validateDate = (value:string|null):Date|null => { if(value===null) return 
 const expired = (lot:Lot,clock:Clock) => lot.expires_at!==null && new Date(lot.expires_at).getTime()<=clock.now().getTime();
 
 /** Lock order is always account, wallet. Call only inside a database transaction. */
-export async function ensureWallet(tx:Tx,scope:Scope):Promise<string> {
+/** The account and wallet rows stay locked until the end of the transaction, so one call per transaction suffices. */
+export function ensureWallet(tx:Tx,scope:Scope):Promise<string> {
+ return oncePerTransaction(tx,`wallet:${JSON.stringify([scope.organization_id,scope.application_id,scope.account_id])}`,()=>lockWallet(tx,scope));
+}
+async function lockWallet(tx:Tx,scope:Scope):Promise<string> {
  const account=await tx.query('SELECT id FROM accounts WHERE organization_id=$1 AND application_id=$2 AND id=$3 FOR UPDATE',[scope.organization_id,scope.application_id,scope.account_id]);
  if(!account.rowCount) fail('not_found','Account not found',404);
  await tx.query('INSERT INTO wallets(id,organization_id,application_id,account_id) VALUES($1,$2,$3,$4) ON CONFLICT(organization_id,application_id,account_id,credit_unit_id) DO NOTHING',[id('wallet'),scope.organization_id,scope.application_id,scope.account_id]);

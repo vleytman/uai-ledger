@@ -1,12 +1,14 @@
 import type {Scope} from '../../contracts/src/index.js';
-import type {Tx} from './index.js';
+import {doneInTransaction,oncePerTransaction,type Tx} from './index.js';
 
 /** Account barrier precedes wallet, request, incident and exposure row locks.
  * Do not upgrade a shared account barrier inside a dispatch transaction.
  */
 export async function lockExecutionAccount(tx:Tx,scope:Scope,mode:'shared'|'exclusive'='exclusive'){
  const key=JSON.stringify([scope.organization_id,scope.application_id,scope.account_id]);
- await tx.query(mode==='shared'?'SELECT pg_advisory_xact_lock_shared(hashtextextended($1,8194))':'SELECT pg_advisory_xact_lock(hashtextextended($1,8194))',[key]);
+ // Held until the end of the transaction: taking it again there changes nothing. Exclusive covers shared.
+ if(mode==='shared'&&doneInTransaction(tx,`account-lock:exclusive:${key}`))return;
+ await oncePerTransaction(tx,`account-lock:${mode}:${key}`,()=>tx.query(mode==='shared'?'SELECT pg_advisory_xact_lock_shared(hashtextextended($1,8194))':'SELECT pg_advisory_xact_lock(hashtextextended($1,8194))',[key]));
 }
 /** Maintenance skips busy accounts; a new cycle retries committed pending work. */
 export async function tryLockExecutionAccount(tx:Tx,scope:Scope){

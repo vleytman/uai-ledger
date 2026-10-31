@@ -522,6 +522,8 @@ The admin calls administrative methods through the TanStack Start server layer. 
 
 The SDK provides ai.run/ai.quote for single calls and accounts, quotes, operations, requests, assets, wallets, content, and events for composite actions. Ai.run calls POST /invocations, saves IDs, waits for the result through SSE/polling, and returns result with acknowledge(). The user does not register a recipe for this call. The SDK supports AbortSignal for an explicit cancellation command and typed errors.
 
+An invocation stream (`POST /v1/invocations/stream`, `GET /v1/requests/{id}/stream`, which `ai.run` is built on) returns the result as soon as an event of the request itself is committed: the `uai_transient` notification of the outbox write (migration 0078) carries `request_id`, and the stream reads the request's state at once. Polling remains a fallback for a lost notification: `UAI_STREAM_POLL_MS`, default 250 ms, allowed 50–60000. Embedded execution that polls `executeOne` itself can wake on the same notification with `request_id` instead of polling.
+
 Save the result and every file durably before calling acknowledge(). If you supply a persist callback, the SDK acknowledges only after it succeeds; a failed write sends no acknowledgment. After a crash, resume waiting for the original request and respect content_expires_at. If the content has been deleted, report it as unavailable rather than making another paid call. Your integration also needs a way to delete project content.
 
 For a safe SDK retry, keep the same Idempotency-Key and payload. The SDK neither switches providers on its own nor grants credits. Closing HTTP or SSE stops the connection, not the paid work.

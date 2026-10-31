@@ -66,7 +66,10 @@ export const dispatchRequestSql=`SELECT d.*,r.organization_id,r.application_id,r
 
 /** Database intent and Redis acknowledgement deliberately have independent commits. */
 export async function relayOne(pool:pg.Pool,transport:ExecutionTransport,owner=id('relay')){
- const kinds=(await pool.query("SELECT queue_kind FROM execution_dispatch_policies WHERE queue_kind IN ('text','image','audio','tools') ORDER BY last_served_at NULLS FIRST,queue_kind")).rows;
+ // Only queues with an unpublished due dispatch: an empty attempt still locks the policy row and costs a commit.
+ const kinds=(await pool.query(`SELECT queue_kind FROM execution_dispatch_policies p WHERE queue_kind IN ('text','image','audio','tools')
+  AND EXISTS(SELECT 1 FROM execution_dispatches d WHERE d.queue_kind=p.queue_kind AND d.published_at IS NULL AND d.due_at<=now() AND (d.lease_until IS NULL OR d.lease_until<now()))
+  ORDER BY last_served_at NULLS FIRST,queue_kind`)).rows;
  let dispatch:any=null;
  for(const {queue_kind} of kinds){
   dispatch=await transaction(pool,async tx=>{

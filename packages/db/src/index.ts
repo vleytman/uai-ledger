@@ -27,19 +27,32 @@ export function createPool(connectionString = process.env.DATABASE_URL,role:Data
  return pool;
 }
 type RollbackObserver=(db:SqlExecutor)=>Promise<void>;
+const transactionMemos=new WeakMap<Tx,Map<string,Promise<unknown>>>();
+/**
+ * Runs work whose effect lasts until the end of the transaction (a transaction-level lock, a row locked FOR UPDATE)
+ * once per transaction. Outside transaction() it always runs: nothing is remembered across transactions.
+ */
+export function oncePerTransaction<T>(tx:Tx,key:string,run:()=>Promise<T>):Promise<T>{
+ const memo=transactionMemos.get(tx);if(!memo)return run();
+ const known=memo.get(key);if(known)return known as Promise<T>;
+ const value=run();memo.set(key,value);value.catch(()=>{if(memo.get(key)===value)memo.delete(key)});return value;
+}
+export function doneInTransaction(tx:Tx,key:string){return transactionMemos.get(tx)?.has(key)??false}
+/** After ROLLBACK TO SAVEPOINT: what was taken inside the savepoint is released, so nothing remembered may be trusted. */
+export function forgetTransactionWork(tx:Tx){transactionMemos.get(tx)?.clear()}
 const rollbackObservers=new WeakMap<Tx,RollbackObserver[]>();
 /** Diagnostics run only after rollback, without the failed transaction's locks. */
 export function afterRollback(tx:Tx,observer:RollbackObserver){
  const observers=rollbackObservers.get(tx);if(!observers)return false;observers.push(observer);return true;
 }
 export async function transaction<T>(pool: pg.Pool, fn: (tx: Tx)=>Promise<T>): Promise<T> {
-  const client = await pool.connect();rollbackObservers.set(client,[]);
+  const client = await pool.connect();rollbackObservers.set(client,[]);transactionMemos.set(client,new Map());
   try { await client.query('BEGIN'); const value = await fn(client); await client.query('COMMIT'); return value; }
   catch(error) {
    let rolledBack=false;try{await client.query('ROLLBACK');rolledBack=true}catch{console.error('postgres_rollback_failed')}
    if(rolledBack)for(const observer of rollbackObservers.get(client)??[]){try{await observer(client)}catch{console.error('postgres_rollback_diagnostic_failed')}}
    throw error;
-  } finally { rollbackObservers.delete(client);client.release(); }
+  } finally { rollbackObservers.delete(client);transactionMemos.delete(client);client.release(); }
 }
 export async function emit(tx: Tx, scope: Scope, type: string, resource: { type: string; id: string }, data: Record<string, unknown> = {}) {
   const eventId=id('evt');

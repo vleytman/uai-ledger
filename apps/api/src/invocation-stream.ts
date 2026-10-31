@@ -24,6 +24,9 @@ export async function requestSnapshot(pool:Tx,scope:Scope,clock:Clock,id:string)
  return {execution:request.route.execution,billing:request.route.billing,remaining_attempts:terminal.has(request.execution_status)?0:Math.max(0,(request.route.execution?.max_attempts??4)-request.attempt_count),usage:{attempts:usage,summary},timings,id:request.id,operation_id:request.operation_id,execution_status:request.execution_status,settlement_status:request.settlement_status,attempt_count:request.attempt_count,reason:request.reason,deadline_at:request.deadline_at,next_retry_at:request.not_before,result:delivery?.result??null,delivery:delivery?{result_version:delivery.version,manifest_hash:delivery.manifest_hash,status:delivery.status,ready_at:delivery.ready_at,content_expires_at:delivery.content_expires_at}:null};
 }
 export function registerInvocationStreams(app:FastifyInstance,pool:pg.Pool,clock:Clock,hub:TransientHub,streams:Set<ServerResponse>){
+ // The request's own commit wakes a stream; this poll only covers a lost notification.
+ const pollMs=Number(process.env.UAI_STREAM_POLL_MS??250);
+ if(!Number.isSafeInteger(pollMs)||pollMs<50||pollMs>60000)throw new Error('invalid_stream_poll_interval');
  async function stream(request:FastifyRequest,reply:FastifyReply,reconnect:boolean){
   const receivedAt=clock.now();
   const principal=await authenticateRequest(pool,request,{audit:false});requireScopes(principal,...(reconnect?['ai:read']:['ai:read','ai:quote','ai:execute']));
@@ -42,6 +45,8 @@ export function registerInvocationStreams(app:FastifyInstance,pool:pg.Pool,clock
   const authorize=async()=>{const fresh=await authenticateRequest(pool,request,{audit:false});requireScopes(fresh,'ai:read');if(fresh.id!==principal.id)throw new Error('identity_changed');await accountScope(pool,fresh,scope.account_id);};
   const subscription=hub.subscribe(event=>event.organization_id===scope.organization_id&&event.application_id===scope.application_id&&event.account_id===scope.account_id&&(!requestId||event.request_id===requestId),event=>enqueue(async()=>{
    if(event.request_id!==requestId)return;
+   // The request's own event committed: its state may be final now, read it without waiting for the poll.
+   if(event.type==='outbox_wakeup')return snapshot();
    const {organization_id,application_id,account_id,...payload}=event;
    await authorize();const current=await getRequest(pool,scope,requestId!);
    if((terminal.has(current.execution_status)&&current.execution_status!=='succeeded')||String(current.fencing_token)!==String(event.generation)||current.cancel_requested_at)return;
@@ -60,6 +65,8 @@ export function registerInvocationStreams(app:FastifyInstance,pool:pg.Pool,clock
    sequence=value.sequence;
    await pool.query('UPDATE execution_requests SET api_first_delta_at=COALESCE(api_first_delta_at,$2) WHERE id=$1',[requestId,clock.now()]);
    write(value);
+   // A final state seen before its last deltas closes as soon as they are in.
+   if(terminalObservedAt!==undefined)await snapshot();
   }),close,true);
   const snapshot=async(initial=false)=>{
    await authorize();const result=await requestSnapshot(pool,scope,clock,requestId!);
@@ -91,7 +98,7 @@ export function registerInvocationStreams(app:FastifyInstance,pool:pg.Pool,clock
    if(reconnect)await enqueue(()=>snapshot(true));
    subscription.resume();
    if(!reconnect)await enqueue(()=>snapshot());
-   if(!closed){let polling=false;timer=setInterval(()=>{if(polling)return;polling=true;void enqueue(()=>snapshot()).finally(()=>{polling=false})},250);heartbeat=setInterval(()=>{if(!closed&&!reply.raw.write(': heartbeat\n\n'))close()},15000);}
+   if(!closed){let polling=false;timer=setInterval(()=>{if(polling)return;polling=true;void enqueue(()=>snapshot()).finally(()=>{polling=false})},pollMs);heartbeat=setInterval(()=>{if(!closed&&!reply.raw.write(': heartbeat\n\n'))close()},15000);}
   }catch(error){close();if(!opened)throw error;}
  }
  app.post('/v1/invocations/stream',(request,reply)=>stream(request,reply,false));

@@ -3,7 +3,7 @@ import {z} from 'zod';
 import {paidApiSchemas} from '../../contracts/paid-api.js';
 import {validateTariff} from '../../allowance/src/index.js';
 import {DomainError,hash,id,systemClock,type Clock} from '../../contracts/src/index.js';
-import type {Tx} from '../../db/src/index.js';
+import {forgetTransactionWork,type Tx} from '../../db/src/index.js';
 import {CatalogService,type CatalogScope,type ConfigurationKind,type ConfigurationPayload,type CatalogDefinition,type RouteDefinition,type PublishSample} from '../../catalog/src/index.js';
 import {publishRecipe,type RecipeDefinition} from '../../quoting/src/index.js';
 import {adapterDefinition} from '../../providers/src/registry.js';
@@ -60,7 +60,7 @@ export async function previewConfiguration(tx:Tx,scope:CatalogScope,value:unknow
  try{
   const published=await publishConfiguration(tx,scope,document,bindings,provenance,clock);
   return {bundle_key:document.bundle_key,digest:published.digest,unchanged:published.reused,changes:changes(previous?{document:previous.document,bindings:previous.bindings}:undefined,{document,bindings}),resources:published.resources.map((r:ResourceVersion)=>({kind:r.kind,key:r.key,version:r.version})),activation:'unchanged'};
- }finally{await tx.query('ROLLBACK TO SAVEPOINT configuration_preview');await tx.query('RELEASE SAVEPOINT configuration_preview');}
+ }finally{await tx.query('ROLLBACK TO SAVEPOINT configuration_preview');forgetTransactionWork(tx);await tx.query('RELEASE SAVEPOINT configuration_preview');}
 }
 interface ResourceVersion {kind:string;key:string;version:number;id:string}
 export async function releaseResources(tx:Tx,scope:CatalogScope,releaseId:string):Promise<ResourceVersion[]>{

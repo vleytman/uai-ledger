@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { resolve, sep } from 'node:path';
 import { DomainError, hash, id, type Clock, type Scope } from '../../contracts/src/index.js';
-import { emit, type SqlExecutor, type Tx } from '../../db/src/index.js';
+import { emit, oncePerTransaction, type SqlExecutor, type Tx } from '../../db/src/index.js';
 export interface BlobStore { put(key:string,content:Uint8Array):Promise<void>; get(key:string):Promise<Uint8Array>; delete(key:string):Promise<void> }
 export class LocalBlobStore implements BlobStore {
  constructor(private root:string){}
@@ -15,7 +15,7 @@ export const contentHash=(bytes:Uint8Array)=>`sha256:${createHash('sha256').upda
 const values=(s:Scope)=>[s.organization_id,s.application_id,s.account_id];
 const scoped='organization_id=$1 AND application_id=$2 AND account_id=$3';
 export interface Binding {operation_id?:string;external_project_id?:string;project_generation?:string}
-async function scopeLock(tx:Tx,s:Scope){await tx.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[values(s).join(':')]);}
+async function scopeLock(tx:Tx,s:Scope){const key=values(s).join(':');await oncePerTransaction(tx,`scope-lock:${key}`,()=>tx.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[key]));}
 export async function assertContentAllowed(tx:SqlExecutor,s:Scope,b:Binding){if(!!b.external_project_id!==!!b.project_generation)throw new DomainError('invalid_project_binding');const tombstone=await tx.query(`SELECT id FROM storage_tombstones WHERE ${scoped} AND (operation_id=$4 OR (external_project_id=$5 AND project_generation=$6))`,[...values(s),b.operation_id??null,b.external_project_id??null,b.project_generation??null]);if(tombstone.rows.length)throw new DomainError('content_deleted');}
 export interface AssetInput extends Binding { id?:string;kind:'input'|'output';blob_key:string;content_hash:string;media_type:string;size_bytes:number;expires_at:Date }
 export function inputAssetReferences(input:Record<string,unknown>):string[]{
