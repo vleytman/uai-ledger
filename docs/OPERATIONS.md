@@ -166,6 +166,8 @@ Every API, worker, and scheduler process has its own connection pool. Add the li
 
 Set `UAI_DB_POOL_MAX_API`, `UAI_DB_POOL_MAX_WORKER` and `UAI_DB_POOL_MAX_SCHEDULER` for their roles. `UAI_DB_CONNECT_TIMEOUT_MS` and `UAI_DB_IDLE_TIMEOUT_MS` bound connection acquisition and idle retention. Do not increase replicas without considering the aggregate PostgreSQL connection budget.
 
+A broken PostgreSQL connection (server or pooler restart, network loss) does not stop the process. A pool from `createPool` logs `postgres_pool_connection_error` for an idle pooled connection and `postgres_client_connection_error` for a checked-out one that broke between queries; the connection address is not logged. The current query or transaction on the broken connection fails, the connection is discarded on release, and the next one is opened fresh.
+
 Quota preparation that uses session advisory locks requires a direct connection or session pooling. Transaction pooling does not preserve session-lock ownership.
 
 ## Shared file storage

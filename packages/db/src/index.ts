@@ -20,6 +20,10 @@ export function createPool(connectionString = process.env.DATABASE_URL,role:Data
  const pool=new pg.Pool({connectionString,max:maximum,connectionTimeoutMillis,idleTimeoutMillis,application_name:`uai-${role}`});
  // Idle connection failures must not become unhandled EventEmitter errors or leak connection URLs.
  pool.on('error',()=>console.error('postgres_pool_connection_error'));
+ // The pool listens only while a client is idle. A checked-out client that loses its connection between
+ // queries (a restarted server or pooler, a dropped network) would otherwise end the process; the pool
+ // discards it when it is released and opens another.
+ pool.on('connect',client=>client.on('error',()=>console.error('postgres_client_connection_error')));
  return pool;
 }
 type RollbackObserver=(db:SqlExecutor)=>Promise<void>;
