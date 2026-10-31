@@ -20,6 +20,7 @@
     "generate:api": "tsx scripts/generate-openapi.ts",
     "check:api": "tsx scripts/generate-openapi.ts --check",
     "test:postgres-outage": "UAI_TEST_POSTGRES_OUTAGE=1 vitest run packages/queue/test/postgres-outage.test.ts",
+    "test:pgbouncer": "UAI_TEST_PGBOUNCER=1 vitest run packages/queue/test/pgbouncer.test.ts",
     "test:containers": "docker build -f Dockerfile.runtime -t uai-runtime:distributed-test . && UAI_TEST_CONTAINERS=1 vitest run packages/queue/test/container-runtime.test.ts",
     "configuration": "tsx scripts/configuration.ts",
     "generate:configuration": "tsx scripts/generate-configuration-schema.ts",

@@ -31,6 +31,7 @@ The installation uses pnpm 9.15.0 and `--frozen-lockfile`. The runtime executes 
 On application and worker nodes, set `UAI_IMAGE` and an absolute `UAI_RUNTIME_ENV_FILE`. The file contains:
 
 - `DATABASE_URL` and `REDIS_URL` with the data-node address and separate passwords.
+- With a connection pooler in transaction mode: `DATABASE_URL` is the pooler address and `DATABASE_DIRECT_URL` the direct PostgreSQL address for `LISTEN` ([operations](OPERATIONS.md#postgresql-connection-budget-by-process)).
 - The same `UAI_INSTALLATION_ID` for the API, scheduler and all workers in this installation.
 - This installation's existing `UAI_VAULT_KEY`. Do not generate a replacement key during an update, or encrypted credentials will become inaccessible.
 - S3 bucket, region, endpoint if required, credentials and the same `UAI_S3_PREFIX`. Compose enforces `UAI_BLOB_BACKEND=s3` because local files are not shared between servers. A private bucket without versioning/ObjectLock is required under the BlobStore limitations.

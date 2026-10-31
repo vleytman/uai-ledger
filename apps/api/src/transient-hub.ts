@@ -1,20 +1,22 @@
 import type pg from 'pg';
+import {listenerSource,type ListenerClient,type ListenerSource} from '../../../packages/db/src/listener.js';
 export interface TransientSubscription {resume():void;close():void}
 interface Subscriber {queue:unknown[];bytes:number;running:boolean;paused:boolean;closed:boolean;accept:(event:any)=>boolean;consume:(event:any)=>Promise<void>;gap:()=>void}
-/** One LISTEN per API process; slow consumers have independent bounded queues. */
+/** One LISTEN per API process, on its own connection; slow consumers have independent bounded queues. */
 export class TransientHub {
- private client?:pg.PoolClient;
+ private client?:ListenerClient;
+ private source:ListenerSource;
  private ready?:Promise<void>;
  private stopped=false;
  private subscribers=new Set<Subscriber>();
- constructor(private pool:pg.Pool,private maxBytes=262144,private maxEvents=256){}
+ constructor(pool:pg.Pool|ListenerSource,private maxBytes=262144,private maxEvents=256){this.source=listenerSource(pool,'uai-api-transient')}
  async start(){
   if(this.stopped)throw new Error('hub_closed');
   if(!this.ready)this.ready=this.connect().catch(error=>{this.ready=undefined;throw error});
   await this.ready;
  }
  private async connect(){
-  const client=await this.pool.connect();this.client=client;
+  const client=await this.source.connect();this.client=client;
   client.on('notification',message=>{if(message.channel!=='uai_transient'||!message.payload)return;try{this.publish(JSON.parse(message.payload))}catch{}});
   client.on('error',()=>{if(this.client!==client)return;this.client=undefined;this.ready=undefined;client.release(true);for(const sub of [...this.subscribers])this.drop(sub);});
   try{await client.query('LISTEN uai_transient')}catch(error){this.client=undefined;client.release(true);throw error;}

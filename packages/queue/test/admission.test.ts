@@ -49,12 +49,12 @@ describe.skipIf(!enabled)('durable quota admission',()=>{
    }
    pending=(coordinated?acquireAdmissionBundle(pool!,url!,'test',bundle):acquireDurable(pool!,f.store,input)).then(result=>({result}),error=>({error}));
    await vi.waitFor(()=>expect(reached).toBe(true),{timeout:5000});
-   const owners=(await pool!.query(`SELECT a.pid,a.state,a.xact_start FROM pg_stat_activity a JOIN pg_locks l ON l.pid=a.pid
+   const owners=(await pool!.query(`SELECT a.pid,a.state,a.application_name FROM pg_stat_activity a JOIN pg_locks l ON l.pid=a.pid
     WHERE l.locktype='advisory' AND l.granted AND l.objsubid=1
      AND l.database=(SELECT oid FROM pg_database WHERE datname=current_database())
      AND l.classid::bigint=((hashtextextended($1,8192)>>32)&4294967295)
      AND l.objid::bigint=(hashtextextended($1,8192)&4294967295)`,[f.group])).rows;
-   expect(owners).toHaveLength(1);expect(owners[0]).toMatchObject({state:'idle',xact_start:null});
+   expect(owners).toHaveLength(1);expect(owners[0]).toMatchObject({state:'idle in transaction',application_name:'uai-quota-lock'});
    expect((await pool!.query('SELECT pg_terminate_backend($1) AS terminated',[owners[0].pid])).rows[0].terminated).toBe(true);
    await vi.waitFor(async()=>expect((await pool!.query('SELECT 1 FROM pg_stat_activity WHERE pid=$1',[owners[0].pid])).rows).toEqual([]),{timeout:5000});
    // Another owner completes recovery and admission before the old Redis call returns.
@@ -88,12 +88,12 @@ describe.skipIf(!enabled)('durable quota admission',()=>{
    spy=vi.spyOn(QuotaStore,'acquireMany').mockImplementationOnce(async permits=>{reached=true;await gate;return acquire(permits)});
    pending=acquireAdmissionBundle(pool!,url!,'test',bundle).then(result=>({result}),error=>({error}));
    await vi.waitFor(()=>expect(reached).toBe(true),{timeout:5000});
-   const locks=async(key:string,namespace:number)=>(await pool!.query(`SELECT a.pid,a.state,a.xact_start FROM pg_stat_activity a JOIN pg_locks l ON l.pid=a.pid
+   const locks=async(key:string,namespace:number)=>(await pool!.query(`SELECT a.pid,a.state,a.application_name FROM pg_stat_activity a JOIN pg_locks l ON l.pid=a.pid
     WHERE l.locktype='advisory' AND l.granted AND l.objsubid=1
      AND l.database=(SELECT oid FROM pg_database WHERE datname=current_database())
      AND l.classid::bigint=((hashtextextended($1,$2)>>32)&4294967295)
      AND l.objid::bigint=(hashtextextended($1,$2)&4294967295)`,[key,namespace])).rows;
-   const held=await locks(bundle,8193);expect(held).toHaveLength(1);expect(held[0]).toMatchObject({state:'idle',xact_start:null});
+   const held=await locks(bundle,8193);expect(held).toHaveLength(1);expect(held[0]).toMatchObject({state:'idle in transaction',application_name:'uai-quota-lock'});
    for(const input of inputs)expect(await locks(input.group_id,8192)).toEqual(held);
    await transaction(pool!,async tx=>{
     await tx.query("SET LOCAL lock_timeout='500ms'");
@@ -133,12 +133,12 @@ describe.skipIf(!enabled)('durable quota admission',()=>{
    spy=vi.spyOn(f.store,'acquire').mockImplementationOnce(async(...args)=>{reached=true;await gate;return acquire(...args)});
    pending=acquireDurable(pool!,f.store,input).then(result=>({result}),error=>({error}));
    await vi.waitFor(()=>expect(reached).toBe(true),{timeout:5000});
-   const locks=async()=>(await pool!.query(`SELECT a.state,a.xact_start FROM pg_stat_activity a JOIN pg_locks l ON l.pid=a.pid
+   const locks=async()=>(await pool!.query(`SELECT a.state,a.application_name FROM pg_stat_activity a JOIN pg_locks l ON l.pid=a.pid
     WHERE l.locktype='advisory' AND l.granted AND l.objsubid=1
      AND l.database=(SELECT oid FROM pg_database WHERE datname=current_database())
      AND l.classid::bigint=((hashtextextended($1,8192)>>32)&4294967295)
      AND l.objid::bigint=(hashtextextended($1,8192)&4294967295)`,[f.group])).rows;
-   expect(await locks()).toEqual([{state:'idle',xact_start:null}]);
+   expect(await locks()).toEqual([{state:'idle in transaction',application_name:'uai-quota-lock'}]);
    await transaction(pool!,async tx=>{
     await tx.query("SET LOCAL lock_timeout='500ms'");
     await tx.query('SELECT id FROM execution_requests WHERE id=$1 FOR UPDATE',[input.request_id]);

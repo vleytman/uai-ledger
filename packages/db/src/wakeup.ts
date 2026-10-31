@@ -1,11 +1,12 @@
 import type pg from 'pg';
+import {listenerSource,type ListenerClient,type ListenerSource} from './listener.js';
 /** A notification is only a hint; timeout always resumes durable reconciliation. */
 export class SchedulerWakeup {
- private client?:pg.PoolClient;private pending=false;private resume?:()=>void;
- constructor(private pool:pg.Pool){}
+ private client?:ListenerClient;private pending=false;private resume?:()=>void;private source:ListenerSource;
+ constructor(pool:pg.Pool|ListenerSource){this.source=listenerSource(pool,'uai-scheduler-wakeup')}
  async connect(){
   if(this.client)return;
-  const client=await this.pool.connect();this.client=client;
+  const client=await this.source.connect();this.client=client;
   client.on('notification',event=>{if(event.channel==='uai_scheduler'){this.pending=true;this.resume?.()}});
   client.on('error',()=>{if(this.client!==client)return;this.client=undefined;client.release(true);this.pending=true;this.resume?.()});
   try{await client.query('LISTEN uai_scheduler')}catch(error){this.client=undefined;client.release(true);throw error;}
