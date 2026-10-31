@@ -9,8 +9,10 @@ export async function checkAdmissionBackpressure(tx:Tx,scope:Scope,clock:Clock,a
  if(process.env.UAI_EXECUTION_BACKEND==='bullmq')await tx.query(`INSERT INTO execution_admission_policies(organization_id,application_id,account_limit,application_limit,max_queue_age_ms)
   VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`,[scope.organization_id,scope.application_id,defaultAdmissionLimits.account_limit,defaultAdmissionLimits.application_limit,defaultAdmissionLimits.max_queue_age_ms]);
  // Legacy applications without an explicit policy retain their admission behavior.
- // Serialize admissions across accounts in this application, not the installation.
- const policy=(await tx.query('SELECT * FROM execution_admission_policies WHERE organization_id=$1 AND application_id=$2 FOR UPDATE',[scope.organization_id,scope.application_id])).rows[0];
+ // Not locked: admissions of different accounts proceed side by side. The caller already holds this
+ // account's barrier, so the account limit stays exact; the application limit can be exceeded only by
+ // admissions of other accounts committing at the same moment. It is a backlog guard, not a financial one.
+ const policy=(await tx.query('SELECT * FROM execution_admission_policies WHERE organization_id=$1 AND application_id=$2',[scope.organization_id,scope.application_id])).rows[0];
  if(!policy)return;
  const rows=(await tx.query(`WITH queued AS (
   SELECT account_id,count(*)::bigint AS waiting,min(enqueued_at) AS oldest
