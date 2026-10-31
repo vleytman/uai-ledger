@@ -8,6 +8,7 @@ import {DomainError,id,hash} from '../../contracts/src/index.js';
 import type {WorkerDependencies} from '../../execution/src/runtime.js';
 import {QuotaStore} from './quota.js';
 import {recordAdmissionIntent,acquireDurable,quotaWaiter} from './admission.js';
+import {QUOTA_RETRY_CEILING_MS,wakeQuotaWaiters} from './quota-waiters.js';
 
 export function providerAdmission(pool:pg.Pool,url:string,installation:string){
  const stores=new Map<string,QuotaStore>();
@@ -41,7 +42,11 @@ export function providerAdmission(pool:pg.Pool,url:string,installation:string){
    const metric=d.rule==='concurrency'?'concurrency':ruleMetrics.get(d.group_id)?.[d.rule];
    if(group&&metric)quota_wait={...d,group_name:group.name,metric,checked_at:new Date(d.checked_at).toISOString()};
   }
-  return result.allowed?{allowed:true,admission_id:inputs[0]!.id}:{allowed:false,reason:result.reason==='too_large'?'quota_request_too_large':result.reason==='limited'?'waiting_rate_limit':`quota_${result.reason}`,...(result.reason==='limited'?{retry_at:new Date(result.retry_at!)}:{}),...(quota_wait?{quota_wait}:{})};
+  // An admission changes what older and younger waiters may take: let the next ones in line try.
+  if(result.allowed){await wakeQuotaWaiters(pool,boundGroups.map(group=>group.id));return {allowed:true,admission_id:inputs[0]!.id};}
+  // The computed time assumes the window stays as full as it is; refunds and released slots free it sooner.
+  const retry_at=result.reason==='limited'?new Date(Math.min(result.retry_at!,Date.now()+QUOTA_RETRY_CEILING_MS)):undefined;
+  return {allowed:false,reason:result.reason==='too_large'?'quota_request_too_large':result.reason==='limited'?'waiting_rate_limit':`quota_${result.reason}`,...(retry_at?{retry_at}:{}),...(quota_wait?{quota_wait}:{})};
  };
 
  /** Advisory snapshot. No intent, permit, gate recovery or provider call is made here. */
@@ -120,6 +125,8 @@ export function providerAdmission(pool:pg.Pool,url:string,installation:string){
   });
   for(const group of adjustedGroups)await applyQuotaUsage(pool,await storeFor(group),group);
   for(const group of groups)await applyCooldown(group);
+  // A released slot or a refund frees capacity that waiting calls were told to wait for.
+  await wakeQuotaWaiters(pool,(await pool.query('SELECT DISTINCT group_id FROM dispatch_admissions WHERE id=ANY($1::text[])',[ids])).rows.map(row=>row.group_id));
  };
  // A confirmed remote job is held independently of the original submission lease.
  // Only its current observer may extend the hold; it never authorizes a new submission.
