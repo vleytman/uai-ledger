@@ -16,6 +16,20 @@ export async function quotaWaiter(db:{query:pg.Pool['query']},requestId:string):
  const row=(await db.query('SELECT enqueued_at FROM execution_requests WHERE id=$1',[requestId])).rows[0];
  return row?{id:requestId,since:new Date(row.enqueued_at).getTime()}:undefined;
 }
+/**
+ * Admissions a new, empty Redis must learn again before the group opens. An admission outside every rule
+ * window of its group no longer counts and holds no slot; an intent whose request has moved to another fence
+ * or state can never be acknowledged, so it never led to a call. Restoring them only cost time under the
+ * group lock and, for intents, counted them as fresh use at recovery time.
+ */
+export async function recoverableAdmissions(db:{query:pg.Pool['query']},groupId:string,excludeId:string){
+ return (await db.query(`SELECT d.* FROM dispatch_admissions d JOIN execution_requests r ON r.id=d.request_id
+  WHERE d.group_id=$1 AND (d.id<>$2 OR d.state='admitted') AND d.state<>'rejected' AND d.unused_at IS NULL AND d.created_at>now()-interval '25 hours'
+   AND ((d.state='admitted' AND (d.admitted_at>now()-((SELECT COALESCE(max(window_ms),0) FROM provider_quota_rules WHERE group_id=$1)+60000)*interval '1 millisecond'
+     OR (d.slot_released_at IS NULL AND d.slot_expires_at>now())))
+    OR (d.state='intent' AND r.fencing_token=d.fencing_token AND r.execution_status='leased'))
+  ORDER BY d.created_at`,[groupId,excludeId])).rows;
+}
 export type AdmissionInput={id:string;group_id:string;request_id:string;fence:string;demands:QuotaDemand[]};
 export async function validateIntent(tx:Tx,input:AdmissionInput){
  const group=(await tx.query('SELECT * FROM provider_quota_groups WHERE id=$1 FOR SHARE',[input.group_id])).rows[0];if(!group)throw new DomainError('quota_group_missing');
@@ -52,7 +66,7 @@ export async function acquireDurable(pool:pg.Pool,store:QuotaStore,input:Admissi
   const {group,existing}=prepared;
   if(!await store.isReady(group.recovery_epoch)){
    await store.closeGate();
-   const admissions=(await client.query("SELECT * FROM dispatch_admissions WHERE group_id=$1 AND (id<>$2 OR state='admitted') AND state<>'rejected' AND unused_at IS NULL AND created_at>now()-interval '25 hours' ORDER BY created_at",[group.id,input.id])).rows;
+   const admissions=await recoverableAdmissions(client,group.id,input.id);
    const recoveryTime=await store.currentTime();
    // An unacknowledged acquire may have happened long after its intent was created.
    // Restart its conservative window rather than releasing possibly fresh consumption early.

@@ -29,17 +29,19 @@ export async function recordQuotaUsage(tx:Tx,admissionIds:string[],reported:unkn
  return (await tx.query('SELECT * FROM provider_quota_groups WHERE id=ANY($1::text[]) ORDER BY id',[groupIds])).rows;
 }
 
-/** Acquisition calls this under its existing group lock, before issuing new permits; recovery calls it after restoring admissions. */
+/** Acquisition calls this under its existing group lock, before issuing new permits; recovery calls it after restoring admissions, for facts still inside their windows. */
 export async function applyQuotaUsage(db:SqlExecutor,store:QuotaStore,group:{id:string;recovery_epoch:string},restore=false){
  const rows=(await db.query(`SELECT * FROM quota_usage_adjustments WHERE group_id=$1
-  AND observed_at>now()-interval '25 hours' AND ($2 OR applied_at IS NULL) ORDER BY observed_at,id`,[group.id,restore])).rows;
+  AND observed_at>now()-interval '25 hours' AND ($2 OR applied_at IS NULL)
+  AND (NOT $2 OR observed_at>now()-(window_ms+60000)*interval '1 millisecond') ORDER BY observed_at,id`,[group.id,restore])).rows;
  for(const row of rows){
   const applied=await store.applyExcess(group.recovery_epoch,row.id,{key:row.rule_key,amount:Number(row.delta_units),window_ms:row.window_ms},new Date(row.observed_at).getTime(),restore);
   if(!applied)throw new Error('quota_adjustment_not_ready');
   await db.query('UPDATE quota_usage_adjustments SET applied_at=COALESCE(applied_at,now()) WHERE id=$1',[row.id]);
  }
  const refunds=(await db.query(`SELECT * FROM quota_usage_refunds WHERE group_id=$1
-  AND observed_at>now()-interval '25 hours' AND ($2 OR applied_at IS NULL) ORDER BY observed_at,admission_id,rule_key`,[group.id,restore])).rows;
+  AND observed_at>now()-interval '25 hours' AND ($2 OR applied_at IS NULL)
+  AND (NOT $2 OR observed_at>now()-(window_ms+60000)*interval '1 millisecond') ORDER BY observed_at,admission_id,rule_key`,[group.id,restore])).rows;
  for(const row of refunds){
   if(!await store.refund(group.recovery_epoch,row.admission_id,{key:row.rule_key,admitted:Number(row.admitted_units),actual:Number(row.actual_units)},restore))throw new Error('quota_adjustment_not_ready');
   await db.query('UPDATE quota_usage_refunds SET applied_at=COALESCE(applied_at,now()) WHERE admission_id=$1 AND rule_key=$2',[row.admission_id,row.rule_key]);

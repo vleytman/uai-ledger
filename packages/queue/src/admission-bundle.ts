@@ -7,7 +7,7 @@ import {applyQuotaHeaders} from './headers.js';
 import type pg from 'pg';
 import {transaction} from '../../db/src/index.js';
 import {DomainError,hash} from '../../contracts/src/index.js';
-import {concurrencyRetryAt,quotaWaiter,validateIntent,type AdmissionInput} from './admission.js';
+import {concurrencyRetryAt,quotaWaiter,recoverableAdmissions,validateIntent,type AdmissionInput} from './admission.js';
 
 /** One committed intent records the complete set before any multi-group Redis call. */
 export async function recordAdmissionBundle(pool:pg.Pool,bundleId:string,inputs:AdmissionInput[]){
@@ -83,7 +83,7 @@ export async function acquireAdmissionBundle(pool:pg.Pool,url:string,installatio
    const store=new QuotaStore(url,installation,group.id,JSON.stringify([bundle.organization_id,bundle.coordination_domain]));stores.push(store);store.redis.on('error',()=>{});await store.connect();
    if(!await store.isReady(group.recovery_epoch)){
     await store.closeGate();
-    const prior=(await client.query("SELECT * FROM dispatch_admissions WHERE group_id=$1 AND (id<>$2 OR state='admitted') AND state<>'rejected' AND unused_at IS NULL AND created_at>now()-interval '25 hours' ORDER BY created_at",[group.id,member.id])).rows;
+    const prior=await recoverableAdmissions(client,group.id,member.id);
     const recoveryTime=await store.currentTime();
     for(const row of prior)await store.restore(row.id,row.admitted_at?new Date(row.admitted_at).getTime():recoveryTime,row.demands);
     await applyQuotaUsage(client,store,group,true);
