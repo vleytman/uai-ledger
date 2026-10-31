@@ -1958,6 +1958,8 @@ export type components = {
                 account_scope: {
                     [key: string]: string;
                 };
+                /** @description OpenAI or Anthropic only. SDK format: OpenAI includes /v1, Anthropic has no version. The connection key is sent only here; omit for the provider default. */
+                base_url?: string;
                 capabilities: {
                     balance_reporting: boolean;
                     cost_reporting: boolean;

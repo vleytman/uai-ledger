@@ -169,3 +169,9 @@ it('registry keeps adapter construction explicit and rejects arbitrary code/endp
  expect(()=>createRegisteredAdapter('openai',{apiKey:'synthetic',models:[]},'https://example.com')).toThrow();
  expect(()=>parseConfiguration({schema_version:1,bundle_key:'test',resources:[],script:'anything'})).toThrow();
 });
+it('file catalogs accept an SDK-style model base URL and reject unsafe ones before publication',async()=>{
+ const bundle=JSON.parse(await readFile(new URL('../../../configurations/ai/openai-luna6.json',import.meta.url),'utf8'));
+ const withUrl=(base_url:string)=>{const copy=structuredClone(bundle);copy.resources.find((r:any)=>r.kind==='catalog').payload.models[0].base_url=base_url;return copy;};
+ expect(parseConfiguration(withUrl('https://gw.example.test/v1')).resources.find(r=>r.kind==='catalog')).toMatchObject({payload:{models:[{base_url:'https://gw.example.test/v1'}]}});
+ for(const bad of ['http://gw.example.test/v1','https://k:s@gw.example.test/v1','https://gw.example.test/v1?x=1'])expect(()=>parseConfiguration(withUrl(bad))).toThrow(expect.objectContaining({code:'invalid_base_url'}));
+});

@@ -7,6 +7,7 @@ import {resolveExecutionPolicy,type ExecutionPolicy,type ExecutionOverrides} fro
 import {validateServiceOperation,validateApiSamples,type ServiceOperation} from '../../api-services/src/index.js';
 import {assertDatabaseManaged,activeFileReleases,type FileSource} from '../../configuration/src/ownership.js';
 import {adapterDefinition} from '../../providers/src/registry.js';
+import {normalizeBaseUrl} from '../../providers/src/base-url.js';
 import {validateModelCalculation,validateModelRateCoverage,validateModelPriceSamples,priceModel,normalizeParameters,type ModelCalculation,type CalculationInput} from '../../model-pricing/src/index.js';
 import {verifyPublicationCoverage} from './coverage.js';
 import { DomainError, id, systemClock, type Clock } from '../../contracts/src/index.js';
@@ -15,7 +16,7 @@ import { rateUsage, getAttemptUsage, validateRateCard, type RateCard, type Ratin
 import type { Capability, NormalizedUsage } from '../../providers/src/contracts.js';
 import {providerParameters,registeredHttpProvider} from '../../providers/src/parameters.js';
 export type CatalogScope={organization_id:string;application_id:string};
-export interface ModelDefinition { preview?:boolean; live_validation?:'not_run'|'passed'|'failed';  text_features?:z.infer<typeof TextFeatures>; api?:ServiceOperation; id:string; provider:string; adapter_ref?:string; capabilities:Capability[]; allowed_parameters:string[]; status:'active'|'disabled'; identity_kind?:'snapshot'|'alias'; calculation?:ModelCalculation; rate_card_version_id?:string }
+export interface ModelDefinition { preview?:boolean; live_validation?:'not_run'|'passed'|'failed';  text_features?:z.infer<typeof TextFeatures>; api?:ServiceOperation; id:string; provider:string; adapter_ref?:string; /** Overrides the connection base URL for this model only. */ base_url?:string; capabilities:Capability[]; allowed_parameters:string[]; status:'active'|'disabled'; identity_kind?:'snapshot'|'alias'; calculation?:ModelCalculation; rate_card_version_id?:string }
 export interface CatalogDefinition { models:ModelDefinition[] }
 export interface RouteTarget { service_mode?:'standard';  catalog_version_id:string; model:string; connection_id:string; max_cost_units:string; limiter_key?:string }
 export interface RouteDefinition { execution_policy_version_id?:string; capability:Capability; primary:RouteTarget; fallback?:RouteTarget; execution?:ExecutionOverrides; deadline_seconds?:number; platform_risk_budget_units:string }
@@ -42,6 +43,7 @@ export function validateCatalog(catalog:CatalogDefinition) {
     if(!m.id || ids.has(m.id) || !m.provider || !m.capabilities.length || m.capabilities.some(c=>!['embeddings.generate','text.generate','image.generate','image.vectorize','speech.synthesize','search','api.call'].includes(c)) || !Array.isArray(m.allowed_parameters) || !['active','disabled'].includes(m.status)) throw new DomainError('invalid_model');
     if(m.identity_kind!==undefined&&!['snapshot','alias'].includes(m.identity_kind))throw new DomainError('invalid_model_identity');
     if(m.adapter_ref)adapterDefinition(m.adapter_ref,m.provider,m.capabilities);
+    if(m.base_url!==undefined)normalizeBaseUrl(m.provider,m.base_url);
     if(m.api){validateServiceOperation(m.api);if(m.calculation||!m.rate_card_version_id||m.api.key!==m.id||m.api.provider!==m.provider||m.api.adapter_ref!==m.adapter_ref||m.capabilities.length!==1||m.capabilities[0]!=='api.call')throw new DomainError('invalid_api_operation');}
     if(m.capabilities.includes('api.call')&&!m.api)throw new DomainError('api_operation_required');
     if(m.calculation){

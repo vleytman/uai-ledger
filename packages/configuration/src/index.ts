@@ -7,6 +7,7 @@ import type {Tx} from '../../db/src/index.js';
 import {CatalogService,type CatalogScope,type ConfigurationKind,type ConfigurationPayload,type CatalogDefinition,type RouteDefinition,type PublishSample} from '../../catalog/src/index.js';
 import {publishRecipe,type RecipeDefinition} from '../../quoting/src/index.js';
 import {adapterDefinition} from '../../providers/src/registry.js';
+import {normalizeBaseUrl} from '../../providers/src/base-url.js';
 import type {FileSource} from './ownership.js';
 
 const key=z.string().regex(/^[a-zA-Z0-9_.-]{1,160}$/);
@@ -24,7 +25,7 @@ export const fileConfigurationSchema=z.strictObject({
   z.strictObject({...resource,kind:z.literal('execution_policy'),payload:ExecutionPolicy}),
   z.strictObject({...resource,kind:z.literal('tariff'),payload:paidApiSchemas.TariffTemplate}),
   z.strictObject({...resource,kind:z.literal('rate_card'),payload:z.strictObject({id:z.string(),currency:z.literal('USD'),source:z.string(),checked_at:z.string(),rates:z.array(object)}),samples:z.array(z.strictObject({usage:object,context:object})).min(1)}),
-  z.strictObject({...resource,kind:z.literal('catalog'),payload:z.strictObject({models:z.array(z.strictObject({preview:z.boolean().optional(),live_validation:z.enum(['not_run','passed','failed']).optional(),id:z.string().min(1),provider:z.string().min(1),adapter_ref:z.string().min(1),capabilities:z.array(capability).min(1),allowed_parameters:z.array(z.string()),status:z.enum(['active','disabled']),identity_kind:z.enum(['snapshot','alias']).optional(),text_features:TextFeatures.optional(),calculation:object.optional(),api:paidApiSchemas.ServiceOperation.optional(),rate_card_version_id:ref('rate_card').optional()})).min(1)})}),
+  z.strictObject({...resource,kind:z.literal('catalog'),payload:z.strictObject({models:z.array(z.strictObject({preview:z.boolean().optional(),live_validation:z.enum(['not_run','passed','failed']).optional(),id:z.string().min(1),provider:z.string().min(1),adapter_ref:z.string().min(1),base_url:z.string().optional(),capabilities:z.array(capability).min(1),allowed_parameters:z.array(z.string()),status:z.enum(['active','disabled']),identity_kind:z.enum(['snapshot','alias']).optional(),text_features:TextFeatures.optional(),calculation:object.optional(),api:paidApiSchemas.ServiceOperation.optional(),rate_card_version_id:ref('rate_card').optional()})).min(1)})}),
   z.strictObject({...resource,kind:z.literal('route'),payload:z.strictObject({capability,primary:target,fallback:target.optional(),execution_policy_version_id:ref('execution_policy').optional(),execution:ExecutionOverrides.optional(),deadline_seconds:z.number().int().positive().optional(),platform_risk_budget_units:units})}),
   z.strictObject({key,kind:z.literal('recipe'),payload:z.strictObject({period_budget_key:ref('budget'),execution:ExecutionOverrides.optional(),billing:BillingOverrides.optional(),inputs:object.optional(),partial_policy:z.literal('successful_parts').optional(),settlement:z.enum(['actual_usage','fixed','mixed','quoted_final']).optional(),deadline_seconds:z.number().int().positive().optional(),content_ttl_seconds:z.number().int().positive().optional(),components:z.array(z.strictObject({key,capability,route_version_id:ref('route'),rate_card_version_id:ref('rate_card'),count:object,limits:object,billing:object.optional(),pricing_mode:z.enum(['quoted_final','estimated_actual','actual_capped']).optional(),estimation:object.optional(),maximum_items:z.array(object).optional(),conditions:z.record(z.string(),z.string()).optional(),response_schema:object.optional()})).min(1)})}),
  ])).min(1).max(100),
@@ -37,7 +38,7 @@ export type Provenance=z.infer<typeof provenanceSchema>;
 const priority={execution_policy:0,tariff:0,rate_card:0,catalog:1,route:2,recipe:3};
 export function parseConfiguration(value:unknown):FileConfiguration {
  const document=fileConfigurationSchema.parse(value),keys=new Set<string>();
- for(const resource of document.resources){const k=`${resource.kind}:${resource.key}`;if(keys.has(k))throw new DomainError('duplicate_configuration_key',k,422);keys.add(k);}
+ for(const resource of document.resources){const k=`${resource.kind}:${resource.key}`;if(keys.has(k))throw new DomainError('duplicate_configuration_key',k,422);keys.add(k);if(resource.kind==='catalog')for(const model of resource.payload.models)if(model.base_url!==undefined)normalizeBaseUrl(model.provider,model.base_url);}
  // A bundle owns a complete publishable profile; future kinds need explicit schemas.
  if(!document.resources.some(r=>r.kind==='recipe')&&!document.resources.every(r=>r.kind==='tariff'||r.kind==='execution_policy'))throw new DomainError('recipe_required','A service bundle must include an entry recipe; tariff-only bundles are also allowed.',422);
  return document;

@@ -407,6 +407,38 @@ All configurations have draft and published versions. Draft editing uses revisio
 
 Secrets cannot be viewed after storage. Publishing a rate card does not rewrite history. Resolve unknown requires reason and a permitted financial scenario from ACCOUNTING: the body contains attempt_id, provider_charged, and cost_units (only when provider_charged=true); the customer is not charged, and the attempt receives `abandoned` status with known cost. The procedure is described in [operations](OPERATIONS.md#limiter-slots-and-unknown-outcomes).
 
+### Provider base URL
+
+An `openai` or `anthropic` connection, and a catalog model of either provider, accept an optional `base_url`. Use it to send requests to a gateway or proxy with a compatible API instead of the official address.
+
+The address is chosen in this order:
+
+1. The model's `base_url` in the published catalog version. It is stored in the accepted route variant together with `adapter_ref`, so accepted work runs against the address of its own catalog version.
+2. The connection's `base_url` at call time.
+3. The official address: `https://api.openai.com/v1` or `https://api.anthropic.com`.
+
+The format matches `OPENAI_BASE_URL` and `ANTHROPIC_BASE_URL` in the official SDKs:
+
+| Provider | Example value | Resulting paths |
+|---|---|---|
+| OpenAI | `https://gw.example.test/v1` | `/v1/responses`, `/v1/embeddings`, `/v1/images/generations`, `/v1/images/edits` |
+| Anthropic | `https://gw.example.test` | `/v1/messages` |
+
+The address is validated when a connection is created or updated, when a catalog is published and when a file configuration is parsed. An invalid value is rejected with `invalid_base_url` (HTTP 422):
+
+- the scheme must be `https`; `http` is allowed only for `localhost`, `127.0.0.1` and `[::1]` with `UAI_ENV=test`;
+- no user name or password, no query (`?`) or fragment (`#`), no surrounding spaces, at most 2000 characters;
+- only `openai` and `anthropic`; other providers reject the field instead of ignoring it;
+- a trailing `/` is removed and the host name is lowercased.
+
+The worker repeats the same check before it creates the adapter, so an `http://localhost` address configured in a test environment is not used in another one.
+
+The connection key is sent only to the resulting address, and redirects are refused (`redirect: error`), so a gateway cannot forward the key through a 3xx response. Changing a connection's `base_url` uses the same `PATCH /v1/admin/connections/{id}` and the same `config:write` scope as changing its key (`POST /v1/admin/connections/{id}/credential`); in the admin interface both actions require the `admin` role. Each change writes a `connection.base_url_changed` audit event with `previous_base_url`, `base_url` and the reason, just as a key rotation writes `connection.credential_rotated`. Leaving `base_url` out of the settings returns the connection to the official address, and that is audited too. A model's address changes only by publishing a new catalog version, with its usual audit.
+
+To give two groups of users of the same model their own keys, provider budgets and quotas, create two connections of the same provider with different `base_url` values and a route to each. Spending, provider budgets and quotas are counted per connection.
+
+Cost report import does not use `base_url`; see [operations](OPERATIONS.md#connections-with-their-own-base-url).
+
 `GET /admin/execution-metrics` additionally returns `limiters` (`concurrency_limit`, `held_slots`, `unknown_held_slots`, `oldest_unknown_held_seconds`) and per-queue `rate_limit_starved_24h`, `admission_timeout_24h`, and `attempt_timeouts_24h` (calls interrupted by attempt timeout). Notification signal `limiter.unknown_slots_held` fires when unknown outcomes occupy limiter slots.
 
 ### Application Credit Summary

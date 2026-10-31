@@ -79,6 +79,10 @@ Connections, budgets, quotas, and notifications remain operational settings. Pub
 
 The execution_policy resource stores the complete execution schema. Example: [default](../configurations/execution/default.json). It uses the same validate/preview/publish/activate path; a separate policy bundle does not require a recipe. An active policy with key=default sets the application default. A route may reference execution_policy_version_id through the @execution_policy:key symbol inside the bundle and partially override execution. Accepted requests store the final terms and version ID. Operational max_attempts and max_deadline_seconds live in invocation_execution_limits, rather than an independent file policy editor.
 
+## Model base URL
+
+An `openai` or `anthropic` catalog model may set `base_url` in the official SDK format. It overrides the connection's address for this model only. The value is checked when the file is parsed; an invalid one is rejected with `invalid_base_url`. See the [API reference](API.md#provider-base-url) for the selection order and rules.
+
 ## Additional model examples
 
 See [model capabilities](MODEL_CAPABILITIES.md) for embeddings, structured responses, SVG support, limits and example configurations. Publish compatible profiles and configure connection budgets before making real calls.

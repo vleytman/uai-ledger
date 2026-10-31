@@ -481,6 +481,9 @@
                           "type": "string",
                           "minLength": 1
                         },
+                        "base_url": {
+                          "type": "string"
+                        },
                         "capabilities": {
                           "minItems": 1,
                           "type": "array",

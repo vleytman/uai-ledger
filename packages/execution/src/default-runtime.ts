@@ -4,6 +4,7 @@ import {validateTextFeatures} from '../../providers/src/text-input.js';
 import {inputAssetIds} from '../../storage/src/index.js';
 import {apiLimitUsage} from '../../providers/src/api-limit-usage.js';
 import {createRegisteredAdapter,adapterDefinition} from '../../providers/src/registry.js';
+import {normalizeBaseUrl} from '../../providers/src/base-url.js';
 import {imageQuotaEstimate} from './image-quota-estimate.js';
 import {textQuotaEstimate} from './text-quota-estimate.js';
 import {createBlobStore} from '../../storage/src/blob-store.js';
@@ -62,7 +63,9 @@ export function defaultRuntime(pool:pg.Pool,clock:Clock=systemClock):WorkerDepen
    if(c.provider==='fake')return new FixtureAdapter(fixture(context.input));
    if(context.input.capability==='text.generate')validateTextFeatures(variant.text_features,context.input);
    if(process.env.UAI_ALLOW_REAL_PROVIDERS!=='true')throw new DomainError('real_providers_disabled','Real providers require explicit server configuration',503);
-   const apiKey=await connections.resolveCredential(scope,variant.connection_id);const options={apiKey,googleProject:c.account_scope.project,googleLocation:c.account_scope.location,models:[variant.model],maxInputTokens:Number(c.limits.max_input_tokens)||undefined,cartesiaVersion:process.env.CARTESIA_API_VERSION};
+   // Model, then connection, then the adapter default; checked again here in case the environment changed since configuration.
+   const baseUrl=variant.base_url??c.base_url??undefined;
+   const apiKey=await connections.resolveCredential(scope,variant.connection_id);const options={apiKey,...(baseUrl!==undefined?{baseUrl:normalizeBaseUrl(c.provider,baseUrl)}:{}),googleProject:c.account_scope.project,googleLocation:c.account_scope.location,models:[variant.model],maxInputTokens:Number(c.limits.max_input_tokens)||undefined,cartesiaVersion:process.env.CARTESIA_API_VERSION};
    return createRegisteredAdapter(c.provider,options,variant.adapter_ref);
   },
   async onAttempt(scope,event){await pool.query("SELECT pg_notify('uai_transient',$1)",[JSON.stringify({...scope,...event})]);},

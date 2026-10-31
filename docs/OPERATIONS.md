@@ -15,6 +15,8 @@ Use the admin interface to set up an installation and investigate requests, bala
 
 Open a connection to inspect its provider account scope, models, capabilities, credential status, health, quota groups, balances or spending limits, data freshness, and pending exposure. You can check the credential's status without seeing its secret. Adding another key for the same provider account gives you neither another balance nor another quota.
 
+OpenAI and Anthropic connections can send requests through a gateway with an optional [base URL](API.md#provider-base-url). The key goes to that address, so changing it takes the same right as changing the key and is audited.
+
 Disable a connection when investigating authentication or financial problems. A free health check does not automatically authorize generation or clear a financial block. A paid probe is itself a potentially billable request and needs a configured budget.
 
 ## Budgets and wallet funds
@@ -54,6 +56,16 @@ Check the following before accepting a comparison:
 Corrections create additional financial records; they do not rewrite immutable history or silently create new customer debits. Missing reporting permissions, unsupported endpoints and incomplete coverage remain visible limitations.
 
 `UAI_ALLOW_REPORTING_API` controls network report import separately from generation. Do not enable reporting solely because an inference key works.
+
+### Connections with their own base URL
+
+Cost report import (`POST /v1/admin/connections/{id}/import-cost-report`) always calls the official organization APIs: `https://api.openai.com/v1/organization/costs` and `https://api.anthropic.com/v1/organizations/cost_report`. A connection's or model's [base URL](API.md#provider-base-url) does not affect it, because:
+
+- the report is read with a separate organization admin key (the reporting credential), not the model key. That key can read all of the organization's spending and must not be sent to a gateway;
+- compatible gateways usually reproduce the model APIs, not the organization cost APIs;
+- reconciliation checks what the provider itself billed. If the gateway calls the same organization, the report matches local accounting. If the gateway pays for calls from another account, reconciliation shows `discrepancy`, which is the correct signal.
+
+If a connection goes through a gateway that pays from its own account, do not configure a reporting credential for it: the report is then not imported and reconciliation stays explicitly unavailable.
 
 ## Provider quota group settings
 
