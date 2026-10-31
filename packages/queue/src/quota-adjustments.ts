@@ -11,7 +11,7 @@ export async function recordQuotaUsage(tx:Tx,admissionIds:string[],reported:unkn
  const counters=validLimitUsage(reported);if(!counters)return [];
  const admissions=(await tx.query("SELECT * FROM dispatch_admissions WHERE id=ANY($1::text[]) AND state='admitted' ORDER BY group_id,id",[admissionIds])).rows;
  const groupIds=[...new Set(admissions.map(a=>a.group_id))];
- for(const groupId of groupIds)await tx.query('SELECT pg_advisory_xact_lock(hashtextextended($1,8192))',[groupId]);
+ // No group lock: recording is idempotent per admission and rule, and applying it waits for an open Redis gate.
  for(const admission of admissions)for(const demand of admission.demands){
   const metric=admission.rule_metrics[demand.key] as keyof typeof counters|undefined;
   const actual=metric?counters[metric]:undefined;if(actual===undefined||actual===demand.amount)continue;

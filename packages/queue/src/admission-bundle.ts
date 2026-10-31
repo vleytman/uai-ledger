@@ -1,13 +1,12 @@
 import {backgroundSlotsFull} from './priority.js';
-import {withQuotaLocks,quotaTransaction} from './group-lock.js';
+import {quotaTransaction,lockQuotaGroupRows} from './group-lock.js';
 import {applyQuotaUsage} from './quota-adjustments.js';
 import {refundUnusedAdmissions} from './unused-admissions.js';
 import {QuotaStore,type Admission} from './quota.js';
-import {applyQuotaHeaders} from './headers.js';
 import type pg from 'pg';
 import {transaction} from '../../db/src/index.js';
 import {DomainError,hash} from '../../contracts/src/index.js';
-import {concurrencyRetryAt,quotaWaiter,recoverableAdmissions,validateIntent,type AdmissionInput} from './admission.js';
+import {concurrencyRetryAt,limitedAtConfirmation,quotaWaiter,recoverQuotaGroup,validateIntent,type AdmissionInput} from './admission.js';
 
 /** One committed intent records the complete set before any multi-group Redis call. */
 export async function recordAdmissionBundle(pool:pg.Pool,bundleId:string,inputs:AdmissionInput[]){
@@ -18,8 +17,8 @@ export async function recordAdmissionBundle(pool:pg.Pool,bundleId:string,inputs:
  const canonical=sorted.map(input=>({...input,demands:input.demands.map(({key,capacity,amount,window_ms})=>({key,capacity,amount,window_ms})).sort((a,b)=>a.key.localeCompare(b.key))}));
  const fingerprint=hash(canonical);
  return transaction(pool,async tx=>{
+  // The bundle key only: confirmation rechecks every group's revision and recovery is gated in Redis.
   await tx.query('SELECT pg_advisory_xact_lock(hashtextextended($1,8193))',[bundleId]);
-  for(const input of sorted)await tx.query('SELECT pg_advisory_xact_lock(hashtextextended($1,8192))',[input.group_id]);
   const groups:Array<Awaited<ReturnType<typeof validateIntent>>>=[];for(const input of sorted)groups.push(await validateIntent(tx,input));
   const group=groups[0]!;
   if(!group.coordination_domain||groups.some(item=>item.organization_id!==group.organization_id||item.provider!==group.provider||item.coordination_domain!==group.coordination_domain))throw new DomainError('quota_domains_must_match');
@@ -41,10 +40,29 @@ export async function recordAdmissionBundle(pool:pg.Pool,bundleId:string,inputs:
  });
 }
 
-/** Group locks serialize concurrency, recovery and the acknowledgement of one atomic Redis result. */
-export async function acquireAdmissionBundle(pool:pg.Pool,url:string,installation:string,bundleId:string):Promise<Admission>{
- const stores:QuotaStore[]=[];
- try{return await withQuotaLocks(pool,{key:bundleId,namespace:8193},async(client,lock)=>{
+const notReady:Admission={allowed:false,reason:'not_ready'};
+type StoreFor=(group:{id:string;organization_id:string;coordination_domain:string|null})=>Promise<QuotaStore>;
+/**
+ * Admissions of one group run side by side, as in acquireDurable: two short transactions take the group keys
+ * shared, Redis runs between them without any lock, and confirming slots locks the group rows only for the
+ * short confirmation. A group whose Redis state is missing is rebuilt under its exclusive lock first.
+ * storeFor reuses the caller's connected stores; without it the stores of this call are opened and closed here.
+ */
+export async function acquireAdmissionBundle(pool:pg.Pool,url:string,installation:string,bundleId:string,storeFor?:StoreFor):Promise<Admission>{
+ const opened:QuotaStore[]=[];
+ const store:StoreFor=storeFor??(async group=>{const created=new QuotaStore(url,installation,group.id,JSON.stringify([group.organization_id,group.coordination_domain]));opened.push(created);created.redis.on('error',()=>{});await created.connect();return created});
+ try{
+  for(let round=0;;round++){
+   const result=await admitBundleOnce(pool,bundleId,store);
+   if(!Array.isArray(result))return result;
+   if(round>0)return notReady;
+   for(const [group,groupStore,own] of result)await recoverQuotaGroup(pool,groupStore,group,own);
+  }
+ }finally{await Promise.allSettled(opened.map(created=>created.close()))}
+}
+async function admitBundleOnce(pool:pg.Pool,bundleId:string,storeFor:StoreFor):Promise<Admission|Array<[string,QuotaStore,string]>>{
+ const client=await pool.connect();let lost=false;const disconnected=()=>{lost=true};client.on('error',disconnected);
+ try{
   const bundle=(await client.query('SELECT * FROM dispatch_admission_bundles WHERE id=$1',[bundleId])).rows[0];
   if(!bundle)throw new DomainError('quota_bundle_missing');
   let members=(await client.query(`SELECT a.*,a.slot_heartbeat_until>now() AS slot_live FROM dispatch_admission_bundle_members m
@@ -52,10 +70,11 @@ export async function acquireAdmissionBundle(pool:pg.Pool,url:string,installatio
   if(members.length<1)throw new DomainError('invalid_quota_bundle');
   // Use the same ordering as recordAdmissionBundle, independently of database collation.
   members.sort((a,b)=>a.group_id.localeCompare(b.group_id));
-  for(const member of members)await lock(member.group_id,8192);
+  const groupIds=members.map(member=>member.group_id as string);
   const signature=(rows:any[])=>hash(rows.map(row=>({id:row.id,group_id:row.group_id,request_id:row.request_id,fence:String(row.fencing_token),demands:row.demands})).sort((a,b)=>a.group_id.localeCompare(b.group_id)));
   const originalSignature=signature(members);
   const prepared=await quotaTransaction(client,async tx=>{
+   await tx.query('SELECT pg_advisory_xact_lock(hashtextextended($1,8193))',[bundleId]);
    const inputs=members.map(member=>({id:member.id,group_id:member.group_id,request_id:member.request_id,fence:String(member.fencing_token),demands:member.demands}));
    const groups:Array<Awaited<ReturnType<typeof validateIntent>>>=[];for(const input of inputs)groups.push(await validateIntent(tx,input));
    members=(await tx.query(`SELECT a.*,a.slot_heartbeat_until>now() AS slot_live FROM dispatch_admission_bundle_members m JOIN dispatch_admissions a ON a.id=m.admission_id WHERE m.bundle_id=$1 ORDER BY a.group_id FOR UPDATE OF a`,[bundleId])).rows;
@@ -77,24 +96,15 @@ export async function acquireAdmissionBundle(pool:pg.Pool,url:string,installatio
   });
   if(prepared.result)return prepared.result;
   const {groups,inputs}=prepared;
+  const stores:QuotaStore[]=[],missing:Array<[string,QuotaStore,string]>=[];
+  for(let index=0;index<groups.length;index++){const group=groups[index],groupStore=await storeFor(group);stores.push(groupStore);if(!await groupStore.isReady(group.recovery_epoch))missing.push([group.id,groupStore,members[index].id])}
+  if(missing.length)return missing;
   for(let index=0;index<members.length;index++){
-   const member=members[index],group=groups[index];
-   const store=new QuotaStore(url,installation,group.id,JSON.stringify([bundle.organization_id,bundle.coordination_domain]));stores.push(store);store.redis.on('error',()=>{});await store.connect();
-   if(!await store.isReady(group.recovery_epoch)){
-    await store.closeGate();
-    const prior=await recoverableAdmissions(client,group.id,member.id);
-    const recoveryTime=await store.currentTime();
-    for(const row of prior)await store.restore(row.id,row.admitted_at?new Date(row.admitted_at).getTime():recoveryTime,row.demands);
-    await applyQuotaUsage(client,store,group,true);
-    const observations=(await client.query("SELECT * FROM quota_observations WHERE group_id=$1 AND received_at>now()-interval '25 hours' ORDER BY received_at",[group.id])).rows;
-    const rules=(await client.query('SELECT key,metric,window_ms FROM provider_quota_rules WHERE group_id=$1',[group.id])).rows;
-    for(const observation of observations)await applyQuotaHeaders(store,rules,{...observation,sent_at:new Date(observation.sent_at).toISOString(),received_at:new Date(observation.received_at).toISOString()});
-    await store.markRestored(group.recovery_epoch);
-   }
-   await applyQuotaUsage(client,store,group);
-   await refundUnusedAdmissions(client,store,group);
+   const member=members[index],group=groups[index],groupStore=stores[index]!;
+   await applyQuotaUsage(client,groupStore,group);
+   await refundUnusedAdmissions(client,groupStore,group);
    if(group.blocked_until&&new Date(group.blocked_until).getTime()>Date.now()){
-    for(const demand of member.demands)await store.blockUntil(group.recovery_epoch,demand.key,new Date(group.blocked_until).getTime());
+    for(const demand of member.demands)await groupStore.blockUntil(group.recovery_epoch,demand.key,new Date(group.blocked_until).getTime());
    }
   }
   const waiter=await quotaWaiter(client,bundle.request_id);
@@ -107,12 +117,22 @@ export async function acquireAdmissionBundle(pool:pg.Pool,url:string,installatio
   // Without the unsent proof an epoch/cache conflict remains uncertain.
   if(!result.allowed&&(result.reason==='conflict'||result.reason==='not_ready'))return result;
   try{return await quotaTransaction(client,async tx=>{
+   await tx.query('SELECT pg_advisory_xact_lock(hashtextextended($1,8193))',[bundleId]);
    const currentGroups:Array<Awaited<ReturnType<typeof validateIntent>>>=[];
-   for(const input of inputs)currentGroups.push(await validateIntent(tx,input));
+   for(const input of inputs)currentGroups.push(await validateIntent(tx,input,'none'));
    const latest=(await tx.query(`SELECT a.*,a.slot_heartbeat_until>now() AS slot_live FROM dispatch_admission_bundle_members m
     JOIN dispatch_admissions a ON a.id=m.admission_id WHERE m.bundle_id=$1 ORDER BY a.group_id FOR UPDATE OF a`,[bundleId])).rows;
    latest.sort((a,b)=>a.group_id.localeCompare(b.group_id));
    if(signature(latest)!==originalSignature||latest.some((row,index)=>row.state!==members[index].state))throw new DomainError('quota_bundle_inconsistent');
+   // Only now, at the end, are the group rows locked: counting slots and writing the proofs are one at a time.
+   if(result.allowed&&latest.some(member=>member.state!=='admitted')){
+    const locked=await lockQuotaGroupRows(tx,groupIds);
+    for(let index=0;index<currentGroups.length;index++){
+     const row=locked.get(currentGroups[index].id);
+     if(!row||row.revision!==currentGroups[index].revision||row.recovery_epoch!==currentGroups[index].recovery_epoch)throw new DomainError('quota_revision_changed');
+     currentGroups[index]=row;
+    }
+   }
    for(let index=0;index<latest.length;index++){
     const member=latest[index],current=currentGroups[index],group=groups[index];
     if(current.organization_id!==bundle.organization_id||current.coordination_domain!==bundle.coordination_domain||current.provider!==group.provider)throw new DomainError('quota_domains_must_match');
@@ -120,8 +140,8 @@ export async function acquireAdmissionBundle(pool:pg.Pool,url:string,installatio
     if(member.unused_at||member.slot_released_at||member.slot_unknown_at||(member.state==='admitted'&&!member.slot_live))throw new DomainError('quota_slot_lost');
     if(result.allowed&&member.state!=='admitted'){
      const slots=(await tx.query(`SELECT count(*)::int n FROM dispatch_admissions WHERE group_id=$1 AND id<>$2 AND slot_released_at IS NULL AND slot_expires_at>now()`,[group.id,member.id])).rows[0];
-     if(slots.n>=current.concurrency_limit||await backgroundSlotsFull(tx,current,member.request_id,member.id))throw new DomainError('quota_concurrency_changed');
-     if(current.blocked_until&&new Date(current.blocked_until).getTime()>Date.now())throw new DomainError('quota_cooldown_changed');
+     if(slots.n>=current.concurrency_limit||await backgroundSlotsFull(tx,current,member.request_id,member.id))throw new DomainError('quota_concurrency_changed','Concurrency filled during admission',409,{retry_at:Date.now()+1000});
+     if(current.blocked_until&&new Date(current.blocked_until).getTime()>Date.now())throw new DomainError('quota_cooldown_changed','Cooldown began during admission',409,{retry_at:new Date(current.blocked_until).getTime()});
     }
    }
    // Validate every group before acknowledging any; all updates commit together.
@@ -138,7 +158,8 @@ export async function acquireAdmissionBundle(pool:pg.Pool,url:string,installatio
      WHERE d.id=ANY($1::text[]) AND d.state='intent' AND d.slot_unknown_at IS NULL
       AND NOT EXISTS(SELECT 1 FROM execution_attempts a WHERE a.request_id=d.request_id AND a.fencing_token=d.fencing_token)`,[members.map(member=>member.id)]);
    });
+   const limited=limitedAtConfirmation(error);if(limited)return limited;
    throw error;
   }
- });}finally{await Promise.allSettled(stores.map(store=>store.close()))}
+ }finally{client.off('error',disconnected);client.release(lost)}
 }

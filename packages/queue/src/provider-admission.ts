@@ -34,7 +34,7 @@ export function providerAdmission(pool:pg.Pool,url:string,installation:string){
    inputs.push({id:boundGroups.length===1?bundleId:`${bundleId}-${hash(group.id)}`,group_id:group.id,request_id:request.id,fence:String(request.fencing_token),demands});
   }
   let result;
-  if(inputs.length>1||boundGroups[0].coordination_domain){await recordAdmissionBundle(pool,bundleId,inputs);result=await acquireAdmissionBundle(pool,url,installation,bundleId)}
+  if(inputs.length>1||boundGroups[0].coordination_domain){await recordAdmissionBundle(pool,bundleId,inputs);result=await acquireAdmissionBundle(pool,url,installation,bundleId,storeFor)}
   else {await recordAdmissionIntent(pool,inputs[0]!);result=await acquireDurable(pool,await storeFor(boundGroups[0]),inputs[0]!)}
   let quota_wait;
   if(!result.allowed&&result.details){
@@ -45,7 +45,10 @@ export function providerAdmission(pool:pg.Pool,url:string,installation:string){
   // An admission changes what older and younger waiters may take: let the next ones in line try.
   if(result.allowed){await wakeQuotaWaiters(pool,boundGroups.map(group=>group.id));return {allowed:true,admission_id:inputs[0]!.id};}
   // The computed time assumes the window stays as full as it is; refunds and released slots free it sooner.
-  const retry_at=result.reason==='limited'?new Date(Math.min(result.retry_at!,Date.now()+QUOTA_RETRY_CEILING_MS)):undefined;
+  // Not ready (Redis being rebuilt, the group's rules or settings changing) and conflicts pass within a moment:
+  // retry soon. Without a retry time the call would pause until its deadline.
+  const retry_at=result.reason==='limited'?new Date(Math.min(result.retry_at!,Date.now()+QUOTA_RETRY_CEILING_MS))
+   :result.reason==='not_ready'||result.reason==='conflict'?new Date(Date.now()+1000):undefined;
   return {allowed:false,reason:result.reason==='too_large'?'quota_request_too_large':result.reason==='limited'?'waiting_rate_limit':`quota_${result.reason}`,...(retry_at?{retry_at}:{}),...(quota_wait?{quota_wait}:{})};
  };
 

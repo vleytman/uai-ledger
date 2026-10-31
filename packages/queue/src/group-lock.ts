@@ -40,7 +40,7 @@ async function localTurn(name:string){
  * again. Otherwise waiters filled a transaction-mode pool and the owner's own work could not get a
  * connection. A later key of a bundle is waited for in the transaction: one such waiter per process and key.
  */
-export async function withQuotaLocks<T>(pool:pg.Pool,first:LockKey,work:(client:pg.PoolClient,lock:(key:string,namespace:8192|8193)=>Promise<void>)=>Promise<T>){
+export async function withQuotaLocks<T>(pool:pg.Pool,first:LockKey&{wait?:boolean},work:(client:pg.PoolClient,lock:(key:string,namespace:8192|8193)=>Promise<void>)=>Promise<T>){
  const turns:Array<()=>void>=[];
  let holder:pg.PoolClient|undefined,client:pg.PoolClient|undefined,lost=false,open=false;
  // A lost holder has lost its locks: the next call of this process may go on while this one fails.
@@ -48,7 +48,9 @@ export async function withQuotaLocks<T>(pool:pg.Pool,first:LockKey,work:(client:
  try{
   turns.push(await localTurn(`${first.namespace}:${first.key}`));
   holder=await holderPool(pool).connect();holder.on('error',disconnected);
-  for(let wait=1;;wait=Math.min(wait*2,20)){
+  // A waiting exclusive request also turns away new shared tries, so it cannot be starved by them.
+  if(first.wait){await holder.query('BEGIN');open=true;await holder.query('SELECT pg_advisory_xact_lock(hashtextextended($1,$2))',[first.key,first.namespace])}
+  else for(let wait=1;;wait=Math.min(wait*2,20)){
    await holder.query('BEGIN');open=true;
    if((await holder.query('SELECT pg_try_advisory_xact_lock(hashtextextended($1,$2)) AS locked',[first.key,first.namespace])).rows[0].locked)break;
    await holder.query('ROLLBACK');open=false;
@@ -74,8 +76,26 @@ export async function withQuotaLocks<T>(pool:pg.Pool,first:LockKey,work:(client:
  }
 }
 
+/**
+ * The exclusive group lock, for what must not run beside admissions of the group: rebuilding its Redis state.
+ * One waiter per process; the wait is in PostgreSQL's lock queue, so admissions' shared tries make way for it.
+ */
 export async function withQuotaGroupLock<T>(pool:pg.Pool,groupId:string,work:(client:pg.PoolClient)=>Promise<T>){
- return withQuotaLocks(pool,{key:groupId,namespace:8192},client=>work(client));
+ return withQuotaLocks(pool,{key:groupId,namespace:8192,wait:true},client=>work(client));
+}
+
+/**
+ * Admissions of one group run side by side and hold no group lock. Confirmations count the group's held slots one
+ * at a time: the group rows stay locked to the end of the short confirming transaction. Changes of a group's rules
+ * or settings lock the same row, so a confirmation sees them; a Redis rebuild closes the Redis gate instead.
+ */
+export async function lockQuotaGroupRows(tx:Tx,groupIds:string[]):Promise<Map<string,any>>{
+ // The lock lasts until commit, so the commit need not wait for its WAL flush: the call is sent only after a later
+ // durable transaction (prepareDispatch), whose flush includes this one. Lost in a crash, the admission is an
+ // unconfirmed intent, which recovery already counts conservatively.
+ await tx.query("SET LOCAL synchronous_commit=off");
+ const rows=(await tx.query('SELECT * FROM provider_quota_groups WHERE id=ANY($1::text[]) ORDER BY id FOR UPDATE',[groupIds])).rows;
+ return new Map(rows.map(row=>[row.id,row]));
 }
 
 export async function quotaTransaction<T>(client:pg.PoolClient,work:(tx:Tx)=>Promise<T>){

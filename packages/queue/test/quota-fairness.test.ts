@@ -46,12 +46,12 @@ describe.skipIf(!pool||!url)('fair order within a quota group',()=>{
    expect(order).toEqual(['old','young']);
 
    // A waiter that never comes back keeps its place only until its retry time plus the grace.
-   QuotaStore.waiterGraceMs=1000;
+   QuotaStore.waiterGraceMs=3000;
    await delay(window);
    const gone=await call(),late=await call(),fill=await call();
    expect((await attempt(fill,90)).allowed).toBe(true);
    const refused=await attempt(gone,95);expect(refused).toMatchObject({allowed:false,reason:'limited'});
-   const lapses=(refused as {retry_at:number}).retry_at+1000;
+   const lapses=(refused as {retry_at:number}).retry_at+3000;
    expect(await attempt(late,10)).toMatchObject({allowed:false,details:{ahead:1}});
    // The window is empty again, yet 95 stays reserved for the absent caller until it lapses.
    await delay(Math.max(0,(refused as {retry_at:number}).retry_at+200-Date.now()));

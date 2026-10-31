@@ -2,6 +2,7 @@ import {isolatedTestDatabase} from '../../db/test/isolated-database.js';
 import {ConnectionService} from '../../reconciliation/src/connections.js';
 import {recordAdmissionBundle,acquireAdmissionBundle} from '../src/admission-bundle.js';
 import {providerAdmission} from '../src/provider-admission.js';
+import {setTimeout as delay} from 'node:timers/promises';
 import {beforeAll,afterAll,describe,it,expect,vi} from 'vitest';
 import {createHash} from 'node:crypto';
 import {createPool,transaction} from '../../db/src/index.js';
@@ -54,9 +55,12 @@ describe.skipIf(!enabled)('durable quota admission',()=>{
      AND l.database=(SELECT oid FROM pg_database WHERE datname=current_database())
      AND l.classid::bigint=((hashtextextended($1,8192)>>32)&4294967295)
      AND l.objid::bigint=(hashtextextended($1,8192)&4294967295)`,[f.group])).rows;
-   expect(owners).toHaveLength(1);expect(owners[0]).toMatchObject({state:'idle in transaction',application_name:'uai-quota-lock'});
-   expect((await pool!.query('SELECT pg_terminate_backend($1) AS terminated',[owners[0].pid])).rows[0].terminated).toBe(true);
-   await vi.waitFor(async()=>expect((await pool!.query('SELECT 1 FROM pg_stat_activity WHERE pid=$1',[owners[0].pid])).rows).toEqual([]),{timeout:5000});
+   if(boundary==='restore'){
+    // Rebuilding Redis holds the group exclusively; losing that connection must free the group for another owner.
+    expect(owners).toHaveLength(1);expect(owners[0]).toMatchObject({state:'idle in transaction',application_name:'uai-quota-lock'});
+    expect((await pool!.query('SELECT pg_terminate_backend($1) AS terminated',[owners[0].pid])).rows[0].terminated).toBe(true);
+    await vi.waitFor(async()=>expect((await pool!.query('SELECT 1 FROM pg_stat_activity WHERE pid=$1',[owners[0].pid])).rows).toEqual([]),{timeout:5000});
+   }else expect(owners).toEqual([]); // Admissions hold no group lock while Redis answers.
    // Another owner completes recovery and admission before the old Redis call returns.
    expect((await (coordinated?acquireAdmissionBundle(pool!,url!,'test',bundle):acquireDurable(pool!,replacement,input))).allowed).toBe(true);
    unblock();const stale=await pending;expect(stale.result).toBeUndefined();expect(stale.error).toBeInstanceOf(Error);
@@ -93,8 +97,8 @@ describe.skipIf(!enabled)('durable quota admission',()=>{
      AND l.database=(SELECT oid FROM pg_database WHERE datname=current_database())
      AND l.classid::bigint=((hashtextextended($1,$2)>>32)&4294967295)
      AND l.objid::bigint=(hashtextextended($1,$2)&4294967295)`,[key,namespace])).rows;
-   const held=await locks(bundle,8193);expect(held).toHaveLength(1);expect(held[0]).toMatchObject({state:'idle in transaction',application_name:'uai-quota-lock'});
-   for(const input of inputs)expect(await locks(input.group_id,8192)).toEqual(held);
+   // No lock of the bundle or its groups while Redis answers: other admissions go on.
+   expect(await locks(bundle,8193)).toEqual([]);for(const input of inputs)expect(await locks(input.group_id,8192)).toEqual([]);
    await transaction(pool!,async tx=>{
     await tx.query("SET LOCAL lock_timeout='500ms'");
     await tx.query('SELECT id FROM execution_requests WHERE id=$1 FOR UPDATE',[inputs[0].request_id]);
@@ -111,7 +115,9 @@ describe.skipIf(!enabled)('durable quota admission',()=>{
    if(change==='none'){
     expect(outcome.result).toMatchObject({allowed:true});expect(rows).toEqual([{state:'admitted',unused:false},{state:'admitted',unused:false}]);
    }else{
-    expect(outcome.error?.code).toBe(change==='cancel'?'stale_lease':change==='capacity'?'quota_rules_mismatch':change==='concurrency'?'quota_concurrency_changed':'quota_cooldown_changed');
+    // A slot or a cooldown taken meanwhile is a limit; the other changes refuse the confirmation.
+    if(change==='concurrency'||change==='cooldown')expect(outcome.result).toMatchObject({allowed:false,reason:'limited',rule:change});
+    else expect(outcome.error?.code).toBe(change==='cancel'?'stale_lease':'quota_rules_mismatch');
     expect(rows).toEqual([{state:'intent',unused:true},{state:'intent',unused:true}]);
    }
    expect((await pool!.query('SELECT id FROM execution_attempts WHERE request_id=$1',[inputs[0].request_id])).rows).toEqual([]);
@@ -138,7 +144,8 @@ describe.skipIf(!enabled)('durable quota admission',()=>{
      AND l.database=(SELECT oid FROM pg_database WHERE datname=current_database())
      AND l.classid::bigint=((hashtextextended($1,8192)>>32)&4294967295)
      AND l.objid::bigint=(hashtextextended($1,8192)&4294967295)`,[f.group])).rows;
-   expect(await locks()).toEqual([{state:'idle in transaction',application_name:'uai-quota-lock'}]);
+   // No group lock while Redis answers: other admissions of the group go on.
+   expect(await locks()).toEqual([]);
    await transaction(pool!,async tx=>{
     await tx.query("SET LOCAL lock_timeout='500ms'");
     await tx.query('SELECT id FROM execution_requests WHERE id=$1 FOR UPDATE',[input.request_id]);
@@ -153,7 +160,8 @@ describe.skipIf(!enabled)('durable quota admission',()=>{
    unblock();const outcome=await pending;
    if(change==='none')expect(outcome.result).toMatchObject({allowed:true});
    else{
-    expect(outcome.error?.code).toBe(change==='cancel'?'stale_lease':change==='capacity'?'quota_rules_mismatch':change==='concurrency'?'quota_concurrency_changed':'quota_cooldown_changed');
+    if(change==='concurrency'||change==='cooldown')expect(outcome.result).toMatchObject({allowed:false,reason:'limited',rule:change});
+    else expect(outcome.error?.code).toBe(change==='cancel'?'stale_lease':'quota_rules_mismatch');
     expect((await pool!.query('SELECT state,unused_at IS NOT NULL AS unused FROM dispatch_admissions WHERE id=$1',[input.id])).rows).toEqual([{state:'intent',unused:true}]);
    }
    expect((await pool!.query('SELECT id FROM execution_attempts WHERE request_id=$1',[input.request_id])).rows).toEqual([]);
@@ -455,6 +463,27 @@ describe.skipIf(!enabled)('durable quota admission',()=>{
    const result=await acquireDurable(pool!,f.store,second);expect(result).toMatchObject({allowed:false,reason:'limited'});
    if(!result.allowed)expect(result.retry_at).toBeGreaterThan(Date.now()+85000);
   }finally{await broker.close();await f.cleanup()}
+ });
+ for(const coordinated of [false,true])it(`admits a call of a group while another of the same group waits for Redis (${coordinated?'bundle':'single'})`,async()=>{
+  const f=await fixture(100),domain=id('domain');let unblock!:()=>void,reached=false,spy:{mockRestore():void}|undefined;
+  const gate=new Promise<void>(resolve=>{unblock=resolve});
+  try{
+   await pool!.query('UPDATE provider_quota_groups SET concurrency_limit=100 WHERE id=$1',[f.group]);
+   if(coordinated)await pool!.query('UPDATE provider_quota_groups SET coordination_domain=$2 WHERE id=$1',[f.group,domain]);
+   const store=coordinated?undefined:f.store;
+   const admit=async()=>{const input=await f.add(),bundle=id('bundle');if(coordinated)await recordAdmissionBundle(pool!,bundle,[input]);else await recordAdmissionIntent(pool!,input);return ()=>coordinated?acquireAdmissionBundle(pool!,url!,'test',bundle):acquireDurable(pool!,store!,input)};
+   const slow=await admit(),fast=await admit();
+   // Opens the group's Redis state first, so neither call below rebuilds it.
+   await (await admit())();
+   const acquire=QuotaStore.acquireMany.bind(QuotaStore);let stalled=false;
+   spy=vi.spyOn(QuotaStore,'acquireMany').mockImplementation(async inputs=>{if(!stalled){stalled=true;reached=true;await gate}return acquire(inputs)});
+   const pending=slow();
+   await vi.waitFor(()=>expect(reached).toBe(true),{timeout:5000});
+   // Before, the second waited for the first one's group lock, as long as Redis took.
+   const result=await Promise.race([fast(),delay(5000).then(()=>'waited')]);
+   expect(result).toMatchObject({allowed:true});
+   unblock();expect(await pending).toMatchObject({allowed:true});
+  }finally{unblock();spy?.mockRestore();await f.cleanup()}
  });
  it('arbitrates the last concurrent slot and releases only that slot after a known result',async()=>{
   const f=await fixture(100),broker=providerAdmission(pool!,url!,'test');
